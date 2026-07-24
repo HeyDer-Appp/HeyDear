@@ -1,0 +1,87 @@
+services:
+  # ── Backend — Express API ──────────────────────────────────────────────
+  - type: web
+    name: heyder-server
+    runtime: node
+    plan: free
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Firebase Admin SDK — fill these in manually in the Render dashboard
+      # from your service account key (Firebase Console → Project Settings
+      # → Service Accounts). Left blank on purpose so real secrets never end
+      # up committed to the repo.
+      - key: FIREBASE_PROJECT_ID
+        sync: false
+      - key: FIREBASE_CLIENT_EMAIL
+        sync: false
+      - key: FIREBASE_PRIVATE_KEY
+        sync: false
+      # NOTE: Render's `fromService`/`property: host` only returns the bare
+      # hostname (e.g. "heyder-client"), not a full https:// URL — that broke
+      # both CORS here and the frontend's API calls below. Hardcoded to the
+      # actual deployed URL instead. If either service is ever renamed or
+      # redeployed under a different account (causing a different generated
+      # URL), update this value to match.
+      - key: CLIENT_URL
+        value: https://heyder-client.onrender.com
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: STRIPE_ONE_TIME_AMOUNT
+        value: "1000"
+      - key: STRIPE_SUBSCRIPTION_AMOUNT
+        value: "1500"
+      - key: STRIPE_CURRENCY
+        value: nzd
+      - key: EMAIL_PROVIDER
+        value: resend
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        value: "HeyDer <info@heyder.nz>"
+      - key: TYPEFORM_API_KEY
+        sync: false
+      - key: TYPEFORM_FORM_ID
+        value: OAxjrKyW
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: GLIMPSE_REVEAL_MINUTES
+        value: "2880" # 48 hours — the 2-minute value is test-only, don't ship it
+      - key: VENUE_REVEAL_MINUTES
+        value: "1440" # 24 hours
+
+  # ── Frontend — static React build ───────────────────────────────────────
+  - type: web
+    name: heyder-client
+    runtime: static
+    rootDir: client
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      # See NOTE on CLIENT_URL above — bare hostname from fromService/host
+      # doesn't work as a fetch target, so hardcode the real URL.
+      - key: VITE_API_URL
+        value: https://heyder-server.onrender.com
+      - key: VITE_STRIPE_PUBLISHABLE_KEY
+        sync: false
+      - key: VITE_VAPID_PUBLIC_KEY
+        sync: false
+      - key: VITE_FIREBASE_API_KEY
+        sync: false
+      - key: VITE_FIREBASE_AUTH_DOMAIN
+        sync: false
+      - key: VITE_FIREBASE_PROJECT_ID
+        sync: false
+      - key: VITE_FIREBASE_APP_ID
+        sync: false

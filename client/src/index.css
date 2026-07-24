@@ -1,0 +1,174 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: #16181d;
+    color: #F5EDD8;
+    font-family: 'Jost', Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Cormorant Garamond', Georgia, serif;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-block bg-gold text-navy font-sans font-semibold text-sm tracking-widest uppercase px-8 py-4 rounded transition-all duration-200 hover:bg-yellow hover:scale-105 active:scale-95;
+  }
+
+  .btn-outline {
+    @apply inline-block border border-cream text-cream font-sans font-semibold text-sm tracking-widest uppercase px-8 py-4 rounded transition-all duration-200 hover:bg-cream hover:text-navy;
+  }
+
+  .card {
+    @apply bg-dark-card rounded-xl border border-white/5 p-6;
+  }
+
+  .section {
+    @apply py-20 px-6 max-w-6xl mx-auto;
+  }
+
+  .section-title {
+    @apply font-serif text-4xl md:text-5xl text-cream leading-tight;
+  }
+
+  .accent-dash {
+    @apply text-yellow font-bold;
+  }
+
+  .input-field {
+    @apply w-full bg-deep-card border border-white/10 rounded-lg px-4 py-3 text-cream placeholder-cream/30 font-sans text-base focus:outline-none focus:border-gold/50 transition-colors;
+  }
+
+  .quiz-input {
+    @apply w-full border rounded-2xl px-5 py-3.5 font-sans text-base focus:outline-none transition-all;
+    background: rgba(231, 220, 189, 0.04);
+    border-color: rgba(231, 220, 189, 0.15);
+    color: rgba(231, 220, 189, 0.85);
+  }
+  .quiz-input::placeholder {
+    color: rgba(231, 220, 189, 0.25);
+  }
+  .quiz-input:focus {
+    border-color: rgba(231, 220, 189, 0.45);
+    background: rgba(231, 220, 189, 0.06);
+    outline: none;
+  }
+
+  .quiz-cta {
+    @apply inline-flex items-center justify-center gap-2 font-sans font-medium text-sm tracking-widest uppercase px-8 py-4 rounded-2xl transition-all duration-200 active:scale-[0.98];
+    border: 1px solid rgba(231, 220, 189, 0.45);
+    color: rgba(231, 220, 189, 0.85);
+    background: transparent;
+  }
+  .quiz-cta:hover {
+    background: #E8A854;
+    color: #16181d;
+    border-color: #E8A854;
+    box-shadow: 0 8px 40px rgba(232, 168, 84, 0.25);
+  }
+
+  .nav-link {
+    @apply text-cream/70 hover:text-cream font-sans text-sm tracking-wide transition-colors duration-200;
+  }
+
+  .quiz-bg {
+    background: #16181d;
+    background-image: radial-gradient(circle at 100% 0%, rgba(232, 168, 84, 0.08), transparent 45%);
+  }
+
+  .quiz-card {
+    @apply rounded-2xl p-6;
+    background: rgba(231, 220, 189, 0.04);
+    border: 1px solid rgba(231, 220, 189, 0.12);
+  }
+}
+
+/* Ticker animation */
+.ticker-wrap {
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.ticker-inner {
+  display: inline-block;
+  animation: ticker 30s linear infinite;
+}
+
+@keyframes ticker {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #16181d;
+}
+::-webkit-scrollbar-thumb {
+  background: #434c59;
+  border-radius: 3px;
+}
+
+/* FAQ accordion */
+.faq-answer {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease-out;
+}
+.faq-answer.open {
+  max-height: 400px;
+}
+
+/* Quiz step transition */
+.quiz-step-enter {
+  opacity: 0;
+  transform: translateX(40px);
+}
+.quiz-step-enter-active {
+  opacity: 1;
+  transform: translateX(0);
+  transition: all 0.35s ease;
+}
+.quiz-step-exit {
+  opacity: 1;
+  transform: translateX(0);
+}
+.quiz-step-exit-active {
+  opacity: 0;
+  transform: translateX(-40px);
+  transition: all 0.35s ease;
+}
+
+/* Star rating */
+.star-btn {
+  transition: transform 0.1s;
+}
+.star-btn:hover {
+  transform: scale(1.2);
+}
+
+/* Drag and drop */
+.dragging {
+  opacity: 0.5;
+  transform: rotate(2deg);
+}
+.drag-over {
+  border-color: #E8A854 !important;
+  background-color: rgba(232, 168, 84, 0.08) !important;
+}

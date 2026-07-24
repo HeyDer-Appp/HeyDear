@@ -1,0 +1,107 @@
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const helmet = require('helmet');
+const compression = require('compression');
+const morgan = require('morgan');
+
+const { apiLimiter } = require('./middleware/rateLimiter');
+
+const pushService = require('./services/push');
+const pushRoutes = require('./routes/push');
+const authRoutes = require('./routes/auth');
+const profileRoutes = require('./routes/profile');
+const paymentRoutes = require('./routes/payments');
+const portalRoutes = require('./routes/portal');
+const feedbackRoutes = require('./routes/feedback');
+const typeformRoutes = require('./routes/typeform');
+
+const adminSignupsRoutes = require('./routes/admin/signups');
+const adminMatchingRoutes = require('./routes/admin/matching');
+const adminAnalyticsRoutes = require('./routes/admin/analytics');
+const adminDinnersRoutes = require('./routes/admin/dinners');
+const adminAmbassadorsRoutes = require('./routes/admin/ambassadors');
+
+if (process.env.NODE_ENV === 'production') {
+  const required = [
+    'FIREBASE_PROJECT_ID', 'FIREBASE_CLIENT_EMAIL', 'FIREBASE_PRIVATE_KEY',
+    'STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET',
+  ];
+  const missing = required.filter((key) => !process.env[key]);
+  if (missing.length) {
+    console.error(`Missing required environment variable(s) in production: ${missing.join(', ')}`);
+    process.exit(1);
+  }
+}
+
+const app = express();
+
+// Render/Railway sit in front of this app as a reverse proxy — without this,
+// express-rate-limit and req.ip both see the proxy's IP for every request.
+app.set('trust proxy', 1);
+
+app.use(helmet({ contentSecurityPolicy: false }));
+app.use(compression());
+app.use(morgan('combined'));
+
+app.use(cors({
+  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
+
+// Stripe webhook needs raw body
+app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true }));
+
+app.use('/api', apiLimiter);
+
+app.get('/api/health', (req, res) => res.json({ status: 'ok', version: '1.0.0' }));
+
+pushService.init();
+
+app.use('/api/auth', authRoutes);
+app.use('/api/push', pushRoutes);
+app.use('/api/profile', profileRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/portal', portalRoutes);
+app.use('/api/feedback', feedbackRoutes);
+app.use('/api/typeform', typeformRoutes);
+
+app.use('/api/admin/signups', adminSignupsRoutes);
+app.use('/api/admin/matching', adminMatchingRoutes);
+app.use('/api/admin/analytics', adminAnalyticsRoutes);
+app.use('/api/admin/dinners', adminDinnersRoutes);
+app.use('/api/admin/ambassadors', adminAmbassadorsRoutes);
+
+app.use('/api', (req, res) => res.status(404).json({ error: 'Not found' }));
+
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ error: 'Something went wrong' });
+});
+
+const PORT = process.env.PORT || 3001;
+
+function start() {
+  const server = app.listen(PORT, () => {
+    console.log(`HeyDer server running on port ${PORT}`);
+    console.log(`Admin setup: POST http://localhost:${PORT}/api/auth/admin/setup`);
+  });
+
+  const shutdown = (signal) => {
+    console.log(`\n${signal} received, shutting down gracefully...`);
+    server.close(() => process.exit(0));
+    // Force-exit if connections don't drain in time.
+    setTimeout(() => process.exit(1), 10000).unref();
+  };
+
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
+}
+
+start();
+
+module.exports = app;
