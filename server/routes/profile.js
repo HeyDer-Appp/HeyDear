@@ -25,15 +25,17 @@ router.get('/questions', async (req, res) => {
 });
 
 async function getAvailableDates() {
-  const now = admin.firestore.Timestamp.now();
-  const snap = await db.collection('dinners')
-    .where('status', '==', 'upcoming')
-    .where('date', '>', now)
-    .orderBy('date', 'asc')
-    .get();
-  const availableDates = snap.docs.map(d =>
-    d.data().date.toDate().toLocaleDateString('en-NZ', { day: 'numeric', month: 'long', year: 'numeric' })
-  );
+  // Single equality filter only (no range + orderBy combo) so this never
+  // depends on a composite index existing in Firestore — dinners are few
+  // enough to sort in memory.
+  const snap = await db.collection('dinners').where('status', '==', 'upcoming').get();
+  const now = Date.now();
+  const availableDates = snap.docs
+    .map(d => d.data().date.toDate())
+    .filter(date => date.getTime() > now)
+    .sort((a, b) => a - b)
+    .map(date => date.toLocaleDateString('en-NZ', { day: 'numeric', month: 'long', year: 'numeric' }));
+
   if (availableDates.length === 0) {
     availableDates.push('30th June 2026', '7th July 2026');
   }
@@ -72,15 +74,37 @@ router.post('/submit', attendeeAuth, quizLimiter, async (req, res) => {
     }
 
     const result = await db.runTransaction(async (tx) => {
+      // Firestore transactions require every read to happen before any
+      // write, so all three lookups run first, then every tx.set() after.
       const userSnap = await tx.get(userRef);
-      if (!userSnap.exists) throw new Error('User profile not found — call /auth/attendee/register first');
-      const existingUser = userSnap.data();
+
+      const ambRef = referral_code ? db.collection('ambassadors').doc(referral_code) : null;
+      const ambSnap = ambRef ? await tx.get(ambRef) : null;
+
+      const existingBookingSnap = parsedDate
+        ? await tx.get(
+            db.collection('bookings')
+              .where('userId', '==', req.user.id)
+              .where('tuesdayDate', '==', parsedDate)
+          )
+        : null;
+
+      // Normally /auth/attendee/register creates this doc right after
+      // signup, but don't hard-fail if it's somehow missing (e.g. that call
+      // errored, or this is a legacy account) — self-heal instead of
+      // leaving the attendee stuck unable to ever submit their profile.
+      const existingUser = userSnap.exists ? userSnap.data() : { email: req.user.email };
 
       const userUpdate = {
         ...answers,
         profileComplete: true,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       };
+      if (!userSnap.exists) {
+        userUpdate.email = req.user.email;
+        userUpdate.city = 'Auckland';
+        userUpdate.createdAt = admin.firestore.FieldValue.serverTimestamp();
+      }
       if (first_name) userUpdate.firstName = first_name;
       if (last_name) userUpdate.lastName = last_name;
       if (phone !== undefined) userUpdate.phone = phone;
@@ -92,30 +116,16 @@ router.post('/submit', attendeeAuth, quizLimiter, async (req, res) => {
       if (photo !== undefined) userUpdate.photo = photo;
       tx.set(userRef, userUpdate, { merge: true });
 
-      if (referral_code) {
-        const ambRef = db.collection('ambassadors').doc(referral_code);
-        const ambSnap = await tx.get(ambRef);
-        if (ambSnap.exists) {
-          tx.set(ambRef.collection('referrals').doc(req.user.id), {
-            userId: req.user.id,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          }, { merge: true });
-        }
+      if (ambSnap?.exists) {
+        tx.set(ambRef.collection('referrals').doc(req.user.id), {
+          userId: req.user.id,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
       }
 
-      let bookingRef;
-      if (parsedDate) {
-        const existingBooking = await tx.get(
-          db.collection('bookings')
-            .where('userId', '==', req.user.id)
-            .where('tuesdayDate', '==', parsedDate)
-        );
-        bookingRef = existingBooking.empty
-          ? db.collection('bookings').doc()
-          : existingBooking.docs[0].ref;
-      } else {
-        bookingRef = db.collection('bookings').doc();
-      }
+      const bookingRef = existingBookingSnap && !existingBookingSnap.empty
+        ? existingBookingSnap.docs[0].ref
+        : db.collection('bookings').doc();
 
       tx.set(bookingRef, {
         userId: req.user.id,

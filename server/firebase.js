@@ -21,6 +21,11 @@ const app = getApps().length ? getApps()[0] : initializeApp({
 });
 
 const db = getFirestore(app);
+// Optional fields throughout this app (phone, dietary notes, restaurant
+// details, etc.) legitimately end up `undefined` in JS — the Firestore SDK
+// throws on that by default instead of just omitting the key. Every route
+// would otherwise need its own undefined-scrubbing before every write.
+db.settings({ ignoreUndefinedProperties: true });
 const auth = getAuth(app);
 
 // Shim so route files can keep using `admin.firestore.FieldValue.serverTimestamp()`
