@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { loadStripe } from '@stripe/stripe-js';
 import toast from 'react-hot-toast';
 import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
+import { fileToResizedBase64 } from '../utils/image';
 
 export const CHAPTERS = [
   { id: 'basics', title: 'The Basics', blurb: 'Quick logistics so we know where and when to seat you.' },
@@ -15,12 +16,17 @@ export const CHAPTERS = [
 ];
 
 export const QUESTIONS = [
-  { id: 'chapter_basics', type: 'chapter_intro', chapterId: 'basics' },
+  {
+    id: 'photo',
+    type: 'photo',
+    title: 'Add a profile photo',
+    description: "Optional, but it helps your table recognise you",
+    required: false,
+  },
   {
     id: 'auckland',
     type: 'yes_no',
     title: 'Are you in Auckland?',
-    description: 'We are currently curating dinners only in Auckland.',
     field: 'field_iunObNMC8bY1',
     chapter: 'basics',
     required: true,
@@ -53,7 +59,6 @@ export const QUESTIONS = [
     required: true,
     choices: ['Not Working', 'Student', 'Building Foundations', 'Settled Professional', 'New to city'],
   },
-  { id: 'chapter_vibe', type: 'chapter_intro', chapterId: 'vibe' },
   {
     id: 'personality',
     type: 'choice',
@@ -101,7 +106,6 @@ export const QUESTIONS = [
     min: 0, max: 10,
     labels: ['Not at all', 'Very much so'],
   },
-  { id: 'chapter_connect', type: 'chapter_intro', chapterId: 'connect' },
   {
     id: 'financial',
     type: 'scale',
@@ -151,7 +155,6 @@ export const QUESTIONS = [
     required: true,
     choices: ['Small but close', 'Decent but need depth', 'Mostly online', 'Pretty much none'],
   },
-  { id: 'chapter_draws_in', type: 'chapter_intro', chapterId: 'draws_in' },
   {
     id: 'group_role',
     type: 'choice',
@@ -214,7 +217,6 @@ export const QUESTIONS = [
     required: true,
     choices: ['Ask lots of questions', 'Wait for them to open up', 'Crack a joke to break the ice', 'Just vibe and see what happens'],
   },
-  { id: 'chapter_favourites', type: 'chapter_intro', chapterId: 'favourites' },
   {
     id: 'topics',
     type: 'choice',
@@ -261,7 +263,6 @@ export const QUESTIONS = [
     required: false,
     choices: ['Not Applicable', 'Gluten free', 'Dairy free', 'Nut free', 'Vegan', 'Vegetarian'],
   },
-  { id: 'chapter_you', type: 'chapter_intro', chapterId: 'you' },
   {
     id: 'contact',
     type: 'contact',
@@ -276,12 +277,10 @@ export const QUESTIONS = [
     chapter: 'you',
     required: true,
   },
-  { id: 'profile_complete', type: 'celebration' },
   {
     id: 'date',
     type: 'choice',
     title: 'Which Tuesday night works for you?',
-    description: 'Your profile is set — now let\'s pick your night',
     field: 'field_CdZldwp5q09o',
     required: true,
     choices: ['30th June 2026', '7th July 2026'],
@@ -303,84 +302,148 @@ const COUNTRIES = [
   'Other',
 ];
 
-const ROLE_SHORT = {
-  'Comes up with the wild ideas': 'Ideas person',
-  'Keeps everyone on track': 'Organizer',
-  "Makes sure no one's left out": 'Includer',
-  'Pushes the group to actually decide something': 'Closer',
-  'Asks the smart, cautious questions': 'Analyst',
-  'Knows someone for everything': 'Connector',
-};
-
-/* ── Button styles: cream/champagne on navy, solid inversion when selected ── */
 const choiceBase =
-  'w-full text-left px-5 py-[14px] rounded-2xl border font-sans text-base transition-all duration-200 flex items-center justify-between cursor-pointer';
+  'text-left px-4 py-2.5 rounded-xl border font-sans text-sm transition-all duration-150 cursor-pointer';
 const choiceIdle =
   'border-[#e7dcbd]/18 bg-[#e7dcbd]/[0.04] text-[#e7dcbd]/65 hover:border-[#e7dcbd]/40 hover:bg-[#e7dcbd]/[0.08] hover:text-[#e7dcbd]/95';
 const choiceActive =
-  'border-gold bg-gold text-navy shadow-[0_8px_32px_rgba(232,168,84,0.25)]';
+  'border-gold bg-gold text-navy font-medium shadow-[0_4px_16px_rgba(232,168,84,0.2)]';
 
-const ChoiceTick = () => (
-  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="flex-shrink-0 ml-3">
-    <circle cx="8" cy="8" r="7.5" stroke="#16181d" strokeWidth="1" strokeOpacity="0.3" />
-    <path d="M4.5 8l2.5 2.5 4.5-5" stroke="#16181d" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
+const PHOTO_Q = QUESTIONS.find(q => q.id === 'photo');
+const DATE_Q = QUESTIONS.find(q => q.id === 'date');
+const CHAPTER_QUESTIONS = CHAPTERS.map(chap => ({
+  chapter: chap,
+  questions: QUESTIONS.filter(q => q.chapter === chap.id),
+}));
 
-// A little "level up" stepper across the 6 profile chapters — turns the
-// abstract progress bar into something that feels like clearing stages,
-// not just a percentage ticking up.
-function ChapterStepper({ currentChapterIndex }) {
-  if (currentChapterIndex < 0) return null;
+// Every field that has to be filled in before the profile counts as "done" —
+// drives both the completion % and the final submit validation.
+const REQUIRED_FIELD_QUESTIONS = QUESTIONS.filter(q => q.required && q.field);
+
+function isAnswered(value) {
+  if (Array.isArray(value)) return value.length > 0;
+  return value !== undefined && value !== '' && value !== null;
+}
+
+// One question's answer widget — reused across every chapter section.
+function QuestionField({ q, value, onChange, error }) {
   return (
-    <div className="flex items-center justify-center gap-1.5">
-      {CHAPTERS.map((c, i) => {
-        const done = i < currentChapterIndex;
-        const active = i === currentChapterIndex;
-        return (
-          <React.Fragment key={c.id}>
-            <div
-              title={c.title}
-              className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-sans font-bold transition-all duration-300 ${
-                done
-                  ? 'bg-gold text-navy'
-                  : active
-                    ? 'border-2 border-gold text-gold scale-110'
-                    : 'border border-cream/15 text-cream/25'
-              }`}
+    <div id={`q-${q.id}`} className={`py-4 ${error ? 'rounded-xl -mx-3 px-3 bg-red-500/5' : ''}`}>
+      <p className="font-sans text-cream text-[15px] mb-3 leading-snug">
+        {q.title}{q.required && <span className="text-gold/60"> *</span>}
+      </p>
+
+      {q.type === 'yes_no' && (
+        <div className="flex gap-2.5">
+          {[{ label: 'Yes', v: true }, { label: 'No', v: false }].map(opt => (
+            <button
+              key={opt.label}
+              type="button"
+              onClick={() => onChange(opt.v)}
+              className={`flex-1 py-2.5 rounded-xl border font-sans text-sm transition-all ${value === opt.v ? choiceActive : choiceIdle}`}
             >
-              {done ? '✓' : i + 1}
-            </div>
-            {i < CHAPTERS.length - 1 && (
-              <div className={`w-3 h-px transition-colors duration-300 ${done ? 'bg-gold' : 'bg-cream/10'}`} />
-            )}
-          </React.Fragment>
-        );
-      })}
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {q.type === 'choice' && (
+        <div className="flex flex-wrap gap-2">
+          {q.choices.map(choice => (
+            <button
+              key={choice}
+              type="button"
+              onClick={() => onChange(choice)}
+              className={`${choiceBase} ${value === choice ? choiceActive : choiceIdle}`}
+            >
+              {choice}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {q.type === 'multi_choice' && (
+        <div className="flex flex-wrap gap-2">
+          {q.choices.map(choice => {
+            const cur = value || [];
+            const selected = cur.includes(choice);
+            return (
+              <button
+                key={choice}
+                type="button"
+                onClick={() => {
+                  if (choice === 'Not Applicable') { onChange(['Not Applicable']); return; }
+                  const filtered = cur.filter(c => c !== 'Not Applicable');
+                  onChange(selected ? filtered.filter(c => c !== choice) : [...filtered, choice]);
+                }}
+                className={`${choiceBase} ${selected ? choiceActive : choiceIdle}`}
+              >
+                {choice}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {q.type === 'scale' && (
+        <div>
+          <div className="flex justify-between mb-2">
+            <span className="font-sans text-cream/35 text-xs">{q.labels?.[0]}</span>
+            <span className="font-sans text-cream/35 text-xs">{q.labels?.[1]}</span>
+          </div>
+          <div className="flex gap-1.5 justify-between">
+            {Array.from({ length: q.max - q.min + 1 }, (_, i) => i + q.min).map(n => (
+              <button
+                key={n}
+                type="button"
+                onClick={() => onChange(n)}
+                className={`flex-1 aspect-square max-w-[38px] rounded-full font-sans text-xs font-medium transition-all ${
+                  value === n
+                    ? 'bg-gold text-navy scale-110'
+                    : 'border border-[#e7dcbd]/15 bg-[#e7dcbd]/[0.03] text-[#e7dcbd]/40 hover:border-[#e7dcbd]/40 hover:text-[#e7dcbd]/90'
+                }`}
+              >
+                {n}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {q.type === 'text' && (
+        <textarea
+          value={value || ''}
+          onChange={e => onChange(e.target.value)}
+          placeholder={q.placeholder}
+          rows={2}
+          className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-3 text-cream placeholder-cream/25 font-sans text-sm focus:outline-none focus:border-gold/50 resize-none"
+        />
+      )}
     </div>
   );
 }
 
-// Returning attendee with a complete profile skips straight to Tuesday selection + payment.
-const RETURNING_STEP_IDS = ['date', 'payment'];
-
 export default function Quiz() {
   const navigate = useNavigate();
   const { attendeeUser } = useAuth();
-  const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState({});
-  const [transitioning, setTransitioning] = useState(false);
+  const [errors, setErrors] = useState({});
   const [disqualified, setDisqualified] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState('one_time');
-  const [errors, setErrors] = useState({});
-  const [returning, setReturning] = useState(null); // null = loading profile, true/false once known
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const [loadingProfile, setLoadingProfile] = useState(true);
+  const [dateChoices, setDateChoices] = useState(DATE_Q.choices);
+  const [savedAt, setSavedAt] = useState(null);
+  const hasLoadedRef = useRef(false);
+  const autosaveTimer = useRef(null);
 
   useEffect(() => {
     api.get('/portal/full-profile')
       .then(res => {
-        const { locked, profileComplete, hasActiveSubscription: hasSub, answers: savedAnswers } = res.data;
+        const { locked, hasActiveSubscription: hasSub, photo, answers: savedAnswers } = res.data;
         setAnswers(prev => ({
           ...prev,
           first_name: locked.first_name,
@@ -389,39 +452,84 @@ export default function Quiz() {
           dob: locked.dob,
           gender: locked.gender,
           country: locked.country,
+          photo: photo || undefined,
           ...savedAnswers,
         }));
         setHasActiveSubscription(!!hasSub);
-        setReturning(!!profileComplete);
       })
-      .catch(() => setReturning(false));
+      .catch(() => {})
+      .finally(() => {
+        setLoadingProfile(false);
+        // Only start autosaving once the initial prefill has landed, so
+        // loading someone's existing answers doesn't immediately "save" them
+        // straight back (harmless, but a wasted round-trip on every visit).
+        hasLoadedRef.current = true;
+      });
+
+    api.get('/profile/questions')
+      .then(res => {
+        const dateQuestion = res.data.questions?.find(q => q.id === 'CdZldwp5q09o');
+        if (dateQuestion?.choices?.length) setDateChoices(dateQuestion.choices);
+      })
+      .catch(() => {});
   }, []);
 
-  const steps = useMemo(
-    () => (returning === true ? QUESTIONS.filter(q => RETURNING_STEP_IDS.includes(q.id)) : QUESTIONS),
-    [returning]
-  );
+  // Debounced autosave — saves whatever's been filled in so far, so closing
+  // the tab mid-profile doesn't lose progress. Doesn't require every
+  // required field, and never touches profileComplete or bookings.
+  useEffect(() => {
+    if (!hasLoadedRef.current) return;
+    if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
+    autosaveTimer.current = setTimeout(() => {
+      api.patch('/profile/autosave', answers)
+        .then(() => setSavedAt(Date.now()))
+        .catch(() => {});
+    }, 900);
+    return () => clearTimeout(autosaveTimer.current);
+  }, [answers]);
 
-  const totalSteps = steps.length;
-  const current = returning === null ? null : steps[step];
-  const progress = current ? (step / (totalSteps - 1)) * 100 : 0;
   const firstName = answers.first_name?.trim();
 
-  const chapter = current?.chapter ? CHAPTERS.find(c => c.id === current.chapter) : null;
-  const headerLabel = !current || ['chapter_intro', 'payment', 'celebration'].includes(current.type)
-    ? ''
-    : chapter
-      ? chapter.title
-      : current.id === 'date'
-        ? 'Booking'
-        : '';
+  const setValue = (field, value) => {
+    setAnswers(prev => ({ ...prev, [field]: value }));
+    setErrors(prev => (prev[field] ? { ...prev, [field]: false } : prev));
+  };
 
-  // Which chapter "level" the attendee is currently on, for the stepper below —
-  // once past all chapters (celebration/date/payment), everything reads as done.
-  const chapterKey = current?.chapter || current?.chapterId || null;
-  const currentChapterIndex = chapterKey
-    ? CHAPTERS.findIndex(c => c.id === chapterKey)
-    : current ? CHAPTERS.length : -1;
+  const handleFieldAnswer = (q, value) => {
+    if (q.disqualifyIfNo && value === false) {
+      setDisqualified(true);
+      return;
+    }
+    setValue(q.field, value);
+  };
+
+  const handlePhotoSelect = async (file) => {
+    if (!file) return;
+    setPhotoUploading(true);
+    try {
+      const dataUrl = await fileToResizedBase64(file);
+      setValue('photo', dataUrl);
+    } catch (err) {
+      toast.error(err.message || 'Could not use that photo.');
+    } finally {
+      setPhotoUploading(false);
+    }
+  };
+
+  const chapterDone = (chapterId) => {
+    const qs = CHAPTER_QUESTIONS.find(c => c.chapter.id === chapterId).questions.filter(q => q.required);
+    return qs.length > 0 && qs.every(q => isAnswered(answers[q.field]));
+  };
+
+  const personalDone = !!(answers.dob && answers.gender && answers.country);
+
+  const totalRequired = REQUIRED_FIELD_QUESTIONS.length + 3 + 1; // +personal (dob/gender/country) +date
+  const filledRequired =
+    REQUIRED_FIELD_QUESTIONS.filter(q => isAnswered(answers[q.field])).length +
+    ['dob', 'gender', 'country'].filter(k => isAnswered(answers[k])).length +
+    (isAnswered(answers.field_CdZldwp5q09o) ? 1 : 0);
+  const completionPct = Math.round((filledRequired / totalRequired) * 100);
+  const profileReady = CHAPTERS.every(c => chapterDone(c.id)) && personalDone;
 
   const profileChips = useMemo(() => {
     const chips = [];
@@ -433,76 +541,37 @@ export default function Quiz() {
       });
     }
     if (answers.field_L6GblNns9C7v) chips.push({ icon: '🙋', label: answers.field_L6GblNns9C7v });
-    if (answers.group_role) chips.push({ icon: '✦', label: ROLE_SHORT[answers.group_role] || answers.group_role });
     return chips;
-  }, [firstName, answers.field_cqCcs6psQuhE, answers.field_L6GblNns9C7v, answers.group_role]);
+  }, [firstName, answers.field_cqCcs6psQuhE, answers.field_L6GblNns9C7v]);
 
-  const setValue = (field, value) => setAnswers(prev => ({ ...prev, [field]: value }));
+  const scrollToFirstError = (missingIds) => {
+    const el = document.getElementById(`q-${missingIds[0]}`);
+    el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
 
   const validate = () => {
-    if (!current.required) return true;
+    const newErrors = {};
+    const missingIds = [];
 
-    if (current.type === 'personal') {
-      const errs = {};
-      if (!answers.dob?.trim()) errs.dob = 'Required';
-      if (!answers.gender?.trim()) errs.gender = 'Required';
-      if (!answers.country?.trim()) errs.country = 'Required';
-      setErrors(errs);
-      return Object.keys(errs).length === 0;
+    for (const q of REQUIRED_FIELD_QUESTIONS) {
+      if (!isAnswered(answers[q.field])) { newErrors[q.field] = true; missingIds.push(q.id); }
     }
+    if (!answers.dob) { newErrors.dob = true; missingIds.push('personal'); }
+    if (!answers.gender) { newErrors.gender = true; missingIds.push('personal'); }
+    if (!answers.country) { newErrors.country = true; missingIds.push('personal'); }
+    if (!isAnswered(answers.field_CdZldwp5q09o)) { newErrors.field_CdZldwp5q09o = true; missingIds.push('date'); }
 
-    const val = answers[current.field];
-    return val !== undefined && val !== '' && val !== null;
+    setErrors(newErrors);
+    if (missingIds.length) {
+      toast.error('Please fill in the highlighted fields.');
+      scrollToFirstError(missingIds);
+      return false;
+    }
+    return true;
   };
-
-  const next = () => {
-    if (!validate()) {
-      toast.error('Please answer this question to continue.');
-      return;
-    }
-    setErrors({});
-
-    if (current.disqualifyIfNo && answers[current.field] === false) {
-      setDisqualified(true);
-      return;
-    }
-
-    if (step < totalSteps - 1) {
-      setTransitioning(true);
-      setTimeout(() => { setStep(s => s + 1); setTransitioning(false); }, 200);
-    }
-  };
-
-  const handleSelect = (field, value) => {
-    setValue(field, value);
-    if (current.disqualifyIfNo && value === false) {
-      setTimeout(() => setDisqualified(true), 300);
-      return;
-    }
-    if (step < totalSteps - 1) {
-      setTransitioning(true);
-      setTimeout(() => { setStep(s => s + 1); setTransitioning(false); }, 300);
-    }
-  };
-
-  const prev = () => {
-    if (step > 0) {
-      setTransitioning(true);
-      setTimeout(() => { setStep(s => s - 1); setTransitioning(false); }, 200);
-    }
-  };
-
-  const handleKeyDown = useCallback((e) => {
-    if (e.key !== 'Enter' || !current) return;
-    if (current.type !== 'text') next();
-  }, [step, answers, current]);
-
-  useEffect(() => {
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleKeyDown]);
 
   const handlePayment = async (plan) => {
+    if (!validate()) return;
     setSubmitting(true);
     try {
       const stripeKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
@@ -525,6 +594,8 @@ export default function Quiz() {
   };
 
   const submitQuizWithoutPayment = async () => {
+    if (!validate()) return;
+    setSubmitting(true);
     try {
       await api.post('/profile/submit', {
         ...answers,
@@ -537,7 +608,7 @@ export default function Quiz() {
     }
   };
 
-  if (returning === null) {
+  if (loadingProfile) {
     return (
       <div className="quiz-bg min-h-screen flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin" />
@@ -562,426 +633,220 @@ export default function Quiz() {
   }
 
   return (
-    <div className="quiz-bg min-h-screen flex flex-col relative overflow-hidden">
+    <div className="quiz-bg min-h-screen relative overflow-hidden">
       {/* Header */}
       <div className="relative z-10 flex items-center justify-between px-6 py-5 border-b border-white/[0.06]">
-        <a href="/">
-          <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-8" />
-        </a>
+        <a href="/"><img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-8" /></a>
         <div className="flex items-center gap-3">
-          {headerLabel && (
-            <span className="font-sans text-cream/30 text-xs tracking-widest uppercase">
-              {headerLabel}
+          {savedAt && (
+            <span key={savedAt} className="font-sans text-cream/25 text-[11px] tracking-wide animate-[fadeOut_2.5s_ease-in-out_forwards]">
+              ✓ Saved
             </span>
           )}
+          <span className="font-sans text-cream/40 text-xs tracking-widest uppercase">{completionPct}% complete</span>
         </div>
       </div>
-
-      {/* Progress bar */}
       <div className="relative z-10 h-[2px] bg-white/[0.05]">
         <div
           className="h-full transition-all duration-500 ease-out"
-          style={{
-            width: `${progress}%`,
-            background: 'linear-gradient(90deg, #E8A854 0%, #f0c040 100%)',
-          }}
+          style={{ width: `${completionPct}%`, background: 'linear-gradient(90deg, #E8A854 0%, #f0c040 100%)' }}
         />
       </div>
 
-      {/* Chapter stepper — the "level up" indicator */}
-      {currentChapterIndex >= 0 && (
-        <div className="relative z-10 pt-5 px-6">
-          <ChapterStepper currentChapterIndex={currentChapterIndex} />
-          <p className="text-center font-sans text-cream/25 text-[10px] tracking-[0.2em] uppercase mt-2">
-            {Math.round(progress)}% profile complete
+      <div className="relative z-10 max-w-xl mx-auto px-6 py-10 space-y-8">
+        {/* Intro */}
+        <div className="text-center">
+          <h1 className="font-serif text-3xl md:text-4xl text-cream mb-2">
+            {firstName ? `${firstName}'s profile` : 'Set up your profile'}
+          </h1>
+          <p className="font-sans text-cream/50 text-sm max-w-sm mx-auto leading-relaxed">
+            Fill in what you're comfortable sharing, then pick a Tuesday to reserve your seat.
           </p>
         </div>
-      )}
 
-      {/* Profile-in-progress chip strip */}
-      {profileChips.length > 0 && (
-        <div className="relative z-10 flex flex-wrap gap-2 px-6 pt-4 max-w-lg mx-auto w-full justify-center">
-          {profileChips.map((c, i) => (
-            <span
-              key={i}
-              className="text-xs px-3 py-1 rounded-full border border-gold/20 bg-gold/5 text-cream/60 flex items-center gap-1.5"
-            >
-              <span>{c.icon}</span>{c.label}
-            </span>
-          ))}
+        {profileChips.length > 0 && (
+          <div className="flex flex-wrap gap-2 justify-center">
+            {profileChips.map((c, i) => (
+              <span key={i} className="text-xs px-3 py-1 rounded-full border border-gold/20 bg-gold/5 text-cream/60 flex items-center gap-1.5">
+                <span>{c.icon}</span>{c.label}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Photo */}
+        <div className="quiz-card flex items-center gap-5">
+          <label className="relative cursor-pointer group flex-shrink-0">
+            <input type="file" accept="image/*" className="hidden" onChange={e => handlePhotoSelect(e.target.files?.[0])} />
+            <div className="w-20 h-20 rounded-full border-2 border-dashed border-gold/30 bg-gold/5 flex items-center justify-center overflow-hidden group-hover:border-gold/60 transition-colors">
+              {photoUploading ? (
+                <div className="w-5 h-5 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+              ) : answers.photo ? (
+                <img src={answers.photo} alt="Your profile" className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-2xl">📷</span>
+              )}
+            </div>
+          </label>
+          <div>
+            <p className="font-sans font-semibold text-cream text-sm mb-1">{PHOTO_Q.title}</p>
+            <p className="font-sans text-cream/40 text-xs mb-2">{PHOTO_Q.description}</p>
+            {answers.photo && (
+              <button onClick={() => setValue('photo', null)} className="font-sans text-cream/30 hover:text-red-400 text-xs transition-colors">
+                Remove photo
+              </button>
+            )}
+          </div>
         </div>
-      )}
 
-      {/* Main content */}
-      <div
-        className={`relative z-10 flex-1 flex flex-col items-center justify-center px-6 py-12 transition-all duration-200 ${
-          transitioning ? 'opacity-0 translate-y-2' : 'opacity-100 translate-y-0'
-        }`}
-      >
-        <div className="w-full max-w-lg">
-
-          {/* ── CHAPTER COVER ── */}
-          {current.type === 'chapter_intro' && (() => {
-            const chapIndex = CHAPTERS.findIndex(c => c.id === current.chapterId);
-            const chap = CHAPTERS[chapIndex];
-            return (
-              <div className="text-center">
-                <p className="font-sans text-gold/60 text-xs tracking-[0.25em] uppercase mb-4">
-                  Chapter {chapIndex + 1} of {CHAPTERS.length}
-                </p>
-                <h2 className="font-serif text-4xl md:text-5xl text-cream mb-4">{chap.title}</h2>
-                <p className="font-sans text-cream/50 mb-10 max-w-sm mx-auto leading-relaxed">
-                  {chapIndex === 0 && firstName ? `Nice to meet you, ${firstName}. ${chap.blurb}` : chap.blurb}
-                </p>
-                <button onClick={next} className="quiz-cta px-10">Let's go →</button>
-              </div>
-            );
-          })()}
-
-          {current.type !== 'chapter_intro' && current.type !== 'celebration' && (
-            <>
-              {/* Question label */}
-              {current.description && (
-                <p className="font-sans text-gold/70 text-xs tracking-[0.18em] uppercase mb-3">
-                  {current.description}
-                </p>
+        {/* Chapters */}
+        {CHAPTER_QUESTIONS.map(({ chapter, questions }) => (
+          <div key={chapter.id} className="quiz-card">
+            <div className="flex items-center justify-between mb-1">
+              <p className="font-serif text-xl text-cream">{chapter.title}</p>
+              {chapterDone(chapter.id) && (
+                <span className="w-6 h-6 rounded-full bg-gold text-navy flex items-center justify-center text-xs font-bold flex-shrink-0">✓</span>
               )}
-
-              {/* Question heading */}
-              <h2 className="font-serif text-3xl md:text-4xl text-cream mb-8 leading-tight">
-                {current.title}
-              </h2>
-            </>
-          )}
-
-          {/* ── PROFILE COMPLETE CELEBRATION ── */}
-          {current.type === 'celebration' && (
-            <div className="text-center">
-              <p className="text-5xl mb-5">🎉</p>
-              <h2 className="font-serif text-4xl md:text-5xl text-cream mb-4">Profile complete!</h2>
-              <p className="font-sans text-cream/50 mb-8 max-w-sm mx-auto leading-relaxed">
-                {firstName ? `Nice work, ${firstName}.` : 'Nice work.'} Here's what you've told us so far — next, let's pick your Tuesday.
-              </p>
-              {profileChips.length > 0 && (
-                <div className="flex flex-wrap gap-2.5 justify-center mb-10">
-                  {profileChips.map((c, i) => (
-                    <span
-                      key={i}
-                      className="text-sm px-4 py-2 rounded-full border border-gold/25 bg-gold/10 text-cream/80 flex items-center gap-2"
-                    >
-                      <span>{c.icon}</span>{c.label}
-                    </span>
-                  ))}
-                </div>
-              )}
-              <button onClick={next} className="quiz-cta px-10">Pick my Tuesday →</button>
             </div>
-          )}
-
-          {/* ── YES / NO ── */}
-          {current.type === 'yes_no' && (
-            <div className="flex gap-3">
-              {[{ label: 'Yes', value: true }, { label: 'No', value: false }].map(opt => (
-                <button
-                  key={opt.label}
-                  onClick={() => handleSelect(current.field, opt.value)}
-                  className={`flex-1 py-5 rounded-2xl border font-sans font-medium text-base transition-all duration-200 tracking-wide ${
-                    answers[current.field] === opt.value
-                      ? 'border-gold bg-gold text-navy shadow-[0_8px_32px_rgba(232,168,84,0.25)]'
-                      : 'border-[#e7dcbd]/18 bg-[#e7dcbd]/[0.04] text-[#e7dcbd]/65 hover:border-[#e7dcbd]/40 hover:bg-[#e7dcbd]/[0.08] hover:text-[#e7dcbd]/95'
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* ── SINGLE CHOICE ── */}
-          {current.type === 'choice' && (
-            <div className="space-y-2.5">
-              {current.choices.map(choice => {
-                const isActive = answers[current.field] === choice;
-                return (
-                  <button
-                    key={choice}
-                    onClick={() => handleSelect(current.field, choice)}
-                    className={`${choiceBase} ${isActive ? choiceActive : choiceIdle}`}
-                  >
-                    <span>{choice}</span>
-                    {isActive && <ChoiceTick />}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-
-          {/* ── MULTI CHOICE ── */}
-          {current.type === 'multi_choice' && (
-            <div className="space-y-2.5">
-              {current.choices.map(choice => {
-                const selected = (answers[current.field] || []).includes(choice);
-                return (
-                  <button
-                    key={choice}
-                    onClick={() => {
-                      const cur = answers[current.field] || [];
-                      if (choice === 'Not Applicable') {
-                        setValue(current.field, ['Not Applicable']);
-                      } else {
-                        const filtered = cur.filter(c => c !== 'Not Applicable');
-                        setValue(current.field, selected
-                          ? filtered.filter(c => c !== choice)
-                          : [...filtered, choice]
-                        );
-                      }
-                    }}
-                    className={`${choiceBase} ${selected ? choiceActive : choiceIdle}`}
-                  >
-                    <span className="flex items-center gap-3">
-                      <span className={`w-5 h-5 rounded-md border flex-shrink-0 flex items-center justify-center transition-all ${
-                        selected ? 'border-navy/30 bg-navy/10' : 'border-[#e7dcbd]/20'
-                      }`}>
-                        {selected && (
-                          <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
-                            <path d="M1 4l3 3 5-6" stroke="#16181d" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                        )}
-                      </span>
-                      {choice}
-                    </span>
-                  </button>
-                );
-              })}
-              <button onClick={next} className="quiz-cta w-full mt-5">
-                Continue →
-              </button>
-            </div>
-          )}
-
-          {/* ── SCALE ── */}
-          {current.type === 'scale' && (
-            <div>
-              <div className="flex justify-between mb-4">
-                <span className="font-sans text-[#e7dcbd]/35 text-xs tracking-wide">{current.labels?.[0]}</span>
-                <span className="font-sans text-[#e7dcbd]/35 text-xs tracking-wide">{current.labels?.[1]}</span>
-              </div>
-              <div className="flex gap-1.5 justify-between">
-                {Array.from({ length: current.max - current.min + 1 }, (_, i) => i + current.min).map(n => {
-                  const isActive = answers[current.field] === n;
+            <p className="font-sans text-cream/35 text-xs mb-2">{chapter.blurb}</p>
+            <div className="divide-y divide-white/[0.05]">
+              {questions.map(q => {
+                if (q.type === 'contact') {
                   return (
-                    <button
-                      key={n}
-                      onClick={() => handleSelect(current.field, n)}
-                      className={`flex-1 aspect-square max-w-[46px] rounded-full font-sans text-sm font-medium transition-all duration-150 ${
-                        isActive
-                          ? 'bg-gold text-navy shadow-[0_4px_20px_rgba(232,168,84,0.3)] scale-110'
-                          : 'border border-[#e7dcbd]/15 bg-[#e7dcbd]/[0.03] text-[#e7dcbd]/40 hover:border-[#e7dcbd]/40 hover:text-[#e7dcbd]/90 hover:bg-[#e7dcbd]/[0.07] hover:scale-105'
-                      }`}
-                    >
-                      {n}
-                    </button>
+                    <div key="contact" id="q-contact" className="py-4">
+                      <p className="font-sans text-cream text-[15px] mb-3">{q.title}</p>
+                      <input
+                        type="tel"
+                        placeholder="Phone number"
+                        value={answers.phone || ''}
+                        onChange={e => setValue('phone', e.target.value)}
+                        className="quiz-input"
+                      />
+                    </div>
                   );
-                })}
-              </div>
-              {answers[current.field] !== undefined && (
-                <p className="text-center mt-4 font-sans text-[#e7dcbd]/40 text-xs tracking-widest uppercase">
-                  {answers[current.field]} / {current.max}
-                </p>
-              )}
+                }
+                if (q.type === 'personal') {
+                  return (
+                    <div key="personal" id="q-personal" className={`py-4 ${(errors.dob || errors.gender || errors.country) ? 'rounded-xl -mx-3 px-3 bg-red-500/5' : ''}`}>
+                      <p className="font-sans text-cream text-[15px] mb-3">{q.title}<span className="text-gold/60"> *</span></p>
+                      <div className="space-y-3">
+                        <div>
+                          <label className="font-sans text-cream/40 text-xs tracking-[0.1em] uppercase mb-1.5 block">Date of birth</label>
+                          <input type="date" value={answers.dob || ''} onChange={e => setValue('dob', e.target.value)} className="quiz-input" />
+                        </div>
+                        <div>
+                          <label className="font-sans text-cream/40 text-xs tracking-[0.1em] uppercase mb-1.5 block">Gender</label>
+                          <select value={answers.gender || ''} onChange={e => setValue('gender', e.target.value)} className="quiz-input">
+                            <option value="">Select gender</option>
+                            {['Female', 'Male', 'Non-binary', 'Other', 'Prefer not to say'].map(g => <option key={g} value={g}>{g}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="font-sans text-cream/40 text-xs tracking-[0.1em] uppercase mb-1.5 block">Country of origin</label>
+                          <select value={answers.country || ''} onChange={e => setValue('country', e.target.value)} className="quiz-input">
+                            <option value="">Select country</option>
+                            {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+                return (
+                  <QuestionField
+                    key={q.id}
+                    q={q}
+                    value={answers[q.field]}
+                    onChange={(v) => handleFieldAnswer(q, v)}
+                    error={errors[q.field]}
+                  />
+                );
+              })}
             </div>
-          )}
+          </div>
+        ))}
 
-          {/* ── TEXT ── */}
-          {current.type === 'text' && (
+        {profileReady && (
+          <div className="rounded-2xl border border-gold/25 bg-gradient-to-br from-gold/[0.1] to-white/[0.02] p-5 text-center">
+            <p className="font-serif text-lg text-cream">🎉 Your profile is ready</p>
+            <p className="font-sans text-cream/50 text-xs mt-1">Just pick a Tuesday and you're booked in.</p>
+          </div>
+        )}
+
+        {/* Date */}
+        <div id="q-date" className={`quiz-card ${errors.field_CdZldwp5q09o ? 'bg-red-500/5 border-red-400/30' : ''}`}>
+          <p className="font-serif text-xl text-cream mb-1">{DATE_Q.title}</p>
+          <p className="font-sans text-cream/35 text-xs mb-3">Your reservation covers one Tuesday dinner.</p>
+          <div className="flex flex-wrap gap-2">
+            {dateChoices.map(choice => (
+              <button
+                key={choice}
+                type="button"
+                onClick={() => setValue('field_CdZldwp5q09o', choice)}
+                className={`${choiceBase} ${answers.field_CdZldwp5q09o === choice ? choiceActive : choiceIdle}`}
+              >
+                {choice}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Payment */}
+        <div className="quiz-card">
+          <p className="font-serif text-xl text-cream mb-1">Reserve your spot</p>
+          <p className="font-sans text-cream/35 text-xs mb-4">Choose how you'd like to join — refundable with 48hrs notice.</p>
+
+          {hasActiveSubscription ? (
             <div>
-              <textarea
-                value={answers[current.field] || ''}
-                onChange={e => setValue(current.field, e.target.value)}
-                placeholder={current.placeholder}
-                rows={4}
-                className="w-full bg-white/[0.04] border border-white/10 rounded-2xl px-5 py-4 text-cream placeholder-cream/25 font-sans text-base focus:outline-none focus:border-gold/50 focus:bg-gold/[0.03] transition-all resize-none"
-              />
-              <button onClick={next} className="quiz-cta w-full mt-4">
-                Continue →
-              </button>
-            </div>
-          )}
-
-          {/* ── CONTACT ── */}
-          {current.type === 'contact' && (
-            <div className="space-y-3">
-              <input
-                type="tel"
-                placeholder="Phone number"
-                value={answers.phone || ''}
-                onChange={e => setValue('phone', e.target.value)}
-                className="quiz-input"
-                autoFocus
-              />
-              <button onClick={next} className="quiz-cta w-full mt-2">
-                Continue →
-              </button>
-            </div>
-          )}
-
-          {/* ── PERSONAL ── */}
-          {current.type === 'personal' && (
-            <div className="space-y-4">
-              <div>
-                <label className="font-sans text-cream/40 text-xs tracking-[0.15em] uppercase mb-2 block">Date of birth *</label>
-                <input
-                  type="date"
-                  value={answers.dob || ''}
-                  onChange={e => setValue('dob', e.target.value)}
-                  className={`quiz-input ${errors.dob ? 'border-red-400/50' : ''}`}
-                />
-                {errors.dob && <p className="text-red-400 text-xs mt-1">{errors.dob}</p>}
-              </div>
-              <div>
-                <label className="font-sans text-cream/40 text-xs tracking-[0.15em] uppercase mb-2 block">Gender *</label>
-                <select
-                  value={answers.gender || ''}
-                  onChange={e => setValue('gender', e.target.value)}
-                  className={`quiz-input ${errors.gender ? 'border-red-400/50' : ''}`}
-                >
-                  <option value="">Select gender</option>
-                  {['Female', 'Male', 'Non-binary', 'Other', 'Prefer not to say'].map(g => (
-                    <option key={g} value={g}>{g}</option>
-                  ))}
-                </select>
-                {errors.gender && <p className="text-red-400 text-xs mt-1">{errors.gender}</p>}
-              </div>
-              <div>
-                <label className="font-sans text-cream/40 text-xs tracking-[0.15em] uppercase mb-2 block">Country of origin *</label>
-                <select
-                  value={answers.country || ''}
-                  onChange={e => setValue('country', e.target.value)}
-                  className={`quiz-input ${errors.country ? 'border-red-400/50' : ''}`}
-                >
-                  <option value="">Select country</option>
-                  {COUNTRIES.map(c => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-                {errors.country && <p className="text-red-400 text-xs mt-1">{errors.country}</p>}
-              </div>
-              <button onClick={next} className="quiz-cta w-full mt-2">
-                Continue →
-              </button>
-            </div>
-          )}
-
-          {/* ── PAYMENT ── */}
-          {current.type === 'payment' && hasActiveSubscription && (
-            <div>
-              <div className="rounded-2xl border border-gold/25 bg-gradient-to-br from-gold/[0.1] to-white/[0.02] p-6 mb-5 text-center">
-                <p className="text-3xl mb-2">✓</p>
-                <p className="font-serif text-xl text-cream mb-2">You're covered by your membership</p>
-                <p className="font-sans text-cream/50 text-sm leading-relaxed">
-                  Your monthly membership includes unlimited HeyDer dinners — no extra charge for this Tuesday.
-                </p>
+              <div className="rounded-xl border border-gold/25 bg-gold/[0.06] p-4 mb-4 text-center">
+                <p className="font-sans text-cream/70 text-sm">✓ You're covered by your monthly membership — no extra charge.</p>
               </div>
               <button
-                onClick={() => { setSubmitting(true); submitQuizWithoutPayment(); }}
+                onClick={() => submitQuizWithoutPayment()}
                 disabled={submitting}
-                className="quiz-cta w-full flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                className="quiz-cta w-full flex items-center justify-center gap-2 disabled:opacity-60"
               >
-                {submitting ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-navy/60 border-t-transparent rounded-full animate-spin" />
-                    Confirming...
-                  </>
-                ) : 'Confirm Booking'}
+                {submitting ? 'Confirming...' : 'Confirm Booking'}
               </button>
             </div>
-          )}
-
-          {current.type === 'payment' && !hasActiveSubscription && (
+          ) : (
             <div>
               <div className="space-y-3 mb-5">
                 <button
+                  type="button"
                   onClick={() => setSelectedPlan('one_time')}
-                  className={`w-full text-left rounded-2xl border p-5 transition-all duration-200 ${
-                    selectedPlan === 'one_time' ? choiceActive : choiceIdle
-                  }`}
+                  className={`w-full text-left rounded-2xl border p-4 transition-all duration-200 ${selectedPlan === 'one_time' ? choiceActive : choiceIdle}`}
                 >
                   <div className="flex items-center justify-between mb-1">
                     <span className="font-sans font-semibold text-base">One-time reservation</span>
                     <span className="font-serif text-2xl">$10</span>
                   </div>
-                  <p className={`font-sans text-sm ${selectedPlan === 'one_time' ? 'text-navy/60' : 'text-cream/40'}`}>
-                    Reserve just this Tuesday's dinner.
-                  </p>
+                  <p className={`font-sans text-sm ${selectedPlan === 'one_time' ? 'text-navy/60' : 'text-cream/40'}`}>Reserve just this Tuesday's dinner.</p>
                 </button>
-
                 <button
+                  type="button"
                   onClick={() => setSelectedPlan('subscription')}
-                  className={`w-full text-left rounded-2xl border p-5 transition-all duration-200 relative ${
-                    selectedPlan === 'subscription' ? choiceActive : choiceIdle
-                  }`}
+                  className={`w-full text-left rounded-2xl border p-4 transition-all duration-200 relative ${selectedPlan === 'subscription' ? choiceActive : choiceIdle}`}
                 >
-                  <span className="absolute -top-2.5 right-5 bg-yellow text-navy text-[10px] font-sans font-bold uppercase tracking-widest px-2.5 py-1 rounded-full">
-                    Best value
-                  </span>
+                  <span className="absolute -top-2.5 right-5 bg-yellow text-navy text-[10px] font-sans font-bold uppercase tracking-widest px-2.5 py-1 rounded-full">Best value</span>
                   <div className="flex items-center justify-between mb-1">
                     <span className="font-sans font-semibold text-base">Monthly membership</span>
                     <span className="font-serif text-2xl">$15<span className="text-sm">/mo</span></span>
                   </div>
-                  <p className={`font-sans text-sm ${selectedPlan === 'subscription' ? 'text-navy/60' : 'text-cream/40'}`}>
-                    Unlimited HeyDer dinners this month. Renews monthly, cancel anytime.
-                  </p>
+                  <p className={`font-sans text-sm ${selectedPlan === 'subscription' ? 'text-navy/60' : 'text-cream/40'}`}>Unlimited HeyDer dinners this month. Cancel anytime.</p>
                 </button>
               </div>
-              <p className="font-sans text-cream/30 text-xs mb-5 text-center tracking-wide">
-                Refundable with 48 hours notice · Food & drinks paid at the venue
-              </p>
               <button
                 onClick={() => handlePayment(selectedPlan)}
                 disabled={submitting}
-                className="quiz-cta w-full flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                className="quiz-cta w-full flex items-center justify-center gap-2 disabled:opacity-60"
               >
-                {submitting ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-navy/60 border-t-transparent rounded-full animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <rect x="1" y="4" width="22" height="16" rx="2" /><line x1="1" y1="10" x2="23" y2="10" />
-                    </svg>
-                    {selectedPlan === 'subscription' ? 'Subscribe $15/mo' : 'Pay $10 & Complete Booking'}
-                  </>
-                )}
+                {submitting ? 'Processing...' : selectedPlan === 'subscription' ? 'Subscribe $15/mo' : 'Pay $10 & Complete Booking'}
               </button>
             </div>
           )}
         </div>
       </div>
-
-      {/* Back navigation */}
-      {!['yes_no', 'choice', 'payment', 'scale'].includes(current.type) && current.type !== 'multi_choice' && step > 0 && (
-        <div className="relative z-10 px-6 pb-8 max-w-lg mx-auto w-full">
-          <button
-            onClick={prev}
-            className="text-cream/30 hover:text-cream/70 text-sm font-sans transition-colors tracking-wide flex items-center gap-1.5"
-          >
-            ← Back
-          </button>
-        </div>
-      )}
-
-      {['yes_no', 'choice', 'scale'].includes(current.type) && step > 0 && (
-        <div className="relative z-10 px-6 pb-8 max-w-lg mx-auto w-full">
-          <button
-            onClick={prev}
-            className="text-cream/30 hover:text-cream/70 text-sm font-sans transition-colors tracking-wide flex items-center gap-1.5"
-          >
-            ← Back
-          </button>
-        </div>
-      )}
     </div>
   );
 }

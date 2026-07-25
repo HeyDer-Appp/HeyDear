@@ -113,6 +113,12 @@
   100% { transform: translateX(-50%); }
 }
 
+@keyframes fadeOut {
+  0% { opacity: 1; }
+  70% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

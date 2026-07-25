@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../../utils/api';
 import { QUESTIONS, CHAPTERS } from '../Quiz';
+import { fileToResizedBase64 } from '../../utils/image';
 
 const choiceIdle =
   'border-[#e7dcbd]/18 bg-[#e7dcbd]/[0.04] text-[#e7dcbd]/65 hover:border-[#e7dcbd]/40 hover:bg-[#e7dcbd]/[0.08] hover:text-[#e7dcbd]/95';
@@ -22,18 +23,32 @@ export default function EditProfile() {
   const [answers, setAnswers] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [photoUploading, setPhotoUploading] = useState(false);
 
   useEffect(() => {
     api.get('/portal/full-profile')
       .then(res => {
         setLocked(res.data.locked);
-        setAnswers(res.data.answers || {});
+        setAnswers({ ...(res.data.answers || {}), photo: res.data.photo || null });
       })
       .catch(() => toast.error('Failed to load your profile'))
       .finally(() => setLoading(false));
   }, []);
 
   const setValue = (field, value) => setAnswers(prev => ({ ...prev, [field]: value }));
+
+  const handlePhotoSelect = async (file) => {
+    if (!file) return;
+    setPhotoUploading(true);
+    try {
+      const dataUrl = await fileToResizedBase64(file);
+      setValue('photo', dataUrl);
+    } catch (err) {
+      toast.error(err.message || 'Could not use that photo.');
+    } finally {
+      setPhotoUploading(false);
+    }
+  };
 
   const save = async () => {
     setSaving(true);
@@ -77,6 +92,39 @@ export default function EditProfile() {
           <p className="font-sans text-cream/40 text-sm mt-2 leading-relaxed">
             Change anything you like — we'll use your latest answers for future matching.
           </p>
+        </div>
+
+        {/* Profile photo */}
+        <div className="quiz-card flex items-center gap-5">
+          <label className="relative cursor-pointer group flex-shrink-0">
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={e => handlePhotoSelect(e.target.files?.[0])}
+            />
+            <div className="w-20 h-20 rounded-full border-2 border-dashed border-gold/30 bg-gold/5 flex items-center justify-center overflow-hidden group-hover:border-gold/60 transition-colors">
+              {photoUploading ? (
+                <div className="w-5 h-5 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+              ) : answers.photo ? (
+                <img src={answers.photo} alt="Your profile" className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-2xl">📷</span>
+              )}
+            </div>
+          </label>
+          <div>
+            <p className="font-sans font-semibold text-cream text-sm mb-1">Profile photo</p>
+            <p className="font-sans text-cream/40 text-xs mb-2">Helps your table recognise you.</p>
+            {answers.photo && (
+              <button
+                onClick={() => setValue('photo', null)}
+                className="font-sans text-cream/30 hover:text-red-400 text-xs transition-colors"
+              >
+                Remove photo
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Locked identity fields */}

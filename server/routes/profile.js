@@ -6,18 +6,7 @@ const { sendConfirmationEmail } = require('../services/email');
 const { quizLimiter } = require('../middleware/rateLimiter');
 const { attendeeAuth } = require('../middleware/auth');
 const { getCheckoutSession } = require('../services/stripe');
-
-const ANSWER_FIELDS = [
-  'field_iunObNMC8bY1', 'field_cqCcs6psQuhE', 'field_CdZldwp5q09o',
-  'field_3zmnHXYzZn17', 'field_aIpzE2elktbh', 'field_L6GblNns9C7v',
-  'field_LosYJHqrbpKO', 'field_lS4ks7Km1VlA',
-  'field_PyYcCusA8b74', 'field_Y8VLrSMSZLmb', 'field_heE41fid4m48',
-  'field_H4KwwtKh8sYF', 'field_OqnhJdRIytBz', 'field_1NDB7q3CaeDQ',
-  'field_TaGZoiuhOhh2', 'field_TQFTxLhIZnOf', 'field_pCwGXuvIxGTu',
-  'field_MQDZqx7wid2f', 'field_Ar4xQbXT6CLh', 'field_OVB7lzEjSl7C',
-  'group_role', 'conflict_style', 'connection_trigger',
-  'social_recharge', 'conversation_avoid', 'first_meeting_style',
-];
+const { ANSWER_FIELDS } = require('../utils/answerFields');
 
 router.get('/questions', async (req, res) => {
   try {
@@ -59,9 +48,15 @@ router.post('/submit', attendeeAuth, quizLimiter, async (req, res) => {
   try {
     const {
       field_CdZldwp5q09o,
-      first_name, last_name, phone, dob, gender, country,
+      first_name, last_name, phone, dob, gender, country, photo,
       referral_code, stripe_session_id,
     } = req.body;
+
+    if (photo !== undefined && photo !== null) {
+      if (typeof photo !== 'string' || !photo.startsWith('data:image/') || photo.length > 800_000) {
+        return res.status(400).json({ error: 'Invalid or oversized photo' });
+      }
+    }
 
     const userRef = db.collection('users').doc(req.user.id);
     const parsedDate = parseTuesdayDate(field_CdZldwp5q09o);
@@ -92,6 +87,9 @@ router.post('/submit', attendeeAuth, quizLimiter, async (req, res) => {
       if (dob) userUpdate.dob = dob;
       if (gender) userUpdate.gender = gender;
       if (country) userUpdate.country = country;
+      // Kept only on the user doc, not spread into `answers` — a booking or
+      // table-member doc doesn't need its own copy of the photo bytes.
+      if (photo !== undefined) userUpdate.photo = photo;
       tx.set(userRef, userUpdate, { merge: true });
 
       if (referral_code) {
@@ -147,6 +145,46 @@ router.post('/submit', attendeeAuth, quizLimiter, async (req, res) => {
       userId: req.user.id,
       message: "You're in. We'll be in touch once your group is ready.",
     });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Saves whatever's been filled in so far while the attendee is still
+// building their profile — unlike /submit, this never requires every
+// required field to be present and never marks profileComplete or touches
+// bookings. Lets someone close the tab mid-profile and pick up where they
+// left off instead of starting over.
+router.patch('/autosave', attendeeAuth, async (req, res) => {
+  try {
+    const { phone, dob, gender, country, photo } = req.body;
+    const updates = {};
+
+    for (const key of ANSWER_FIELDS) {
+      if (req.body[key] !== undefined) updates[key] = req.body[key];
+    }
+    if (updates.field_OVB7lzEjSl7C !== undefined) {
+      updates.field_OVB7lzEjSl7C = Array.isArray(updates.field_OVB7lzEjSl7C)
+        ? updates.field_OVB7lzEjSl7C
+        : updates.field_OVB7lzEjSl7C ? [updates.field_OVB7lzEjSl7C] : [];
+    }
+    if (phone !== undefined) updates.phone = phone;
+    if (dob) updates.dob = dob;
+    if (gender) updates.gender = gender;
+    if (country) updates.country = country;
+    if (photo !== undefined) {
+      if (photo !== null && (typeof photo !== 'string' || !photo.startsWith('data:image/') || photo.length > 800_000)) {
+        return res.status(400).json({ error: 'Invalid or oversized photo' });
+      }
+      updates.photo = photo;
+    }
+
+    if (!Object.keys(updates).length) return res.json({ success: true });
+
+    updates.updatedAt = admin.firestore.FieldValue.serverTimestamp();
+    await db.collection('users').doc(req.user.id).set(updates, { merge: true });
+    res.json({ success: true });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });

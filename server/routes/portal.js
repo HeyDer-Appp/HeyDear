@@ -3,6 +3,7 @@ const router = express.Router();
 const { admin, db } = require('../firebase');
 const { attendeeAuth } = require('../middleware/auth');
 const { stripe } = require('../services/stripe');
+const { ANSWER_FIELDS } = require('../utils/answerFields');
 
 // Table glimpse unlocks 48 hours after the table is confirmed, venue details
 // 24 hours after. Override via env vars for local testing only — these
@@ -55,8 +56,11 @@ router.get('/full-profile', attendeeAuth, async (req, res) => {
     if (!snap.exists) return res.status(404).json({ error: 'User not found' });
     const user = snap.data();
 
+    // Full set (not just EDITABLE_FIELDS) so the profile builder can prefill
+    // everything already saved — including Auckland/date, which the
+    // post-completion edit page (PATCH /profile below) deliberately excludes.
     const answers = {};
-    for (const key of EDITABLE_FIELDS) answers[key] = user[key];
+    for (const key of ANSWER_FIELDS) answers[key] = user[key];
 
     const subSnap = await db.collection('subscriptions')
       .where('userId', '==', req.user.id)
@@ -77,6 +81,7 @@ router.get('/full-profile', attendeeAuth, async (req, res) => {
       },
       profileComplete: !!user.profileComplete,
       hasActiveSubscription,
+      photo: user.photo || null,
       answers,
     });
   } catch (err) {
@@ -103,11 +108,23 @@ router.patch('/profile', attendeeAuth, async (req, res) => {
         updates[key] = value;
       }
     }
-    if (!Object.keys(updates).length) return res.status(400).json({ error: 'Nothing to update' });
 
-    updates.updatedAt = admin.firestore.FieldValue.serverTimestamp();
-    await db.collection('users').doc(req.user.id).set(updates, { merge: true });
-    await syncPendingBooking(req.user.id, updates);
+    // Photo lives only on the user doc — kept out of `updates` so it never
+    // gets copied onto a booking doc via syncPendingBooking below.
+    const userDocUpdates = { ...updates };
+    if ('photo' in req.body) {
+      const { photo } = req.body;
+      if (photo !== null && (typeof photo !== 'string' || !photo.startsWith('data:image/') || photo.length > 800_000)) {
+        return res.status(400).json({ error: 'Invalid or oversized photo' });
+      }
+      userDocUpdates.photo = photo;
+    }
+
+    if (!Object.keys(userDocUpdates).length) return res.status(400).json({ error: 'Nothing to update' });
+
+    userDocUpdates.updatedAt = admin.firestore.FieldValue.serverTimestamp();
+    await db.collection('users').doc(req.user.id).set(userDocUpdates, { merge: true });
+    if (Object.keys(updates).length) await syncPendingBooking(req.user.id, updates);
 
     res.json({ success: true });
   } catch (err) {

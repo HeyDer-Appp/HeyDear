@@ -305,7 +305,7 @@ export default function PortalDashboard() {
           <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-7" />
         </Link>
         <div className="flex items-center gap-3">
-          <img src={AVATAR} alt="Account" className="w-8 h-8 rounded-full border border-gold/30 object-cover" />
+          <img src={profile?.photo || AVATAR} alt="Account" className="w-8 h-8 rounded-full border border-gold/30 object-cover" />
           <button onClick={() => { logout(); navigate('/'); }} className="font-sans text-cream/40 text-xs hover:text-cream transition-colors">
             Sign out
           </button>
