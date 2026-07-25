@@ -44,8 +44,13 @@ app.use(helmet({ contentSecurityPolicy: false }));
 app.use(compression());
 app.use(morgan('combined'));
 
+// Browsers never send a trailing slash on the Origin header, but it's an
+// easy typo to make when pasting a URL into an env var (happened in prod) —
+// strip it so a stray "/" doesn't silently break every request with CORS.
+const clientOrigin = (process.env.CLIENT_URL || 'http://localhost:5173').replace(/\/$/, '');
+
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  origin: clientOrigin,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
