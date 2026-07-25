@@ -20,7 +20,7 @@ export default function PortalLogin() {
       if (mode === 'signup') {
         await signupAttendee(form.email, form.password);
         await api.post('/auth/attendee/register', { firstName: form.firstName, lastName: form.lastName });
-        navigate('/profile');
+        navigate('/portal/dashboard');
       } else {
         await loginAttendee(form.email, form.password);
         navigate('/portal/dashboard');

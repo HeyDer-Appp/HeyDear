@@ -474,25 +474,34 @@ export default function Quiz() {
       .catch(() => {});
   }, []);
 
+  const answersRef = useRef(answers);
+  answersRef.current = answers;
+
   // Debounced autosave — saves whatever's been filled in so far, so closing
   // the tab mid-profile doesn't lose progress. Doesn't require every
-  // required field, and never touches profileComplete or bookings.
-  useEffect(() => {
-    if (!hasLoadedRef.current) return;
+  // required field, and never touches profileComplete or bookings. Only
+  // triggered by an actual edit (via setValue), never by the initial
+  // prefill loading someone's existing answers back in.
+  const scheduleAutosave = () => {
     if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
     autosaveTimer.current = setTimeout(() => {
-      api.patch('/profile/autosave', answers)
+      api.patch('/profile/autosave', answersRef.current)
         .then(() => setSavedAt(Date.now()))
         .catch(() => {});
     }, 900);
-    return () => clearTimeout(autosaveTimer.current);
-  }, [answers]);
+  };
+
+  useEffect(() => () => clearTimeout(autosaveTimer.current), []);
 
   const firstName = answers.first_name?.trim();
+  // No Stripe publishable key configured yet — booking still works end to
+  // end, it just skips the real checkout and completes immediately.
+  const stripeConfigured = !!import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
 
   const setValue = (field, value) => {
     setAnswers(prev => ({ ...prev, [field]: value }));
     setErrors(prev => (prev[field] ? { ...prev, [field]: false } : prev));
+    if (hasLoadedRef.current) scheduleAutosave();
   };
 
   const handleFieldAnswer = (q, value) => {
@@ -793,8 +802,19 @@ export default function Quiz() {
 
         {/* Payment */}
         <div className="quiz-card">
-          <p className="font-serif text-xl text-cream mb-1">Reserve your spot</p>
-          <p className="font-sans text-cream/35 text-xs mb-4">Choose how you'd like to join — refundable with 48hrs notice.</p>
+          <div className="flex items-center gap-2 mb-1">
+            <p className="font-serif text-xl text-cream">Reserve your spot</p>
+            {!stripeConfigured && (
+              <span className="text-[10px] font-sans font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full bg-yellow/15 text-yellow">
+                Test mode
+              </span>
+            )}
+          </div>
+          <p className="font-sans text-cream/35 text-xs mb-4">
+            {stripeConfigured
+              ? "Choose how you'd like to join — refundable with 48hrs notice."
+              : 'Payments are not connected yet — booking will be simulated, no card required.'}
+          </p>
 
           {hasActiveSubscription ? (
             <div>
@@ -841,7 +861,11 @@ export default function Quiz() {
                 disabled={submitting}
                 className="quiz-cta w-full flex items-center justify-center gap-2 disabled:opacity-60"
               >
-                {submitting ? 'Processing...' : selectedPlan === 'subscription' ? 'Subscribe $15/mo' : 'Pay $10 & Complete Booking'}
+                {submitting
+                  ? 'Processing...'
+                  : !stripeConfigured
+                    ? 'Complete Booking (Test Mode)'
+                    : selectedPlan === 'subscription' ? 'Subscribe $15/mo' : 'Pay $10 & Complete Booking'}
               </button>
             </div>
           )}

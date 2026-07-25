@@ -16,6 +16,11 @@
       "cwd": "server",
       "port": 3001,
       "autoPort": false
+    },
+    {
+      "name": "btf-preview",
+      "url": "http://localhost:8934",
+      "port": 8934
     }
   ]
 }
