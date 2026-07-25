@@ -68,13 +68,12 @@ router.get('/dates', adminAuth, async (req, res) => {
 
 router.get('/:id', adminAuth, async (req, res) => {
   try {
-    const snap = await db.collection('bookings')
-      .where('userId', '==', req.params.id)
-      .orderBy('submittedAt', 'desc')
-      .limit(1)
-      .get();
+    // where() + orderBy() on different fields needs a composite index, so
+    // filter here and sort in memory instead.
+    const snap = await db.collection('bookings').where('userId', '==', req.params.id).get();
     if (snap.empty) return res.status(404).json({ error: 'Not found' });
-    const signup = bookingToPerson(snap.docs[0].id, snap.docs[0].data());
+    const latestDoc = snap.docs.slice().sort((a, b) => (b.data().submittedAt?.toMillis?.() || 0) - (a.data().submittedAt?.toMillis?.() || 0))[0];
+    const signup = bookingToPerson(latestDoc.id, latestDoc.data());
     res.json({ signup: { ...signup, submitted_at: signup.submitted_at?.toDate?.().toISOString() || null } });
   } catch (err) {
     res.status(500).json({ error: 'Server error' });

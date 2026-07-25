@@ -69,8 +69,11 @@ router.put('/:id', adminAuth, async (req, res) => {
 
 router.get('/:id/restaurants', adminAuth, async (req, res) => {
   try {
-    const snap = await db.collection('restaurants').where('dinnerId', '==', req.params.id).orderBy('name').get();
-    const restaurants = await Promise.all(snap.docs.map(async (r) => {
+    // where() + orderBy() on different fields needs a composite index, so
+    // filter here and sort in memory instead.
+    const snap = await db.collection('restaurants').where('dinnerId', '==', req.params.id).get();
+    const sortedDocs = snap.docs.slice().sort((a, b) => (a.data().name || '').localeCompare(b.data().name || ''));
+    const restaurants = await Promise.all(sortedDocs.map(async (r) => {
       const tc = await db.collection('tables').where('restaurantId', '==', r.id).count().get();
       return { id: r.id, ...r.data(), table_count: tc.data().count };
     }));

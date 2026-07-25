@@ -123,11 +123,10 @@ router.post('/submit', attendeeAuth, quizLimiter, async (req, res) => {
         }, { merge: true });
       }
 
-      const bookingRef = existingBookingSnap && !existingBookingSnap.empty
-        ? existingBookingSnap.docs[0].ref
-        : db.collection('bookings').doc();
+      const isNewBooking = !existingBookingSnap || existingBookingSnap.empty;
+      const bookingRef = isNewBooking ? db.collection('bookings').doc() : existingBookingSnap.docs[0].ref;
 
-      tx.set(bookingRef, {
+      const bookingUpdate = {
         userId: req.user.id,
         tuesdayDate: parsedDate,
         firstName: userUpdate.firstName || existingUser.firstName,
@@ -139,7 +138,17 @@ router.post('/submit', attendeeAuth, quizLimiter, async (req, res) => {
         country: userUpdate.country || existingUser.country,
         ...answers,
         submittedAt: admin.firestore.FieldValue.serverTimestamp(),
-      }, { merge: true });
+      };
+      // Every query that finds "unmatched" bookings filters on matched===false
+      // explicitly — Firestore won't match that against a missing field, so a
+      // new booking has to set it, not just leave it undefined. Only set on
+      // creation though: re-submitting shouldn't un-match an already-seated booking.
+      if (isNewBooking) {
+        bookingUpdate.matched = false;
+        bookingUpdate.tableId = null;
+        bookingUpdate.dinnerId = null;
+      }
+      tx.set(bookingRef, bookingUpdate, { merge: true });
 
       return { bookingRef, mergedUser: { ...existingUser, ...userUpdate, id: req.user.id } };
     });

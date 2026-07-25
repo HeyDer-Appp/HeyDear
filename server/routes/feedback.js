@@ -41,10 +41,18 @@ router.post('/submit', feedbackLimiter, async (req, res) => {
 router.get('/', adminAuth, async (req, res) => {
   try {
     const { dinnerId } = req.query;
-    let query = db.collection('feedback');
-    if (dinnerId) query = query.where('dinnerId', '==', dinnerId);
-    const snap = await query.orderBy('submittedAt', 'desc').get();
-    const feedback = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    // Filtering by dinnerId AND sorting by submittedAt needs a composite
+    // index, so only chain orderBy() server-side when there's no filter —
+    // otherwise sort in memory after fetching.
+    let snap;
+    if (dinnerId) {
+      snap = await db.collection('feedback').where('dinnerId', '==', dinnerId).get();
+    } else {
+      snap = await db.collection('feedback').orderBy('submittedAt', 'desc').get();
+    }
+    const feedback = snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (b.submittedAt?.toMillis?.() || 0) - (a.submittedAt?.toMillis?.() || 0));
 
     const withRating = feedback.filter(f => f.overall_rating != null);
     const withNps = feedback.filter(f => f.nps != null);
@@ -76,14 +84,14 @@ router.post('/testimonials/:id/approve', adminAuth, async (req, res) => {
 
 router.get('/testimonials/public', async (req, res) => {
   try {
-    const snap = await db.collection('feedback')
-      .where('testimonial_approved', '==', true)
-      .orderBy('submittedAt', 'desc')
-      .limit(10)
-      .get();
+    // where() + orderBy() on different fields needs a composite index, so
+    // filter here and sort/limit in memory instead.
+    const snap = await db.collection('feedback').where('testimonial_approved', '==', true).get();
     const testimonials = snap.docs
       .map(d => d.data())
       .filter(f => f.testimonial)
+      .sort((a, b) => (b.submittedAt?.toMillis?.() || 0) - (a.submittedAt?.toMillis?.() || 0))
+      .slice(0, 10)
       .map(f => ({ testimonial: f.testimonial, testimonial_name: f.testimonial_name }));
     res.json({ testimonials });
   } catch (err) {

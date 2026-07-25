@@ -180,14 +180,15 @@ router.get('/dinners', attendeeAuth, async (req, res) => {
 
     let pendingDinners = [];
     if (matchedDinners.length === 0) {
+      // where() + orderBy() on different fields needs a composite index, so
+      // filter here and sort in memory instead.
       const pendingSnap = await db.collection('bookings')
         .where('userId', '==', req.user.id)
         .where('matched', '==', false)
-        .orderBy('submittedAt', 'desc')
-        .limit(1)
         .get();
       if (!pendingSnap.empty) {
-        const booking = pendingSnap.docs[0].data();
+        const latestDoc = pendingSnap.docs.slice().sort((a, b) => (b.data().submittedAt?.toMillis?.() || 0) - (a.data().submittedAt?.toMillis?.() || 0))[0];
+        const booking = latestDoc.data();
         pendingDinners = [{
           table_id: null,
           date: null,
@@ -297,14 +298,14 @@ router.post('/cancel/:tableId', attendeeAuth, async (req, res) => {
     // payment on file. Active subscriptions aren't touched here — cancelling
     // one dinner doesn't cancel the membership.
     let refunded = false;
+    // where() + orderBy() on different fields needs a composite index, so
+    // filter here and sort in memory instead.
     const paymentSnap = await db.collection('payments')
       .where('userId', '==', req.user.id)
       .where('status', '==', 'completed')
-      .orderBy('createdAt', 'desc')
-      .limit(1)
       .get();
     if (!paymentSnap.empty) {
-      const paymentDoc = paymentSnap.docs[0];
+      const paymentDoc = paymentSnap.docs.slice().sort((a, b) => (b.data().createdAt?.toMillis?.() || 0) - (a.data().createdAt?.toMillis?.() || 0))[0];
       const payment = paymentDoc.data();
       if (payment.stripePaymentIntentId) {
         try {

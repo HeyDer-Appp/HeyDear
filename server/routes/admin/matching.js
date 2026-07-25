@@ -16,13 +16,18 @@ router.get('/unmatched/:dinnerId', adminAuth, async (req, res) => {
     if (!dinnerSnap.exists) return res.status(404).json({ error: 'Dinner not found' });
 
     const dateKey = dinnerDateKey(dinnerSnap.data());
+    // Two equality filters, sorted in memory — avoids depending on a
+    // composite index (tuesdayDate + matched + submittedAt) that doesn't
+    // exist by default on a fresh Firestore project.
     const snap = await db.collection('bookings')
       .where('tuesdayDate', '==', dateKey)
       .where('matched', '==', false)
-      .orderBy('submittedAt', 'asc')
       .get();
 
-    const unmatched = snap.docs.map(d => bookingToPerson(d.id, d.data()));
+    const unmatched = snap.docs
+      .map(d => ({ doc: d, data: d.data() }))
+      .sort((a, b) => (a.data.submittedAt?.toMillis?.() || 0) - (b.data.submittedAt?.toMillis?.() || 0))
+      .map(({ doc, data }) => bookingToPerson(doc.id, data));
     res.json({ unmatched, dinner: { id: dinnerSnap.id, ...dinnerSnap.data(), date: dinnerSnap.data().date.toDate().toISOString() } });
   } catch (err) {
     console.error(err);
@@ -33,17 +38,21 @@ router.get('/unmatched/:dinnerId', adminAuth, async (req, res) => {
 router.get('/tables/:dinnerId', adminAuth, async (req, res) => {
   try {
     const { dinnerId } = req.params;
-    const tablesSnap = await db.collection('tables').where('dinnerId', '==', dinnerId).orderBy('table_number').get();
+    // where() + orderBy() on different fields needs a composite index, so
+    // filter here and sort in memory instead.
+    const tablesSnap = await db.collection('tables').where('dinnerId', '==', dinnerId).get();
+    const sortedTableDocs = tablesSnap.docs.slice().sort((a, b) => (a.data().table_number || 0) - (b.data().table_number || 0));
 
-    const tables = await Promise.all(tablesSnap.docs.map(async (t) => {
+    const tables = await Promise.all(sortedTableDocs.map(async (t) => {
       const table = t.data();
       const [restaurantSnap, membersSnap] = await Promise.all([
         table.restaurantId ? db.collection('restaurants').doc(table.restaurantId).get() : null,
-        db.collection('tableMembers').where('tableId', '==', t.id).orderBy('createdAt').get(),
+        db.collection('tableMembers').where('tableId', '==', t.id).get(),
       ]);
       const restaurant = restaurantSnap?.data();
 
-      const members = membersSnap.docs.map(m => {
+      const sortedMemberDocs = membersSnap.docs.slice().sort((a, b) => (a.data().createdAt?.toMillis?.() || 0) - (b.data().createdAt?.toMillis?.() || 0));
+      const members = sortedMemberDocs.map(m => {
         const data = m.data();
         return {
           id: m.id,
