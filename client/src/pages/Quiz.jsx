@@ -698,15 +698,14 @@ export default function Quiz() {
       </div>
 
       <div className="relative z-10 max-w-xl mx-auto px-6 py-10 space-y-8">
-        {/* Intro */}
-        <div className="text-center">
-          <h1 className="font-serif text-3xl md:text-4xl text-cream mb-2">
-            {firstName ? `${firstName}'s profile` : 'Set up your profile'}
-          </h1>
-          <p className="font-sans text-cream/50 text-sm max-w-sm mx-auto leading-relaxed">
-            Fill in what you're comfortable sharing, then pick a Tuesday to reserve your seat.
-          </p>
-        </div>
+        {/* Chapter marker — generic "Chapter N", never the chapter's thematic name */}
+        {step.type === 'chapter' && (
+          <div className="text-center">
+            <h1 className="font-serif text-3xl md:text-4xl text-cream">
+              Chapter {CHAPTERS.findIndex(c => c.id === step.chapterId) + 1}
+            </h1>
+          </div>
+        )}
 
         {profileChips.length > 0 && (
           <div className="flex flex-wrap gap-2 justify-center">
