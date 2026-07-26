@@ -24,15 +24,6 @@ export const QUESTIONS = [
     required: false,
   },
   {
-    id: 'auckland',
-    type: 'yes_no',
-    title: 'Are you in Auckland?',
-    field: 'field_iunObNMC8bY1',
-    chapter: 'basics',
-    required: true,
-    disqualifyIfNo: true,
-  },
-  {
     id: 'intent',
     type: 'choice',
     title: "What are you hoping to find?",
@@ -698,11 +689,13 @@ export default function Quiz() {
       </div>
 
       <div className="relative z-10 max-w-xl mx-auto px-6 py-10 space-y-8">
-        {/* Chapter marker — generic "Chapter N", never the chapter's thematic name */}
+        {/* Chapter marker — chapter 1 gets its own line, others get a generic "Chapter N" */}
         {step.type === 'chapter' && (
           <div className="text-center">
             <h1 className="font-serif text-3xl md:text-4xl text-cream">
-              Chapter {CHAPTERS.findIndex(c => c.id === step.chapterId) + 1}
+              {step.chapterId === 'basics'
+                ? "Let's get to know a little bit about you"
+                : `Chapter ${CHAPTERS.findIndex(c => c.id === step.chapterId) + 1}`}
             </h1>
           </div>
         )}
