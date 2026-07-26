@@ -316,6 +316,16 @@ const CHAPTER_QUESTIONS = CHAPTERS.map(chap => ({
   questions: QUESTIONS.filter(q => q.chapter === chap.id),
 }));
 
+// Every "box" is its own page in the profile flow — photo first, then one
+// page per chapter's questions (untitled, no chapter name shown), then the
+// date pick and payment as the final two pages.
+const STEPS = [
+  { type: 'photo' },
+  ...CHAPTERS.map(chap => ({ type: 'chapter', chapterId: chap.id })),
+  { type: 'date' },
+  { type: 'payment' },
+];
+
 // Every field that has to be filled in before the profile counts as "done" —
 // drives both the completion % and the final submit validation.
 const REQUIRED_FIELD_QUESTIONS = QUESTIONS.filter(q => q.required && q.field);
@@ -437,8 +447,13 @@ export default function Quiz() {
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [dateChoices, setDateChoices] = useState(DATE_Q.choices);
   const [savedAt, setSavedAt] = useState(null);
+  const [stepIndex, setStepIndex] = useState(0);
   const hasLoadedRef = useRef(false);
   const autosaveTimer = useRef(null);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [stepIndex]);
 
   useEffect(() => {
     api.get('/portal/full-profile')
@@ -512,6 +527,20 @@ export default function Quiz() {
     setValue(q.field, value);
   };
 
+  const step = STEPS[stepIndex];
+  const goNext = () => setStepIndex(i => Math.min(i + 1, STEPS.length - 1));
+  const goBack = () => setStepIndex(i => Math.max(i - 1, 0));
+
+  // Maps a question id back to the page it lives on, so a failed final
+  // validation can jump to the right page before scrolling to the field —
+  // only the current page's fields are ever in the DOM.
+  const stepIndexForQuestionId = (qid) => {
+    if (qid === 'date') return STEPS.findIndex(s => s.type === 'date');
+    const q = QUESTIONS.find(q => q.id === qid);
+    if (q?.chapter) return STEPS.findIndex(s => s.type === 'chapter' && s.chapterId === q.chapter);
+    return -1;
+  };
+
   const handlePhotoSelect = async (file) => {
     if (!file) return;
     setPhotoUploading(true);
@@ -554,8 +583,14 @@ export default function Quiz() {
   }, [firstName, answers.field_cqCcs6psQuhE, answers.field_L6GblNns9C7v]);
 
   const scrollToFirstError = (missingIds) => {
-    const el = document.getElementById(`q-${missingIds[0]}`);
-    el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const jumpTo = (id) => document.getElementById(`q-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const targetStep = stepIndexForQuestionId(missingIds[0]);
+    if (targetStep !== -1 && targetStep !== stepIndex) {
+      setStepIndex(targetStep);
+      setTimeout(() => jumpTo(missingIds[0]), 50);
+    } else {
+      jumpTo(missingIds[0]);
+    }
   };
 
   const validate = () => {
@@ -683,191 +718,206 @@ export default function Quiz() {
           </div>
         )}
 
-        {/* Photo */}
-        <div className="quiz-card flex items-center gap-5">
-          <label className="relative cursor-pointer group flex-shrink-0">
-            <input type="file" accept="image/*" className="hidden" onChange={e => handlePhotoSelect(e.target.files?.[0])} />
-            <div className="w-20 h-20 rounded-full border-2 border-dashed border-gold/30 bg-gold/5 flex items-center justify-center overflow-hidden group-hover:border-gold/60 transition-colors">
-              {photoUploading ? (
-                <div className="w-5 h-5 border-2 border-gold border-t-transparent rounded-full animate-spin" />
-              ) : answers.photo ? (
-                <img src={answers.photo} alt="Your profile" className="w-full h-full object-cover" />
-              ) : (
-                <span className="text-2xl">📷</span>
+        {/* One page per step — photo, then each chapter's questions (untitled), then date, then payment */}
+        {step.type === 'photo' && (
+          <div className="quiz-card flex items-center gap-5">
+            <label className="relative cursor-pointer group flex-shrink-0">
+              <input type="file" accept="image/*" className="hidden" onChange={e => handlePhotoSelect(e.target.files?.[0])} />
+              <div className="w-20 h-20 rounded-full border-2 border-dashed border-gold/30 bg-gold/5 flex items-center justify-center overflow-hidden group-hover:border-gold/60 transition-colors">
+                {photoUploading ? (
+                  <div className="w-5 h-5 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+                ) : answers.photo ? (
+                  <img src={answers.photo} alt="Your profile" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-2xl">📷</span>
+                )}
+              </div>
+            </label>
+            <div>
+              <p className="font-sans font-semibold text-cream text-sm mb-1">{PHOTO_Q.title}</p>
+              <p className="font-sans text-cream/40 text-xs mb-2">{PHOTO_Q.description}</p>
+              {answers.photo && (
+                <button onClick={() => setValue('photo', null)} className="font-sans text-cream/30 hover:text-red-400 text-xs transition-colors">
+                  Remove photo
+                </button>
               )}
             </div>
-          </label>
-          <div>
-            <p className="font-sans font-semibold text-cream text-sm mb-1">{PHOTO_Q.title}</p>
-            <p className="font-sans text-cream/40 text-xs mb-2">{PHOTO_Q.description}</p>
-            {answers.photo && (
-              <button onClick={() => setValue('photo', null)} className="font-sans text-cream/30 hover:text-red-400 text-xs transition-colors">
-                Remove photo
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Chapters */}
-        {CHAPTER_QUESTIONS.map(({ chapter, questions }) => (
-          <div key={chapter.id} className="quiz-card">
-            <div className="flex items-center justify-between mb-1">
-              <p className="font-serif text-xl text-cream">{chapter.title}</p>
-              {chapterDone(chapter.id) && (
-                <span className="w-6 h-6 rounded-full bg-gold text-navy flex items-center justify-center text-xs font-bold flex-shrink-0">✓</span>
-              )}
-            </div>
-            <p className="font-sans text-cream/35 text-xs mb-2">{chapter.blurb}</p>
-            <div className="divide-y divide-white/[0.05]">
-              {questions.map(q => {
-                if (q.type === 'contact') {
-                  return (
-                    <div key="contact" id="q-contact" className="py-4">
-                      <p className="font-sans text-cream text-[15px] mb-3">{q.title}</p>
-                      <input
-                        type="tel"
-                        placeholder="Phone number"
-                        value={answers.phone || ''}
-                        onChange={e => setValue('phone', e.target.value)}
-                        className="quiz-input"
-                      />
-                    </div>
-                  );
-                }
-                if (q.type === 'personal') {
-                  return (
-                    <div key="personal" id="q-personal" className={`py-4 ${(errors.dob || errors.gender || errors.country) ? 'rounded-xl -mx-3 px-3 bg-red-500/5' : ''}`}>
-                      <p className="font-sans text-cream text-[15px] mb-3">{q.title}<span className="text-gold/60"> *</span></p>
-                      <div className="space-y-3">
-                        <div>
-                          <label className="font-sans text-cream/40 text-xs tracking-[0.1em] uppercase mb-1.5 block">Date of birth</label>
-                          <input type="date" value={answers.dob || ''} onChange={e => setValue('dob', e.target.value)} className="quiz-input" />
-                        </div>
-                        <div>
-                          <label className="font-sans text-cream/40 text-xs tracking-[0.1em] uppercase mb-1.5 block">Gender</label>
-                          <select value={answers.gender || ''} onChange={e => setValue('gender', e.target.value)} className="quiz-input">
-                            <option value="">Select gender</option>
-                            {['Female', 'Male', 'Non-binary', 'Other', 'Prefer not to say'].map(g => <option key={g} value={g}>{g}</option>)}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="font-sans text-cream/40 text-xs tracking-[0.1em] uppercase mb-1.5 block">Country of origin</label>
-                          <select value={answers.country || ''} onChange={e => setValue('country', e.target.value)} className="quiz-input">
-                            <option value="">Select country</option>
-                            {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
-                          </select>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                }
-                return (
-                  <QuestionField
-                    key={q.id}
-                    q={q}
-                    value={answers[q.field]}
-                    onChange={(v) => handleFieldAnswer(q, v)}
-                    error={errors[q.field]}
-                  />
-                );
-              })}
-            </div>
-          </div>
-        ))}
-
-        {profileReady && (
-          <div className="rounded-2xl border border-gold/25 bg-gradient-to-br from-gold/[0.1] to-white/[0.02] p-5 text-center">
-            <p className="font-serif text-lg text-cream">🎉 Your profile is ready</p>
-            <p className="font-sans text-cream/50 text-xs mt-1">Just pick a Tuesday and you're booked in.</p>
           </div>
         )}
 
-        {/* Date */}
-        <div id="q-date" className={`quiz-card ${errors.field_CdZldwp5q09o ? 'bg-red-500/5 border-red-400/30' : ''}`}>
-          <p className="font-serif text-xl text-cream mb-1">{DATE_Q.title}</p>
-          <p className="font-sans text-cream/35 text-xs mb-3">Your reservation covers one Tuesday dinner.</p>
-          <div className="flex flex-wrap gap-2">
-            {dateChoices.map(choice => (
-              <button
-                key={choice}
-                type="button"
-                onClick={() => setValue('field_CdZldwp5q09o', choice)}
-                className={`${choiceBase} ${answers.field_CdZldwp5q09o === choice ? choiceActive : choiceIdle}`}
-              >
-                {choice}
-              </button>
-            ))}
-          </div>
-        </div>
+        {step.type === 'chapter' && (() => {
+          const questions = CHAPTER_QUESTIONS.find(c => c.chapter.id === step.chapterId).questions;
+          return (
+            <div className="quiz-card">
+              <div className="divide-y divide-white/[0.05]">
+                {questions.map(q => {
+                  if (q.type === 'contact') {
+                    return (
+                      <div key="contact" id="q-contact" className="py-4">
+                        <p className="font-sans text-cream text-[15px] mb-3">{q.title}</p>
+                        <input
+                          type="tel"
+                          placeholder="Phone number"
+                          value={answers.phone || ''}
+                          onChange={e => setValue('phone', e.target.value)}
+                          className="quiz-input"
+                        />
+                      </div>
+                    );
+                  }
+                  if (q.type === 'personal') {
+                    return (
+                      <div key="personal" id="q-personal" className={`py-4 ${(errors.dob || errors.gender || errors.country) ? 'rounded-xl -mx-3 px-3 bg-red-500/5' : ''}`}>
+                        <p className="font-sans text-cream text-[15px] mb-3">{q.title}<span className="text-gold/60"> *</span></p>
+                        <div className="space-y-3">
+                          <div>
+                            <label className="font-sans text-cream/40 text-xs tracking-[0.1em] uppercase mb-1.5 block">Date of birth</label>
+                            <input type="date" value={answers.dob || ''} onChange={e => setValue('dob', e.target.value)} className="quiz-input" />
+                          </div>
+                          <div>
+                            <label className="font-sans text-cream/40 text-xs tracking-[0.1em] uppercase mb-1.5 block">Gender</label>
+                            <select value={answers.gender || ''} onChange={e => setValue('gender', e.target.value)} className="quiz-input">
+                              <option value="">Select gender</option>
+                              {['Female', 'Male', 'Non-binary', 'Other', 'Prefer not to say'].map(g => <option key={g} value={g}>{g}</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="font-sans text-cream/40 text-xs tracking-[0.1em] uppercase mb-1.5 block">Country of origin</label>
+                            <select value={answers.country || ''} onChange={e => setValue('country', e.target.value)} className="quiz-input">
+                              <option value="">Select country</option>
+                              {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+                  return (
+                    <QuestionField
+                      key={q.id}
+                      q={q}
+                      value={answers[q.field]}
+                      onChange={(v) => handleFieldAnswer(q, v)}
+                      error={errors[q.field]}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
 
-        {/* Payment */}
-        <div className="quiz-card">
-          <div className="flex items-center gap-2 mb-1">
-            <p className="font-serif text-xl text-cream">Reserve your spot</p>
-            {!stripeConfigured && (
-              <span className="text-[10px] font-sans font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full bg-yellow/15 text-yellow">
-                Test mode
-              </span>
+        {step.type === 'date' && (
+          <>
+            {profileReady && (
+              <div className="rounded-2xl border border-gold/25 bg-gradient-to-br from-gold/[0.1] to-white/[0.02] p-5 text-center">
+                <p className="font-serif text-lg text-cream">🎉 Your profile is ready</p>
+                <p className="font-sans text-cream/50 text-xs mt-1">Just pick a Tuesday and you're booked in.</p>
+              </div>
+            )}
+
+            <div id="q-date" className={`quiz-card ${errors.field_CdZldwp5q09o ? 'bg-red-500/5 border-red-400/30' : ''}`}>
+              <p className="font-serif text-xl text-cream mb-1">{DATE_Q.title}</p>
+              <p className="font-sans text-cream/35 text-xs mb-3">Your reservation covers one Tuesday dinner.</p>
+              <div className="flex flex-wrap gap-2">
+                {dateChoices.map(choice => (
+                  <button
+                    key={choice}
+                    type="button"
+                    onClick={() => setValue('field_CdZldwp5q09o', choice)}
+                    className={`${choiceBase} ${answers.field_CdZldwp5q09o === choice ? choiceActive : choiceIdle}`}
+                  >
+                    {choice}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+
+        {step.type === 'payment' && (
+          <div className="quiz-card">
+            <div className="flex items-center gap-2 mb-1">
+              <p className="font-serif text-xl text-cream">Reserve your spot</p>
+              {!stripeConfigured && (
+                <span className="text-[10px] font-sans font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full bg-yellow/15 text-yellow">
+                  Test mode
+                </span>
+              )}
+            </div>
+            <p className="font-sans text-cream/35 text-xs mb-4">
+              {stripeConfigured
+                ? "Choose how you'd like to join — refundable with 48hrs notice."
+                : 'Payments are not connected yet — booking will be simulated, no card required.'}
+            </p>
+
+            {hasActiveSubscription ? (
+              <div>
+                <div className="rounded-xl border border-gold/25 bg-gold/[0.06] p-4 mb-4 text-center">
+                  <p className="font-sans text-cream/70 text-sm">✓ You're covered by your monthly membership — no extra charge.</p>
+                </div>
+                <button
+                  onClick={() => submitQuizWithoutPayment()}
+                  disabled={submitting}
+                  className="quiz-cta w-full flex items-center justify-center gap-2 disabled:opacity-60"
+                >
+                  {submitting ? 'Confirming...' : 'Confirm Booking'}
+                </button>
+              </div>
+            ) : (
+              <div>
+                <div className="space-y-3 mb-5">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPlan('one_time')}
+                    className={`w-full text-left rounded-2xl border p-4 transition-all duration-200 ${selectedPlan === 'one_time' ? choiceActive : choiceIdle}`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-sans font-semibold text-base">One-time reservation</span>
+                      <span className="font-serif text-2xl">$10</span>
+                    </div>
+                    <p className={`font-sans text-sm ${selectedPlan === 'one_time' ? 'text-navy/60' : 'text-cream/40'}`}>Reserve just this Tuesday's dinner.</p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPlan('subscription')}
+                    className={`w-full text-left rounded-2xl border p-4 transition-all duration-200 relative ${selectedPlan === 'subscription' ? choiceActive : choiceIdle}`}
+                  >
+                    <span className="absolute -top-2.5 right-5 bg-yellow text-navy text-[10px] font-sans font-bold uppercase tracking-widest px-2.5 py-1 rounded-full">Best value</span>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-sans font-semibold text-base">Monthly membership</span>
+                      <span className="font-serif text-2xl">$15<span className="text-sm">/mo</span></span>
+                    </div>
+                    <p className={`font-sans text-sm ${selectedPlan === 'subscription' ? 'text-navy/60' : 'text-cream/40'}`}>Unlimited HeyDer dinners this month. Cancel anytime.</p>
+                  </button>
+                </div>
+                <button
+                  onClick={() => handlePayment(selectedPlan)}
+                  disabled={submitting}
+                  className="quiz-cta w-full flex items-center justify-center gap-2 disabled:opacity-60"
+                >
+                  {submitting
+                    ? 'Processing...'
+                    : !stripeConfigured
+                      ? 'Complete Booking (Test Mode)'
+                      : selectedPlan === 'subscription' ? 'Subscribe $15/mo' : 'Pay $10 & Complete Booking'}
+                </button>
+              </div>
             )}
           </div>
-          <p className="font-sans text-cream/35 text-xs mb-4">
-            {stripeConfigured
-              ? "Choose how you'd like to join — refundable with 48hrs notice."
-              : 'Payments are not connected yet — booking will be simulated, no card required.'}
-          </p>
+        )}
 
-          {hasActiveSubscription ? (
-            <div>
-              <div className="rounded-xl border border-gold/25 bg-gold/[0.06] p-4 mb-4 text-center">
-                <p className="font-sans text-cream/70 text-sm">✓ You're covered by your monthly membership — no extra charge.</p>
-              </div>
-              <button
-                onClick={() => submitQuizWithoutPayment()}
-                disabled={submitting}
-                className="quiz-cta w-full flex items-center justify-center gap-2 disabled:opacity-60"
-              >
-                {submitting ? 'Confirming...' : 'Confirm Booking'}
-              </button>
-            </div>
-          ) : (
-            <div>
-              <div className="space-y-3 mb-5">
-                <button
-                  type="button"
-                  onClick={() => setSelectedPlan('one_time')}
-                  className={`w-full text-left rounded-2xl border p-4 transition-all duration-200 ${selectedPlan === 'one_time' ? choiceActive : choiceIdle}`}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-sans font-semibold text-base">One-time reservation</span>
-                    <span className="font-serif text-2xl">$10</span>
-                  </div>
-                  <p className={`font-sans text-sm ${selectedPlan === 'one_time' ? 'text-navy/60' : 'text-cream/40'}`}>Reserve just this Tuesday's dinner.</p>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedPlan('subscription')}
-                  className={`w-full text-left rounded-2xl border p-4 transition-all duration-200 relative ${selectedPlan === 'subscription' ? choiceActive : choiceIdle}`}
-                >
-                  <span className="absolute -top-2.5 right-5 bg-yellow text-navy text-[10px] font-sans font-bold uppercase tracking-widest px-2.5 py-1 rounded-full">Best value</span>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-sans font-semibold text-base">Monthly membership</span>
-                    <span className="font-serif text-2xl">$15<span className="text-sm">/mo</span></span>
-                  </div>
-                  <p className={`font-sans text-sm ${selectedPlan === 'subscription' ? 'text-navy/60' : 'text-cream/40'}`}>Unlimited HeyDer dinners this month. Cancel anytime.</p>
-                </button>
-              </div>
-              <button
-                onClick={() => handlePayment(selectedPlan)}
-                disabled={submitting}
-                className="quiz-cta w-full flex items-center justify-center gap-2 disabled:opacity-60"
-              >
-                {submitting
-                  ? 'Processing...'
-                  : !stripeConfigured
-                    ? 'Complete Booking (Test Mode)'
-                    : selectedPlan === 'subscription' ? 'Subscribe $15/mo' : 'Pay $10 & Complete Booking'}
-              </button>
-            </div>
+        {/* Page navigation */}
+        <div className="flex items-center justify-between gap-3 pt-2">
+          {stepIndex > 0 ? (
+            <button onClick={goBack} className="font-sans text-cream/50 hover:text-cream text-sm px-2 py-3 transition-colors">
+              ← Back
+            </button>
+          ) : <span />}
+          {step.type !== 'payment' && (
+            <button onClick={goNext} className="quiz-cta px-8 py-3">
+              {step.type === 'date' ? 'Continue to payment →' : 'Next →'}
+            </button>
           )}
         </div>
       </div>
