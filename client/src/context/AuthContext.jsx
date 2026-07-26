@@ -3,6 +3,7 @@ import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
   signOut,
 } from 'firebase/auth';
 import { auth } from '../firebase';
@@ -61,8 +62,10 @@ export function AuthProvider({ children }) {
 
   const logout = () => signOut(auth);
 
+  const resetPassword = (email) => sendPasswordResetEmail(auth, email);
+
   return (
-    <AuthContext.Provider value={{ adminUser, attendeeUser, signupAttendee, loginAttendee, loginAdmin, logout, loading }}>
+    <AuthContext.Provider value={{ adminUser, attendeeUser, signupAttendee, loginAttendee, loginAdmin, logout, resetPassword, loading }}>
       {children}
     </AuthContext.Provider>
   );

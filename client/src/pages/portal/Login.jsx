@@ -5,13 +5,26 @@ import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
 
 export default function PortalLogin() {
-  const { signupAttendee, loginAttendee } = useAuth();
+  const { signupAttendee, loginAttendee, resetPassword } = useAuth();
   const navigate = useNavigate();
   const [mode, setMode] = useState('signin'); // 'signin' | 'signup'
   const [form, setForm] = useState({ email: '', password: '', firstName: '', lastName: '' });
   const [loading, setLoading] = useState(false);
 
   const set = (key) => (e) => setForm(f => ({ ...f, [key]: e.target.value }));
+
+  const handleForgotPassword = async () => {
+    if (!form.email.trim()) {
+      toast.error('Enter your email above first.');
+      return;
+    }
+    try {
+      await resetPassword(form.email.trim());
+      toast.success('Password reset email sent — check your inbox.');
+    } catch (err) {
+      toast.error(friendlyError(err));
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -60,12 +73,14 @@ export default function PortalLogin() {
             </button>
           </div>
 
-          <h1 className="font-serif text-2xl text-cream mb-2">
+          <h1 className={`font-serif text-2xl text-cream mb-2 ${mode === 'signin' ? 'mb-6' : ''}`}>
             {mode === 'signin' ? 'Welcome back' : 'Create your account'}
           </h1>
-          <p className="font-sans text-cream/50 text-sm mb-6">
-            {mode === 'signin' ? 'Sign in to view your bookings.' : "We'll use this to build your HeyDer profile next."}
-          </p>
+          {mode === 'signup' && (
+            <p className="font-sans text-cream/50 text-sm mb-6">
+              We'll use this to build your HeyDer profile next.
+            </p>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {mode === 'signup' && (
@@ -99,9 +114,7 @@ export default function PortalLogin() {
 
         <p className="text-center mt-6 font-sans text-cream/40 text-sm">
           {mode === 'signin' ? (
-            <>Not signed up yet?{' '}
-              <button onClick={() => setMode('signup')} className="text-gold hover:text-yellow transition-colors">Create an account →</button>
-            </>
+            <button onClick={handleForgotPassword} className="text-gold hover:text-yellow transition-colors">Forgot password?</button>
           ) : (
             <>Already have an account?{' '}
               <button onClick={() => setMode('signin')} className="text-gold hover:text-yellow transition-colors">Sign in →</button>
