@@ -188,6 +188,7 @@ export default function PortalDashboard() {
   const [needsProfile, setNeedsProfile] = useState(false);
   const [dietary, setDietary] = useState([]);
   const [editDietary, setEditDietary] = useState(false);
+  const [location, setLocation] = useState('');
 
   useEffect(() => {
     Promise.all([
@@ -259,13 +260,35 @@ export default function PortalDashboard() {
       <div className="relative z-10 max-w-lg mx-auto px-5 py-10 space-y-8">
         <div className="text-center">
           <p className="font-sans text-gold/70 text-xs tracking-[0.2em] uppercase mb-3">Welcome to HeyDer</p>
-          <h1 className="font-serif text-4xl text-cream mb-3">You're signed in — let's build your profile.</h1>
-          <p className="font-sans text-cream/50 text-sm leading-relaxed max-w-sm mx-auto">
-            You haven't set up a profile yet, so there's nothing to show here. It takes about 5 minutes and unlocks Tuesday dinner bookings.
-          </p>
         </div>
 
-        <Link to="/profile" className="quiz-cta w-full flex items-center justify-center text-base py-4">
+        <div className="quiz-card space-y-3">
+          <label className="font-sans text-cream/70 text-sm font-medium block">Location</label>
+          <select
+            value={location}
+            onChange={e => setLocation(e.target.value)}
+            className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-3 text-cream font-sans text-sm focus:outline-none focus:border-gold/50"
+          >
+            <option value="" disabled className="bg-navy text-cream/40">Select your city</option>
+            {['Auckland', 'Wellington', 'Sydney', 'Melbourne', 'Brisbane'].map(city => (
+              <option key={city} value={city} className="bg-navy text-cream">{city}</option>
+            ))}
+          </select>
+        </div>
+
+        {location && location !== 'Auckland' && (
+          <div className="quiz-card text-center">
+            <p className="font-sans text-cream/50 text-sm leading-relaxed">
+              We're currently curating dinners only in Auckland. We'll let you know when we expand to {location}.
+            </p>
+          </div>
+        )}
+
+        <Link
+          to="/profile"
+          onClick={e => { if (location !== 'Auckland') e.preventDefault(); }}
+          className={`quiz-cta w-full flex items-center justify-center text-base py-4 ${location !== 'Auckland' ? 'opacity-40 pointer-events-none' : ''}`}
+        >
           Build My Profile →
         </Link>
 
@@ -273,7 +296,7 @@ export default function PortalDashboard() {
           <p className="font-sans font-semibold text-cream text-sm">How HeyDer works</p>
           {[
             ['①', 'Build your profile', 'A few quick questions about you and who you want to meet.'],
-            ['②', 'Reserve your Tuesday', '$10 one-time, or $15/mo for unlimited dinners — refundable up to 48hrs before.'],
+            ['②', 'Book your spot', 'Reserve your seat at this week\'s dinner.'],
             ['③', "We'll find your group", 'A curated table of people who wanted to meet someone like you.'],
             ['④', 'Just show up', 'Every Tuesday, 7pm, Auckland. Food & drinks paid at the venue.'],
           ].map(([num, title, body]) => (
