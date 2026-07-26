@@ -321,12 +321,32 @@ const CHAPTER_QUESTIONS = CHAPTERS.map(chap => ({
   questions: QUESTIONS.filter(q => q.chapter === chap.id),
 }));
 
-// Every "box" is its own page in the profile flow — photo first, then one
-// page per chapter's questions (untitled, no chapter name shown), then the
-// date pick and payment as the final two pages.
+// Splits a chapter's questions into pages of 2-3 so no single page feels
+// crowded — as even a split as possible, never more than 3 per page.
+function chunkInto2or3(items) {
+  if (items.length <= 3) return [items];
+  const numGroups = Math.ceil(items.length / 3);
+  const base = Math.floor(items.length / numGroups);
+  let remainder = items.length % numGroups;
+  const groups = [];
+  let idx = 0;
+  for (let g = 0; g < numGroups; g++) {
+    const size = base + (remainder > 0 ? 1 : 0);
+    if (remainder > 0) remainder--;
+    groups.push(items.slice(idx, idx + size));
+    idx += size;
+  }
+  return groups;
+}
+
+// Every "box" is its own page in the profile flow — photo first, then each
+// chapter split into short 2-3 question pages (untitled, no chapter name
+// shown), then the date pick and payment as the final two pages.
 const STEPS = [
   { type: 'photo' },
-  ...CHAPTERS.map(chap => ({ type: 'chapter', chapterId: chap.id })),
+  ...CHAPTER_QUESTIONS.flatMap(({ chapter, questions }) =>
+    chunkInto2or3(questions).map(qs => ({ type: 'chapter', chapterId: chapter.id, questions: qs }))
+  ),
   { type: 'date' },
   { type: 'payment' },
 ];
@@ -541,9 +561,7 @@ export default function Quiz() {
   // only the current page's fields are ever in the DOM.
   const stepIndexForQuestionId = (qid) => {
     if (qid === 'date') return STEPS.findIndex(s => s.type === 'date');
-    const q = QUESTIONS.find(q => q.id === qid);
-    if (q?.chapter) return STEPS.findIndex(s => s.type === 'chapter' && s.chapterId === q.chapter);
-    return -1;
+    return STEPS.findIndex(s => s.type === 'chapter' && s.questions.some(q => q.id === qid));
   };
 
   const handlePhotoSelect = async (file) => {
@@ -752,7 +770,7 @@ export default function Quiz() {
         )}
 
         {step.type === 'chapter' && (() => {
-          const questions = CHAPTER_QUESTIONS.find(c => c.chapter.id === step.chapterId).questions;
+          const questions = step.questions;
           return (
             <div className="quiz-card">
               <div className="divide-y divide-white/[0.05]">
