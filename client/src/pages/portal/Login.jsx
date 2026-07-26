@@ -107,7 +107,7 @@ export default function PortalLogin() {
               onChange={set('password')}
             />
             <button type="submit" disabled={loading} className="quiz-cta w-full">
-              {loading ? 'Please wait...' : mode === 'signin' ? 'Sign In' : 'Create Account & Build Profile'}
+              {loading ? 'Please wait...' : mode === 'signin' ? 'Sign In' : 'Build Profile'}
             </button>
           </form>
         </div>
