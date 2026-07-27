@@ -18,11 +18,11 @@ const fadeUpVariant = {
 };
 const staggerContainerVariant = {
   hidden: {},
-  visible: { transition: { staggerChildren: 0.18, delayChildren: 0.55 } },
+  visible: { transition: { staggerChildren: 0.32, delayChildren: 0.55 } },
 };
 const fadeLeftVariant = {
   hidden: { opacity: 0, x: -28 },
-  visible: { opacity: 1, x: 0, transition: { duration: 0.65, ease: easeOutExpo } },
+  visible: { opacity: 1, x: 0, transition: { duration: 0.9, ease: easeOutExpo } },
 };
 
 export const CHAPTERS = [
