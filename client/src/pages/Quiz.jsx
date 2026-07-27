@@ -9,17 +9,20 @@ import { fileToResizedBase64 } from '../utils/image';
 
 // A question's title fades up on entry; its options then fade in from the
 // left, one after another, orchestrated by the stagger container below.
+// Deliberately slow — this is meant to feel like an unfolding moment, not
+// a UI blip.
+const easeOutExpo = [0.22, 1, 0.36, 1];
 const fadeUpVariant = {
-  hidden: { opacity: 0, y: 14 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.35, ease: 'easeOut' } },
+  hidden: { opacity: 0, y: 22 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.7, ease: easeOutExpo } },
 };
 const staggerContainerVariant = {
   hidden: {},
-  visible: { transition: { staggerChildren: 0.06, delayChildren: 0.1 } },
+  visible: { transition: { staggerChildren: 0.14, delayChildren: 0.4 } },
 };
 const fadeLeftVariant = {
-  hidden: { opacity: 0, x: -16 },
-  visible: { opacity: 1, x: 0, transition: { duration: 0.3, ease: 'easeOut' } },
+  hidden: { opacity: 0, x: -28 },
+  visible: { opacity: 1, x: 0, transition: { duration: 0.5, ease: easeOutExpo } },
 };
 
 export const CHAPTERS = [
