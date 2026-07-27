@@ -14,15 +14,15 @@ import { fileToResizedBase64 } from '../utils/image';
 const easeOutExpo = [0.22, 1, 0.36, 1];
 const fadeUpVariant = {
   hidden: { opacity: 0, y: 22 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.7, ease: easeOutExpo } },
+  visible: { opacity: 1, y: 0, transition: { duration: 1, ease: easeOutExpo } },
 };
 const staggerContainerVariant = {
   hidden: {},
-  visible: { transition: { staggerChildren: 0.14, delayChildren: 0.4 } },
+  visible: { transition: { staggerChildren: 0.18, delayChildren: 0.55 } },
 };
 const fadeLeftVariant = {
   hidden: { opacity: 0, x: -28 },
-  visible: { opacity: 1, x: 0, transition: { duration: 0.5, ease: easeOutExpo } },
+  visible: { opacity: 1, x: 0, transition: { duration: 0.65, ease: easeOutExpo } },
 };
 
 export const CHAPTERS = [
@@ -326,12 +326,17 @@ const COUNTRIES = [
   'Other',
 ];
 
+// transition-colors (not transition-all) so this never touches `transform` —
+// Framer Motion owns transform on these buttons during their entrance, and
+// a CSS transition racing it on the same property is what caused the shake.
 const choiceBase =
-  'text-left px-4 py-2.5 rounded-xl border font-sans text-sm transition-all duration-150 cursor-pointer';
+  'text-left px-4 py-2.5 rounded-xl border font-sans text-sm transition-colors duration-150 cursor-pointer';
 const choiceIdle =
   'border-[#e7dcbd]/18 bg-[#e7dcbd]/[0.04] text-[#e7dcbd]/65 hover:border-[#e7dcbd]/40 hover:bg-[#e7dcbd]/[0.08] hover:text-[#e7dcbd]/95';
+// No font-weight change here on purpose — a bolder selected label is wider,
+// which reflows every other button in the row and reads as "losing position".
 const choiceActive =
-  'border-gold bg-gold text-navy font-medium shadow-[0_4px_16px_rgba(232,168,84,0.2)]';
+  'border-gold bg-gold text-navy shadow-[0_4px_16px_rgba(232,168,84,0.2)]';
 
 const PHOTO_Q = QUESTIONS.find(q => q.id === 'photo');
 const DATE_Q = QUESTIONS.find(q => q.id === 'date');
@@ -402,7 +407,7 @@ function QuestionField({ q, value, onChange, error }) {
               variants={fadeLeftVariant}
               type="button"
               onClick={() => onChange(opt.v)}
-              className={`flex-1 py-2.5 rounded-xl border font-sans text-sm transition-all ${value === opt.v ? choiceActive : choiceIdle}`}
+              className={`flex-1 py-2.5 rounded-xl border font-sans text-sm transition-colors ${value === opt.v ? choiceActive : choiceIdle}`}
             >
               {opt.label}
             </motion.button>
@@ -463,9 +468,9 @@ function QuestionField({ q, value, onChange, error }) {
                 variants={fadeLeftVariant}
                 type="button"
                 onClick={() => onChange(n)}
-                className={`flex-1 aspect-square max-w-[38px] rounded-full font-sans text-xs font-medium transition-all ${
+                className={`flex-1 aspect-square max-w-[38px] rounded-full font-sans text-xs font-medium transition-colors ${
                   value === n
-                    ? 'bg-gold text-navy scale-110'
+                    ? 'bg-gold text-navy shadow-[0_0_0_3px_rgba(232,168,84,0.25)]'
                     : 'border border-[#e7dcbd]/15 bg-[#e7dcbd]/[0.03] text-[#e7dcbd]/40 hover:border-[#e7dcbd]/40 hover:text-[#e7dcbd]/90'
                 }`}
               >
@@ -932,7 +937,7 @@ export default function Quiz() {
                     variants={fadeLeftVariant}
                     type="button"
                     onClick={() => setSelectedPlan('one_time')}
-                    className={`w-full text-left rounded-2xl border p-4 transition-all duration-200 ${selectedPlan === 'one_time' ? choiceActive : choiceIdle}`}
+                    className={`w-full text-left rounded-2xl border p-4 transition-colors duration-200 ${selectedPlan === 'one_time' ? choiceActive : choiceIdle}`}
                   >
                     <div className="flex items-center justify-between mb-1">
                       <span className="font-sans font-semibold text-base">One-time reservation</span>
@@ -944,7 +949,7 @@ export default function Quiz() {
                     variants={fadeLeftVariant}
                     type="button"
                     onClick={() => setSelectedPlan('subscription')}
-                    className={`w-full text-left rounded-2xl border p-4 transition-all duration-200 relative ${selectedPlan === 'subscription' ? choiceActive : choiceIdle}`}
+                    className={`w-full text-left rounded-2xl border p-4 transition-colors duration-200 relative ${selectedPlan === 'subscription' ? choiceActive : choiceIdle}`}
                   >
                     <span className="absolute -top-2.5 right-5 bg-yellow text-navy text-[10px] font-sans font-bold uppercase tracking-widest px-2.5 py-1 rounded-full">Best value</span>
                     <div className="flex items-center justify-between mb-1">
