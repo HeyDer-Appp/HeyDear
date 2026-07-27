@@ -541,7 +541,7 @@ export default function Quiz() {
   const [dateChoices, setDateChoices] = useState(DATE_Q.choices);
   const [savedAt, setSavedAt] = useState(null);
   const [stepIndex, setStepIndex] = useState(0);
-  const [showPhotoBubble, setShowPhotoBubble] = useState(false);
+  const [showPhotoBubble, setShowPhotoBubble] = useState(true);
   const hasLoadedRef = useRef(false);
   const autosaveTimer = useRef(null);
 
@@ -781,12 +781,16 @@ export default function Quiz() {
           )}
           <span className="font-sans text-cream/40 text-xs tracking-widest uppercase">{completionPct}% complete</span>
           <div className="relative flex-shrink-0">
-            <button
-              type="button"
-              onClick={() => setShowPhotoBubble(v => !v)}
-              className="relative w-9 h-9 rounded-full border-2 border-dashed border-gold/30 bg-gold/5 flex items-center justify-center overflow-hidden hover:border-gold/60 transition-colors"
+            <label
+              className="relative w-9 h-9 rounded-full border-2 border-dashed border-gold/30 bg-gold/5 flex items-center justify-center overflow-hidden hover:border-gold/60 transition-colors cursor-pointer"
               aria-label="Add profile photo"
             >
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={e => handlePhotoSelect(e.target.files?.[0])}
+              />
               {photoUploading ? (
                 <div className="w-4 h-4 border-2 border-gold border-t-transparent rounded-full animate-spin" />
               ) : answers.photo ? (
@@ -794,9 +798,11 @@ export default function Quiz() {
               ) : (
                 <span className="text-sm">📷</span>
               )}
-            </button>
+            </label>
 
-            {/* Comic-style speech bubble, pops down from the avatar */}
+            {/* Comic-style speech bubble, pops down from the avatar — purely
+                informational, stays open until the x is clicked; clicking
+                the camera itself (not this bubble) is what opens the picker */}
             <AnimatePresence>
               {showPhotoBubble && (
                 <motion.div
@@ -808,17 +814,9 @@ export default function Quiz() {
                 >
                   <div className="relative bg-[#1f2228] border-2 border-gold/50 rounded-xl pl-4 pr-7 py-2.5 shadow-[0_10px_30px_rgba(0,0,0,0.5)] whitespace-nowrap">
                     <div className="absolute -top-[7px] right-5 w-3 h-3 bg-[#1f2228] border-t-2 border-l-2 border-gold/50 rotate-45" />
-                    <label className="cursor-pointer">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={e => handlePhotoSelect(e.target.files?.[0])}
-                      />
-                      <span className="font-sans text-cream text-sm">
-                        {answers.photo ? 'Change profile pic' : 'Upload a profile pic'}
-                      </span>
-                    </label>
+                    <span className="font-sans text-cream text-sm">
+                      {answers.photo ? 'Change profile pic' : 'Upload a profile pic'}
+                    </span>
                     <button
                       type="button"
                       onClick={() => setShowPhotoBubble(false)}
