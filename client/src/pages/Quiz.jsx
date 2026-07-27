@@ -1,10 +1,26 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { loadStripe } from '@stripe/stripe-js';
 import toast from 'react-hot-toast';
 import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { fileToResizedBase64 } from '../utils/image';
+
+// A question's title fades up on entry; its options then fade in from the
+// left, one after another, orchestrated by the stagger container below.
+const fadeUpVariant = {
+  hidden: { opacity: 0, y: 14 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.35, ease: 'easeOut' } },
+};
+const staggerContainerVariant = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.06, delayChildren: 0.1 } },
+};
+const fadeLeftVariant = {
+  hidden: { opacity: 0, x: -16 },
+  visible: { opacity: 1, x: 0, transition: { duration: 0.3, ease: 'easeOut' } },
+};
 
 export const CHAPTERS = [
   { id: 'basics', title: 'The Basics', blurb: 'Age, gender, country, relationship status — fast, tappable, zero ceremony.' },
@@ -361,51 +377,61 @@ function isAnswered(value) {
 }
 
 // One question's answer widget — reused across every chapter section.
+// Title fades up on mount; its options then fade in from the left, one by
+// one, every time this question is freshly mounted (i.e. a new page opens).
 function QuestionField({ q, value, onChange, error }) {
   return (
-    <div id={`q-${q.id}`} className={`py-4 ${error ? 'rounded-xl -mx-3 px-3 bg-red-500/5' : ''}`}>
-      <p className="font-sans text-cream text-[15px] mb-3 leading-snug">
+    <motion.div
+      id={`q-${q.id}`}
+      className={`py-4 ${error ? 'rounded-xl -mx-3 px-3 bg-red-500/5' : ''}`}
+      initial="hidden"
+      animate="visible"
+    >
+      <motion.p variants={fadeUpVariant} className="font-sans text-cream text-[15px] mb-3 leading-snug">
         {q.title}{q.required && <span className="text-gold/60"> *</span>}
-      </p>
+      </motion.p>
 
       {q.type === 'yes_no' && (
-        <div className="flex gap-2.5">
+        <motion.div variants={staggerContainerVariant} className="flex gap-2.5">
           {[{ label: 'Yes', v: true }, { label: 'No', v: false }].map(opt => (
-            <button
+            <motion.button
               key={opt.label}
+              variants={fadeLeftVariant}
               type="button"
               onClick={() => onChange(opt.v)}
               className={`flex-1 py-2.5 rounded-xl border font-sans text-sm transition-all ${value === opt.v ? choiceActive : choiceIdle}`}
             >
               {opt.label}
-            </button>
+            </motion.button>
           ))}
-        </div>
+        </motion.div>
       )}
 
       {q.type === 'choice' && (
-        <div className="flex flex-wrap gap-2">
+        <motion.div variants={staggerContainerVariant} className="flex flex-wrap gap-2">
           {q.choices.map(choice => (
-            <button
+            <motion.button
               key={choice}
+              variants={fadeLeftVariant}
               type="button"
               onClick={() => onChange(choice)}
               className={`${choiceBase} ${value === choice ? choiceActive : choiceIdle}`}
             >
               {choice}
-            </button>
+            </motion.button>
           ))}
-        </div>
+        </motion.div>
       )}
 
       {q.type === 'multi_choice' && (
-        <div className="flex flex-wrap gap-2">
+        <motion.div variants={staggerContainerVariant} className="flex flex-wrap gap-2">
           {q.choices.map(choice => {
             const cur = value || [];
             const selected = cur.includes(choice);
             return (
-              <button
+              <motion.button
                 key={choice}
+                variants={fadeLeftVariant}
                 type="button"
                 onClick={() => {
                   if (choice === 'Not Applicable') { onChange(['Not Applicable']); return; }
@@ -415,10 +441,10 @@ function QuestionField({ q, value, onChange, error }) {
                 className={`${choiceBase} ${selected ? choiceActive : choiceIdle}`}
               >
                 {choice}
-              </button>
+              </motion.button>
             );
           })}
-        </div>
+        </motion.div>
       )}
 
       {q.type === 'scale' && (
@@ -427,10 +453,11 @@ function QuestionField({ q, value, onChange, error }) {
             <span className="font-sans text-cream/35 text-xs">{q.labels?.[0]}</span>
             <span className="font-sans text-cream/35 text-xs">{q.labels?.[1]}</span>
           </div>
-          <div className="flex gap-1.5 justify-between">
+          <motion.div variants={staggerContainerVariant} className="flex gap-1.5 justify-between">
             {Array.from({ length: q.max - q.min + 1 }, (_, i) => i + q.min).map(n => (
-              <button
+              <motion.button
                 key={n}
+                variants={fadeLeftVariant}
                 type="button"
                 onClick={() => onChange(n)}
                 className={`flex-1 aspect-square max-w-[38px] rounded-full font-sans text-xs font-medium transition-all ${
@@ -440,9 +467,9 @@ function QuestionField({ q, value, onChange, error }) {
                 }`}
               >
                 {n}
-              </button>
+              </motion.button>
             ))}
-          </div>
+          </motion.div>
         </div>
       )}
 
@@ -455,7 +482,7 @@ function QuestionField({ q, value, onChange, error }) {
           className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-3 text-cream placeholder-cream/25 font-sans text-sm focus:outline-none focus:border-gold/50 resize-none"
         />
       )}
-    </div>
+    </motion.div>
   );
 }
 
@@ -724,11 +751,17 @@ export default function Quiz() {
         {/* Chapter marker — chapter 1 gets its own line, others get a generic "Chapter N" */}
         {step.type === 'chapter' && (
           <div className="text-center">
-            <h1 className="font-serif text-3xl md:text-4xl text-cream">
+            <motion.h1
+              key={stepIndex}
+              initial="hidden"
+              animate="visible"
+              variants={fadeUpVariant}
+              className="font-serif text-3xl md:text-4xl text-cream"
+            >
               {step.chapterId === 'basics'
                 ? "Let's get to know a little bit about you"
                 : `Chapter ${CHAPTERS.findIndex(c => c.id === step.chapterId) + 1}`}
-            </h1>
+            </motion.h1>
           </div>
         )}
 
@@ -758,7 +791,7 @@ export default function Quiz() {
               </div>
             </label>
             <div>
-              <p className="font-sans font-semibold text-cream text-sm mb-1">{PHOTO_Q.title}</p>
+              <motion.p initial="hidden" animate="visible" variants={fadeUpVariant} className="font-sans font-semibold text-cream text-sm mb-1">{PHOTO_Q.title}</motion.p>
               <p className="font-sans text-cream/40 text-xs mb-2">{PHOTO_Q.description}</p>
               {answers.photo && (
                 <button onClick={() => setValue('photo', null)} className="font-sans text-cream/30 hover:text-red-400 text-xs transition-colors">
@@ -778,7 +811,7 @@ export default function Quiz() {
                   if (q.type === 'contact') {
                     return (
                       <div key="contact" id="q-contact" className="py-4">
-                        <p className="font-sans text-cream text-[15px] mb-3">{q.title}</p>
+                        <motion.p initial="hidden" animate="visible" variants={fadeUpVariant} className="font-sans text-cream text-[15px] mb-3">{q.title}</motion.p>
                         <input
                           type="tel"
                           placeholder="Phone number"
@@ -792,7 +825,7 @@ export default function Quiz() {
                   if (q.type === 'personal') {
                     return (
                       <div key="personal" id="q-personal" className={`py-4 ${(errors.dob || errors.gender || errors.country) ? 'rounded-xl -mx-3 px-3 bg-red-500/5' : ''}`}>
-                        <p className="font-sans text-cream text-[15px] mb-3">{q.title}<span className="text-gold/60"> *</span></p>
+                        <motion.p initial="hidden" animate="visible" variants={fadeUpVariant} className="font-sans text-cream text-[15px] mb-3">{q.title}<span className="text-gold/60"> *</span></motion.p>
                         <div className="space-y-3">
                           <div>
                             <label className="font-sans text-cream/40 text-xs tracking-[0.1em] uppercase mb-1.5 block">Date of birth</label>
@@ -841,20 +874,21 @@ export default function Quiz() {
             )}
 
             <div id="q-date" className={`quiz-card ${errors.field_CdZldwp5q09o ? 'bg-red-500/5 border-red-400/30' : ''}`}>
-              <p className="font-serif text-xl text-cream mb-1">{DATE_Q.title}</p>
+              <motion.p initial="hidden" animate="visible" variants={fadeUpVariant} className="font-serif text-xl text-cream mb-1">{DATE_Q.title}</motion.p>
               <p className="font-sans text-cream/35 text-xs mb-3">Your reservation covers one Tuesday dinner.</p>
-              <div className="flex flex-wrap gap-2">
+              <motion.div initial="hidden" animate="visible" variants={staggerContainerVariant} className="flex flex-wrap gap-2">
                 {dateChoices.map(choice => (
-                  <button
+                  <motion.button
                     key={choice}
+                    variants={fadeLeftVariant}
                     type="button"
                     onClick={() => setValue('field_CdZldwp5q09o', choice)}
                     className={`${choiceBase} ${answers.field_CdZldwp5q09o === choice ? choiceActive : choiceIdle}`}
                   >
                     {choice}
-                  </button>
+                  </motion.button>
                 ))}
-              </div>
+              </motion.div>
             </div>
           </>
         )}
@@ -862,7 +896,7 @@ export default function Quiz() {
         {step.type === 'payment' && (
           <div className="quiz-card">
             <div className="flex items-center gap-2 mb-1">
-              <p className="font-serif text-xl text-cream">Reserve your spot</p>
+              <motion.p initial="hidden" animate="visible" variants={fadeUpVariant} className="font-serif text-xl text-cream">Reserve your spot</motion.p>
               {!stripeConfigured && (
                 <span className="text-[10px] font-sans font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full bg-yellow/15 text-yellow">
                   Test mode
@@ -890,8 +924,9 @@ export default function Quiz() {
               </div>
             ) : (
               <div>
-                <div className="space-y-3 mb-5">
-                  <button
+                <motion.div initial="hidden" animate="visible" variants={staggerContainerVariant} className="space-y-3 mb-5">
+                  <motion.button
+                    variants={fadeLeftVariant}
                     type="button"
                     onClick={() => setSelectedPlan('one_time')}
                     className={`w-full text-left rounded-2xl border p-4 transition-all duration-200 ${selectedPlan === 'one_time' ? choiceActive : choiceIdle}`}
@@ -901,8 +936,9 @@ export default function Quiz() {
                       <span className="font-serif text-2xl">$10</span>
                     </div>
                     <p className={`font-sans text-sm ${selectedPlan === 'one_time' ? 'text-navy/60' : 'text-cream/40'}`}>Reserve just this Tuesday's dinner.</p>
-                  </button>
-                  <button
+                  </motion.button>
+                  <motion.button
+                    variants={fadeLeftVariant}
                     type="button"
                     onClick={() => setSelectedPlan('subscription')}
                     className={`w-full text-left rounded-2xl border p-4 transition-all duration-200 relative ${selectedPlan === 'subscription' ? choiceActive : choiceIdle}`}
@@ -913,8 +949,8 @@ export default function Quiz() {
                       <span className="font-serif text-2xl">$15<span className="text-sm">/mo</span></span>
                     </div>
                     <p className={`font-sans text-sm ${selectedPlan === 'subscription' ? 'text-navy/60' : 'text-cream/40'}`}>Unlimited HeyDer dinners this month. Cancel anytime.</p>
-                  </button>
-                </div>
+                  </motion.button>
+                </motion.div>
                 <button
                   onClick={() => handlePayment(selectedPlan)}
                   disabled={submitting}
