@@ -52,6 +52,22 @@ export const QUESTIONS = [
     required: true,
   },
   {
+    id: 'contact',
+    type: 'contact',
+    title: "What's the best number to reach you on?",
+    chapter: 'basics',
+    required: false,
+  },
+  {
+    id: 'intent',
+    type: 'choice',
+    title: "What are you hoping to find?",
+    field: 'field_cqCcs6psQuhE',
+    chapter: 'basics',
+    required: true,
+    choices: ['Meaningful friendships', 'A fun night out'],
+  },
+  {
     id: 'relationship',
     type: 'choice',
     title: "What's your relationship status?",
@@ -68,22 +84,6 @@ export const QUESTIONS = [
     chapter: 'basics',
     required: true,
     choices: ['Not Working', 'Student', 'Building Foundations', 'Settled Professional', 'New to city'],
-  },
-  {
-    id: 'intent',
-    type: 'choice',
-    title: "What are you hoping to find?",
-    field: 'field_cqCcs6psQuhE',
-    chapter: 'basics',
-    required: true,
-    choices: ['Meaningful friendships', 'A fun night out'],
-  },
-  {
-    id: 'contact',
-    type: 'contact',
-    title: "What's the best number to reach you on?",
-    chapter: 'basics',
-    required: false,
   },
 
   // Chapter 2 — How You Show Up
@@ -363,13 +363,32 @@ function chunkInto2or3(items) {
   return groups;
 }
 
+// Explicit page sizes for chapters where the grouping matters (e.g. the
+// personal details + phone number pair belongs on its own page). Chapters
+// not listed here fall back to the automatic 2-3 split above.
+const MANUAL_CHAPTER_PAGE_SIZES = {
+  basics: [2, 3], // personal + contact | intent + relationship + lifestage
+};
+
+function chunkChapterQuestions(chapterId, items) {
+  const manualSizes = MANUAL_CHAPTER_PAGE_SIZES[chapterId];
+  if (!manualSizes) return chunkInto2or3(items);
+  const groups = [];
+  let idx = 0;
+  for (const size of manualSizes) {
+    groups.push(items.slice(idx, idx + size));
+    idx += size;
+  }
+  return groups;
+}
+
 // Every "box" is its own page in the profile flow — photo first, then each
 // chapter split into short 2-3 question pages (untitled, no chapter name
 // shown), then the date pick and payment as the final two pages.
 const STEPS = [
   { type: 'photo' },
   ...CHAPTER_QUESTIONS.flatMap(({ chapter, questions }) =>
-    chunkInto2or3(questions).map(qs => ({ type: 'chapter', chapterId: chapter.id, questions: qs }))
+    chunkChapterQuestions(chapter.id, questions).map(qs => ({ type: 'chapter', chapterId: chapter.id, questions: qs }))
   ),
   { type: 'date' },
   { type: 'payment' },
@@ -767,7 +786,7 @@ export default function Quiz() {
               className="font-serif text-3xl md:text-4xl text-cream"
             >
               {step.chapterId === 'basics'
-                ? "Let's get to know a little bit about you"
+                ? 'Chapter 1 — Let\'s get started'
                 : `Chapter ${CHAPTERS.findIndex(c => c.id === step.chapterId) + 1}`}
             </motion.h1>
           </div>
