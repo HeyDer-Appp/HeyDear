@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { loadStripe } from '@stripe/stripe-js';
 import toast from 'react-hot-toast';
 import api from '../utils/api';
@@ -404,11 +404,12 @@ function chunkChapterQuestions(chapterId, items) {
   return groups;
 }
 
-// Every "box" is its own page in the profile flow — photo first, then each
-// chapter split into short 2-3 question pages (untitled, no chapter name
-// shown), then the date pick and payment as the final two pages.
+// Every "box" is its own page in the profile flow — each chapter split into
+// short 2-3 question pages (untitled, no chapter name shown), then the date
+// pick and payment as the final two pages. The profile photo isn't a page
+// at all anymore — it's a persistent avatar button in the header (opens a
+// dialog) so it stays reachable throughout the whole flow.
 const STEPS = [
-  { type: 'photo' },
   ...CHAPTER_QUESTIONS.flatMap(({ chapter, questions }) =>
     chunkChapterQuestions(chapter.id, questions).map(qs => ({ type: 'chapter', chapterId: chapter.id, questions: qs }))
   ),
@@ -549,6 +550,7 @@ export default function Quiz() {
   const [dateChoices, setDateChoices] = useState(DATE_Q.choices);
   const [savedAt, setSavedAt] = useState(null);
   const [stepIndex, setStepIndex] = useState(0);
+  const [showPhotoModal, setShowPhotoModal] = useState(false);
   const hasLoadedRef = useRef(false);
   const autosaveTimer = useRef(null);
 
@@ -787,6 +789,18 @@ export default function Quiz() {
             </span>
           )}
           <span className="font-sans text-cream/40 text-xs tracking-widest uppercase">{completionPct}% complete</span>
+          <button
+            type="button"
+            onClick={() => setShowPhotoModal(true)}
+            className="relative w-9 h-9 rounded-full border-2 border-dashed border-gold/30 bg-gold/5 flex items-center justify-center overflow-hidden hover:border-gold/60 transition-colors flex-shrink-0"
+            aria-label="Add profile photo"
+          >
+            {answers.photo ? (
+              <img src={answers.photo} alt="Your profile" className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-sm">📷</span>
+            )}
+          </button>
         </div>
       </div>
       <div className="relative z-10 h-[2px] bg-white/[0.05]">
@@ -824,33 +838,7 @@ export default function Quiz() {
           </div>
         )}
 
-        {/* One page per step — photo, then each chapter's questions (untitled), then date, then payment */}
-        {step.type === 'photo' && (
-          <div className="quiz-card flex items-center gap-5">
-            <label className="relative cursor-pointer group flex-shrink-0">
-              <input type="file" accept="image/*" className="hidden" onChange={e => handlePhotoSelect(e.target.files?.[0])} />
-              <div className="w-20 h-20 rounded-full border-2 border-dashed border-gold/30 bg-gold/5 flex items-center justify-center overflow-hidden group-hover:border-gold/60 transition-colors">
-                {photoUploading ? (
-                  <div className="w-5 h-5 border-2 border-gold border-t-transparent rounded-full animate-spin" />
-                ) : answers.photo ? (
-                  <img src={answers.photo} alt="Your profile" className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-2xl">📷</span>
-                )}
-              </div>
-            </label>
-            <div>
-              <motion.p initial="hidden" animate="visible" variants={fadeUpVariant} className="font-sans font-semibold text-cream text-sm mb-1">{PHOTO_Q.title}</motion.p>
-              <p className="font-sans text-cream/40 text-xs mb-2">{PHOTO_Q.description}</p>
-              {answers.photo && (
-                <button onClick={() => setValue('photo', null)} className="font-sans text-cream/30 hover:text-red-400 text-xs transition-colors">
-                  Remove photo
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-
+        {/* One page per step — each chapter's questions (untitled), then date, then payment */}
         {step.type === 'chapter' && (() => {
           const questions = step.questions;
           return (
@@ -1030,6 +1018,63 @@ export default function Quiz() {
           )}
         </div>
       </div>
+
+      <AnimatePresence>
+        {showPhotoModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-6"
+            onClick={() => setShowPhotoModal(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 16, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 16, scale: 0.96 }}
+              transition={{ duration: 0.35, ease: easeOutExpo }}
+              className="quiz-card w-full max-w-sm"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-5">
+                <p className="font-serif text-xl text-cream">Add profile photo</p>
+                <button
+                  type="button"
+                  onClick={() => setShowPhotoModal(false)}
+                  className="text-cream/40 hover:text-cream text-2xl leading-none transition-colors"
+                  aria-label="Close"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="flex items-center gap-5">
+                <label className="relative cursor-pointer group flex-shrink-0">
+                  <input type="file" accept="image/*" className="hidden" onChange={e => handlePhotoSelect(e.target.files?.[0])} />
+                  <div className="w-20 h-20 rounded-full border-2 border-dashed border-gold/30 bg-gold/5 flex items-center justify-center overflow-hidden group-hover:border-gold/60 transition-colors">
+                    {photoUploading ? (
+                      <div className="w-5 h-5 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+                    ) : answers.photo ? (
+                      <img src={answers.photo} alt="Your profile" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-2xl">📷</span>
+                    )}
+                  </div>
+                </label>
+                <div>
+                  <p className="font-sans text-cream/40 text-xs mb-2">{PHOTO_Q.description}</p>
+                  {answers.photo && (
+                    <button onClick={() => setValue('photo', null)} className="font-sans text-cream/30 hover:text-red-400 text-xs transition-colors">
+                      Remove photo
+                    </button>
+                  )}
+                </div>
+              </div>
+              <button onClick={() => setShowPhotoModal(false)} className="quiz-cta w-full mt-6">Done</button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
