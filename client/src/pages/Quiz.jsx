@@ -25,6 +25,28 @@ const fadeLeftVariant = {
   visible: { opacity: 1, x: 0, transition: { duration: 0.9, ease: easeOutExpo } },
 };
 
+// The 0-10 scale has 11 buttons — the general stagger is far too slow for
+// that many, so it gets its own quicker pace plus a glow-then-dim pulse on
+// each number as it lands (via `filter`, never `box-shadow`, so it can't
+// fight the selected-state ring that's set via className).
+const scaleStaggerContainerVariant = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.06, delayChildren: 0.5 } },
+};
+const scaleNumberVariant = {
+  hidden: { opacity: 0, x: -14, filter: 'brightness(1) drop-shadow(0 0 0px rgba(232,168,84,0))' },
+  visible: {
+    opacity: 1,
+    x: 0,
+    filter: [
+      'brightness(1) drop-shadow(0 0 0px rgba(232,168,84,0))',
+      'brightness(1.7) drop-shadow(0 0 10px rgba(232,168,84,0.9))',
+      'brightness(1) drop-shadow(0 0 0px rgba(232,168,84,0))',
+    ],
+    transition: { duration: 0.45, ease: easeOutExpo, filter: { duration: 0.55, times: [0, 0.45, 1] } },
+  },
+};
+
 export const CHAPTERS = [
   { id: 'basics', title: 'The Basics', blurb: 'Age, gender, country, relationship status — fast, tappable, zero ceremony.' },
   { id: 'show_up', title: 'How You Show Up', blurb: 'Personality, social battery, career choice — this is where personality questions begin.' },
@@ -480,11 +502,11 @@ function QuestionField({ q, value, onChange, error }) {
             <span className="font-sans text-cream/35 text-xs">{q.labels?.[0]}</span>
             <span className="font-sans text-cream/35 text-xs">{q.labels?.[1]}</span>
           </div>
-          <motion.div variants={staggerContainerVariant} className="flex gap-1.5 justify-between">
+          <motion.div variants={scaleStaggerContainerVariant} className="flex gap-1.5 justify-between">
             {Array.from({ length: q.max - q.min + 1 }, (_, i) => i + q.min).map(n => (
               <motion.button
                 key={n}
-                variants={fadeLeftVariant}
+                variants={scaleNumberVariant}
                 type="button"
                 onClick={() => onChange(n)}
                 className={`flex-1 aspect-square max-w-[38px] rounded-full font-sans text-xs font-medium transition-colors ${
