@@ -57,14 +57,6 @@ export const CHAPTERS = [
 ];
 
 export const QUESTIONS = [
-  {
-    id: 'photo',
-    type: 'photo',
-    title: 'Add a profile photo',
-    description: "Optional, but it helps your table recognise you",
-    required: false,
-  },
-
   // Chapter 1 — The Basics
   {
     id: 'personal',
@@ -360,7 +352,6 @@ const choiceIdle =
 const choiceActive =
   'border-gold bg-gold text-navy shadow-[0_4px_16px_rgba(232,168,84,0.2)]';
 
-const PHOTO_Q = QUESTIONS.find(q => q.id === 'photo');
 const DATE_Q = QUESTIONS.find(q => q.id === 'date');
 const CHAPTER_QUESTIONS = CHAPTERS.map(chap => ({
   chapter: chap,
@@ -550,7 +541,7 @@ export default function Quiz() {
   const [dateChoices, setDateChoices] = useState(DATE_Q.choices);
   const [savedAt, setSavedAt] = useState(null);
   const [stepIndex, setStepIndex] = useState(0);
-  const [showPhotoModal, setShowPhotoModal] = useState(false);
+  const [showPhotoBubble, setShowPhotoBubble] = useState(false);
   const hasLoadedRef = useRef(false);
   const autosaveTimer = useRef(null);
 
@@ -789,18 +780,58 @@ export default function Quiz() {
             </span>
           )}
           <span className="font-sans text-cream/40 text-xs tracking-widest uppercase">{completionPct}% complete</span>
-          <button
-            type="button"
-            onClick={() => setShowPhotoModal(true)}
-            className="relative w-9 h-9 rounded-full border-2 border-dashed border-gold/30 bg-gold/5 flex items-center justify-center overflow-hidden hover:border-gold/60 transition-colors flex-shrink-0"
-            aria-label="Add profile photo"
-          >
-            {answers.photo ? (
-              <img src={answers.photo} alt="Your profile" className="w-full h-full object-cover" />
-            ) : (
-              <span className="text-sm">📷</span>
-            )}
-          </button>
+          <div className="relative flex-shrink-0">
+            <button
+              type="button"
+              onClick={() => setShowPhotoBubble(v => !v)}
+              className="relative w-9 h-9 rounded-full border-2 border-dashed border-gold/30 bg-gold/5 flex items-center justify-center overflow-hidden hover:border-gold/60 transition-colors"
+              aria-label="Add profile photo"
+            >
+              {photoUploading ? (
+                <div className="w-4 h-4 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+              ) : answers.photo ? (
+                <img src={answers.photo} alt="Your profile" className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-sm">📷</span>
+              )}
+            </button>
+
+            {/* Comic-style speech bubble, pops down from the avatar */}
+            <AnimatePresence>
+              {showPhotoBubble && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8, scale: 0.6 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -8, scale: 0.6 }}
+                  transition={{ type: 'spring', stiffness: 450, damping: 18 }}
+                  className="absolute top-full right-0 mt-3 z-50 origin-top-right"
+                >
+                  <div className="relative bg-[#1f2228] border-2 border-gold/50 rounded-xl pl-4 pr-7 py-2.5 shadow-[0_10px_30px_rgba(0,0,0,0.5)] whitespace-nowrap">
+                    <div className="absolute -top-[7px] right-5 w-3 h-3 bg-[#1f2228] border-t-2 border-l-2 border-gold/50 rotate-45" />
+                    <label className="cursor-pointer">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={e => handlePhotoSelect(e.target.files?.[0])}
+                      />
+                      <span className="font-sans text-cream text-sm">
+                        {answers.photo ? 'Change profile pic' : 'Upload a profile pic'}
+                      </span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setShowPhotoBubble(false)}
+                      className="absolute top-1.5 right-1.5 text-cream/40 hover:text-cream text-xs leading-none w-4 h-4 flex items-center justify-center"
+                      aria-label="Close"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
       </div>
       <div className="relative z-10 h-[2px] bg-white/[0.05]">
@@ -1018,63 +1049,6 @@ export default function Quiz() {
           )}
         </div>
       </div>
-
-      <AnimatePresence>
-        {showPhotoModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.25 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-6"
-            onClick={() => setShowPhotoModal(false)}
-          >
-            <motion.div
-              initial={{ opacity: 0, y: 16, scale: 0.96 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 16, scale: 0.96 }}
-              transition={{ duration: 0.35, ease: easeOutExpo }}
-              className="quiz-card w-full max-w-sm"
-              onClick={e => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between mb-5">
-                <p className="font-serif text-xl text-cream">Add profile photo</p>
-                <button
-                  type="button"
-                  onClick={() => setShowPhotoModal(false)}
-                  className="text-cream/40 hover:text-cream text-2xl leading-none transition-colors"
-                  aria-label="Close"
-                >
-                  ×
-                </button>
-              </div>
-              <div className="flex items-center gap-5">
-                <label className="relative cursor-pointer group flex-shrink-0">
-                  <input type="file" accept="image/*" className="hidden" onChange={e => handlePhotoSelect(e.target.files?.[0])} />
-                  <div className="w-20 h-20 rounded-full border-2 border-dashed border-gold/30 bg-gold/5 flex items-center justify-center overflow-hidden group-hover:border-gold/60 transition-colors">
-                    {photoUploading ? (
-                      <div className="w-5 h-5 border-2 border-gold border-t-transparent rounded-full animate-spin" />
-                    ) : answers.photo ? (
-                      <img src={answers.photo} alt="Your profile" className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-2xl">📷</span>
-                    )}
-                  </div>
-                </label>
-                <div>
-                  <p className="font-sans text-cream/40 text-xs mb-2">{PHOTO_Q.description}</p>
-                  {answers.photo && (
-                    <button onClick={() => setValue('photo', null)} className="font-sans text-cream/30 hover:text-red-400 text-xs transition-colors">
-                      Remove photo
-                    </button>
-                  )}
-                </div>
-              </div>
-              <button onClick={() => setShowPhotoModal(false)} className="quiz-cta w-full mt-6">Done</button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
