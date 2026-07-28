@@ -385,23 +385,34 @@ function isAnswered(value) {
   return value !== undefined && value !== '' && value !== null;
 }
 
-// A volume-style slider for scale questions — purely visual position, no
-// numbers shown. Drag position is tracked in local state so the thumb/fill
-// track the pointer at native speed; the parent's onChange (which updates
-// top-level answers state and schedules an autosave) only fires once the
-// user releases, instead of on every tick of the drag, so it can't ever
-// stutter the drag itself.
+// A volume-style slider for scale questions. The fill bar and thumb are
+// plain divs updated by directly mutating their style/text via refs on every
+// native 'input' tick — bypassing React's render cycle entirely during the
+// drag itself — which is what gets this close to a native OS slider's feel
+// instead of the usual React-controlled-input lag. The underlying <input
+// type="range"> is fully transparent and uncontrolled (defaultValue, not
+// value); it only exists to own real pointer/touch/keyboard drag handling
+// and accessibility. The parent's onChange (which updates top-level answers
+// state and schedules an autosave) fires once on release, not per tick.
 function ScaleSlider({ q, value, onChange }) {
-  const [dragValue, setDragValue] = useState(value ?? q.min);
-  const [isDragging, setIsDragging] = useState(false);
-  useEffect(() => { setDragValue(value ?? q.min); }, [value, q.min]);
+  const inputRef = useRef(null);
+  const fillRef = useRef(null);
+  const thumbRef = useRef(null);
+  const numberRef = useRef(null);
 
-  const pct = ((dragValue - q.min) / (q.max - q.min)) * 100;
-  const start = () => setIsDragging(true);
-  const commit = (e) => {
-    onChange(Number(e.target.value));
-    setIsDragging(false);
+  const applyVisual = (v) => {
+    const pct = ((v - q.min) / (q.max - q.min)) * 100;
+    if (fillRef.current) fillRef.current.style.width = `${pct}%`;
+    if (thumbRef.current) thumbRef.current.style.left = `${pct}%`;
+    if (numberRef.current) numberRef.current.textContent = v;
   };
+
+  useEffect(() => {
+    const v = value ?? q.min;
+    if (inputRef.current) inputRef.current.value = v;
+    applyVisual(v);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value, q.min]);
 
   return (
     <div>
@@ -409,46 +420,29 @@ function ScaleSlider({ q, value, onChange }) {
         <span className="font-sans text-cream/35 text-xs">{q.labels?.[0]}</span>
         <span className="font-sans text-cream/35 text-xs">{q.labels?.[1]}</span>
       </div>
-      <div className="relative h-8 mt-8">
-        {/* Floating value readout — only visible while actively sliding */}
-        <AnimatePresence>
-          {isDragging && (
-            <motion.div
-              initial={{ opacity: 0, y: 6, scale: 0.85 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 6, scale: 0.85 }}
-              transition={{ duration: 0.15, ease: 'easeOut' }}
-              className="absolute -top-10 -translate-x-1/2 pointer-events-none"
-              style={{ left: `${pct}%` }}
-            >
-              <div className="relative bg-gold text-navy text-xs font-sans font-bold rounded-lg px-2.5 py-1 shadow-[0_4px_12px_rgba(0,0,0,0.35)]">
-                {dragValue}
-                <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-x-[5px] border-x-transparent border-t-[6px] border-t-gold" />
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
+      <div className="relative h-8">
         <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-2 rounded-full bg-[#e7dcbd]/10" />
         <div
-          className={`absolute left-0 top-1/2 -translate-y-1/2 h-2 rounded-full bg-gold pointer-events-none ${
-            isDragging ? '' : 'transition-[width] duration-300 ease-out'
-          }`}
-          style={{ width: `${pct}%` }}
+          ref={fillRef}
+          className="quiz-slider-fill absolute left-0 top-1/2 -translate-y-1/2 h-2 rounded-full bg-gold pointer-events-none"
         />
+        <div
+          ref={thumbRef}
+          className="quiz-slider-thumb-visual absolute top-1/2 w-8 h-8 -translate-y-1/2 -translate-x-1/2 rounded-full bg-gold flex items-center justify-center pointer-events-none"
+        >
+          <span ref={numberRef} className="font-sans text-xs font-bold text-black leading-none select-none" />
+        </div>
         <input
+          ref={inputRef}
           type="range"
           min={q.min}
           max={q.max}
           step={1}
-          value={dragValue}
-          onChange={e => setDragValue(Number(e.target.value))}
-          onPointerDown={start}
-          onPointerUp={commit}
-          onTouchStart={start}
-          onTouchEnd={commit}
-          onKeyDown={start}
-          onKeyUp={commit}
+          defaultValue={value ?? q.min}
+          onInput={e => applyVisual(Number(e.target.value))}
+          onPointerUp={e => onChange(Number(e.target.value))}
+          onTouchEnd={e => onChange(Number(e.target.value))}
+          onKeyUp={e => onChange(Number(e.target.value))}
           className="quiz-slider absolute inset-0 w-full h-full"
           aria-label={q.title}
         />

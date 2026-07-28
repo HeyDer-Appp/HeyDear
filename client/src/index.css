@@ -73,15 +73,18 @@
     outline: none;
   }
 
-  /* Volume-style slider for scale questions — the track/fill are separate
-     divs behind this input, so the native track is made fully transparent
-     and only the thumb is styled. */
+  /* Volume-style slider for scale questions. The visible track/fill/thumb
+     are plain divs (see .quiz-slider-fill / .quiz-slider-thumb-visual)
+     updated directly via refs for native-feeling drag speed — this input
+     itself is made fully invisible and only handles real interaction and
+     accessibility (its native thumb/track are never shown). */
   .quiz-slider {
     -webkit-appearance: none;
     appearance: none;
     background: transparent;
     cursor: pointer;
     margin: 0;
+    opacity: 0;
   }
   .quiz-slider:focus {
     outline: none;
@@ -94,20 +97,11 @@
   .quiz-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 22px;
-    height: 22px;
-    margin-top: 5px;
-    border-radius: 50%;
-    background: #E8A854;
-    border: 3px solid #16181d;
+    width: 32px;
+    height: 32px;
+    background: transparent;
+    border: none;
     cursor: pointer;
-    outline: 0px solid rgba(232, 168, 84, 0.5);
-    outline-offset: 2px;
-    transition: outline-width 0.15s ease;
-  }
-  .quiz-slider:active::-webkit-slider-thumb,
-  .quiz-slider:focus::-webkit-slider-thumb {
-    outline-width: 6px;
   }
   .quiz-slider::-moz-range-track {
     height: 100%;
@@ -115,19 +109,20 @@
     border: none;
   }
   .quiz-slider::-moz-range-thumb {
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    background: #E8A854;
-    border: 3px solid #16181d;
+    width: 32px;
+    height: 32px;
+    background: transparent;
+    border: none;
     cursor: pointer;
-    outline: 0px solid rgba(232, 168, 84, 0.5);
-    outline-offset: 2px;
-    transition: outline-width 0.15s ease;
   }
-  .quiz-slider:active::-moz-range-thumb,
-  .quiz-slider:focus::-moz-range-thumb {
-    outline-width: 6px;
+
+  /* Short linear interpolation so rapid ref-driven style updates (one per
+     native 'input' tick) read as one continuous motion instead of discrete
+     steps — this is what makes the drag feel native rather than jumpy. */
+  .quiz-slider-fill,
+  .quiz-slider-thumb-visual {
+    transition: left 0.06s linear, width 0.06s linear;
+    will-change: left, width;
   }
 
   .quiz-cta {
