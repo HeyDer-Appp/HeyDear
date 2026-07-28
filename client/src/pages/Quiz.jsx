@@ -385,6 +385,49 @@ function isAnswered(value) {
   return value !== undefined && value !== '' && value !== null;
 }
 
+// A volume-style slider for scale questions — purely visual position, no
+// numbers shown. Drag position is tracked in local state so the thumb/fill
+// track the pointer at native speed; the parent's onChange (which updates
+// top-level answers state and schedules an autosave) only fires once the
+// user releases, instead of on every tick of the drag, so it can't ever
+// stutter the drag itself.
+function ScaleSlider({ q, value, onChange }) {
+  const [dragValue, setDragValue] = useState(value ?? q.min);
+  useEffect(() => { setDragValue(value ?? q.min); }, [value, q.min]);
+
+  const pct = ((dragValue - q.min) / (q.max - q.min)) * 100;
+  const commit = (e) => onChange(Number(e.target.value));
+
+  return (
+    <div>
+      <div className="flex justify-between mb-3">
+        <span className="font-sans text-cream/35 text-xs">{q.labels?.[0]}</span>
+        <span className="font-sans text-cream/35 text-xs">{q.labels?.[1]}</span>
+      </div>
+      <div className="relative h-8">
+        <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-2 rounded-full bg-[#e7dcbd]/10" />
+        <div
+          className="absolute left-0 top-1/2 -translate-y-1/2 h-2 rounded-full bg-gold pointer-events-none"
+          style={{ width: `${pct}%` }}
+        />
+        <input
+          type="range"
+          min={q.min}
+          max={q.max}
+          step={1}
+          value={dragValue}
+          onChange={e => setDragValue(Number(e.target.value))}
+          onPointerUp={commit}
+          onTouchEnd={commit}
+          onKeyUp={commit}
+          className="quiz-slider absolute inset-0 w-full h-full"
+          aria-label={q.title}
+        />
+      </div>
+    </div>
+  );
+}
+
 // One question's answer widget — reused across every chapter section.
 // Title fades up on mount; its options then fade in from the left, one by
 // one, every time this question is freshly mounted (i.e. a new page opens).
@@ -456,37 +499,7 @@ function QuestionField({ q, value, onChange, error }) {
         </motion.div>
       )}
 
-      {q.type === 'scale' && (() => {
-        // A volume-style slider — purely visual position, no numbers shown.
-        // The backend still gets a plain 0-10 number via onChange.
-        const displayValue = value ?? q.min;
-        const pct = ((displayValue - q.min) / (q.max - q.min)) * 100;
-        return (
-          <div>
-            <div className="flex justify-between mb-3">
-              <span className="font-sans text-cream/35 text-xs">{q.labels?.[0]}</span>
-              <span className="font-sans text-cream/35 text-xs">{q.labels?.[1]}</span>
-            </div>
-            <div className="relative h-8">
-              <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-2 rounded-full bg-[#e7dcbd]/10" />
-              <div
-                className="absolute left-0 top-1/2 -translate-y-1/2 h-2 rounded-full bg-gold pointer-events-none"
-                style={{ width: `${pct}%` }}
-              />
-              <input
-                type="range"
-                min={q.min}
-                max={q.max}
-                step={1}
-                value={displayValue}
-                onChange={e => onChange(Number(e.target.value))}
-                className="quiz-slider absolute inset-0 w-full h-full"
-                aria-label={q.title}
-              />
-            </div>
-          </div>
-        );
-      })()}
+      {q.type === 'scale' && <ScaleSlider q={q} value={value} onChange={onChange} />}
 
       {q.type === 'text' && (
         <textarea
