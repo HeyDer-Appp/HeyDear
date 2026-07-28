@@ -73,6 +73,51 @@
     outline: none;
   }
 
+  /* Volume-style slider for scale questions — the track/fill are separate
+     divs behind this input, so the native track is made fully transparent
+     and only the thumb is styled. */
+  .quiz-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    cursor: pointer;
+    margin: 0;
+  }
+  .quiz-slider:focus {
+    outline: none;
+  }
+  .quiz-slider::-webkit-slider-runnable-track {
+    -webkit-appearance: none;
+    height: 100%;
+    background: transparent;
+  }
+  .quiz-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 22px;
+    height: 22px;
+    margin-top: 5px;
+    border-radius: 50%;
+    background: #E8A854;
+    border: 3px solid #16181d;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+    cursor: pointer;
+  }
+  .quiz-slider::-moz-range-track {
+    height: 100%;
+    background: transparent;
+    border: none;
+  }
+  .quiz-slider::-moz-range-thumb {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #E8A854;
+    border: 3px solid #16181d;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+    cursor: pointer;
+  }
+
   .quiz-cta {
     @apply inline-flex items-center justify-center gap-2 font-sans font-medium text-sm tracking-widest uppercase px-8 py-4 rounded-2xl transition-all duration-200 active:scale-[0.98];
     border: 1px solid rgba(231, 220, 189, 0.45);

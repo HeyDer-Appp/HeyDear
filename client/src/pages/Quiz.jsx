@@ -25,28 +25,6 @@ const fadeLeftVariant = {
   visible: { opacity: 1, x: 0, transition: { duration: 0.9, ease: easeOutExpo } },
 };
 
-// The 0-10 scale has 11 buttons — the general stagger is far too slow for
-// that many, so it gets its own quicker pace plus a glow-then-dim pulse on
-// each number as it lands (via `filter`, never `box-shadow`, so it can't
-// fight the selected-state ring that's set via className).
-const scaleStaggerContainerVariant = {
-  hidden: {},
-  visible: { transition: { staggerChildren: 0.06, delayChildren: 0.5 } },
-};
-const scaleNumberVariant = {
-  hidden: { opacity: 0, x: -14, filter: 'brightness(1) drop-shadow(0 0 0px rgba(232,168,84,0))' },
-  visible: {
-    opacity: 1,
-    x: 0,
-    filter: [
-      'brightness(1) drop-shadow(0 0 0px rgba(232,168,84,0))',
-      'brightness(1.7) drop-shadow(0 0 10px rgba(232,168,84,0.9))',
-      'brightness(1) drop-shadow(0 0 0px rgba(232,168,84,0))',
-    ],
-    transition: { duration: 0.45, ease: easeOutExpo, filter: { duration: 0.55, times: [0, 0.45, 1] } },
-  },
-};
-
 export const CHAPTERS = [
   { id: 'basics', title: 'The Basics', blurb: 'Age, gender, country, relationship status — fast, tappable, zero ceremony.' },
   { id: 'show_up', title: 'How You Show Up', blurb: 'Personality, social battery, career choice — this is where personality questions begin.' },
@@ -478,34 +456,37 @@ function QuestionField({ q, value, onChange, error }) {
         </motion.div>
       )}
 
-      {q.type === 'scale' && (
-        <div>
-          <div className="flex justify-between mb-2">
-            <span className="font-sans text-cream/35 text-xs">{q.labels?.[0]}</span>
-            <span className="font-sans text-cream/35 text-xs">{q.labels?.[1]}</span>
+      {q.type === 'scale' && (() => {
+        // A volume-style slider — purely visual position, no numbers shown.
+        // The backend still gets a plain 0-10 number via onChange.
+        const displayValue = value ?? q.min;
+        const pct = ((displayValue - q.min) / (q.max - q.min)) * 100;
+        return (
+          <div>
+            <div className="flex justify-between mb-3">
+              <span className="font-sans text-cream/35 text-xs">{q.labels?.[0]}</span>
+              <span className="font-sans text-cream/35 text-xs">{q.labels?.[1]}</span>
+            </div>
+            <div className="relative h-8">
+              <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-2 rounded-full bg-[#e7dcbd]/10" />
+              <div
+                className="absolute left-0 top-1/2 -translate-y-1/2 h-2 rounded-full bg-gold pointer-events-none"
+                style={{ width: `${pct}%` }}
+              />
+              <input
+                type="range"
+                min={q.min}
+                max={q.max}
+                step={1}
+                value={displayValue}
+                onChange={e => onChange(Number(e.target.value))}
+                className="quiz-slider absolute inset-0 w-full h-full"
+                aria-label={q.title}
+              />
+            </div>
           </div>
-          <motion.div
-            variants={scaleStaggerContainerVariant}
-            className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1 sm:mx-0 sm:px-0 sm:overflow-visible sm:justify-between"
-          >
-            {Array.from({ length: q.max - q.min + 1 }, (_, i) => i + q.min).map(n => (
-              <motion.button
-                key={n}
-                variants={scaleNumberVariant}
-                type="button"
-                onClick={() => onChange(n)}
-                className={`w-9 h-9 shrink-0 sm:flex-1 sm:aspect-square sm:max-w-[38px] rounded-full font-sans text-xs font-medium transition-colors ${
-                  value === n
-                    ? 'bg-gold text-navy shadow-[0_0_0_3px_rgba(232,168,84,0.25)]'
-                    : 'border border-[#e7dcbd]/15 bg-[#e7dcbd]/[0.03] text-[#e7dcbd]/40 hover:border-[#e7dcbd]/40 hover:text-[#e7dcbd]/90'
-                }`}
-              >
-                {n}
-              </motion.button>
-            ))}
-          </motion.div>
-        </div>
-      )}
+        );
+      })()}
 
       {q.type === 'text' && (
         <textarea
