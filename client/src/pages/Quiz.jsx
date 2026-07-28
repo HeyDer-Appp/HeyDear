@@ -1043,7 +1043,7 @@ export default function Quiz() {
                       <span className="font-sans font-semibold text-base">Monthly membership</span>
                       <span className="font-serif text-2xl">$15<span className="text-sm">/mo</span></span>
                     </div>
-                    <p className={`font-sans text-sm ${selectedPlan === 'subscription' ? 'text-navy/60' : 'text-cream/40'}`}>Unlimited HeyDer dinners this month. Non-refundable.</p>
+                    <p className={`font-sans text-sm ${selectedPlan === 'subscription' ? 'text-navy/60' : 'text-cream/40'}`}>Unlimited HeyDer dinners this month.</p>
                   </motion.button>
                 </motion.div>
                 <button
