@@ -9,6 +9,7 @@
 
   html {
     scroll-behavior: smooth;
+    overflow-x: hidden;
   }
 
   body {
@@ -17,6 +18,8 @@
     font-family: 'Jost', Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+    max-width: 100vw;
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -58,6 +61,8 @@
     background: rgba(231, 220, 189, 0.04);
     border-color: rgba(231, 220, 189, 0.15);
     color: rgba(231, 220, 189, 0.85);
+    min-width: 0;
+    max-width: 100%;
   }
   .quiz-input::placeholder {
     color: rgba(231, 220, 189, 0.25);
