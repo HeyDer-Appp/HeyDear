@@ -178,7 +178,7 @@ export const QUESTIONS = [
     field: 'connection_trigger',
     chapter: 'drawn_to',
     required: true,
-    choices: ['Makes you laugh', 'Asks real questions', 'Shares a niche interest', 'Is unapologetically themselves'],
+    choices: ['Is funny', 'Likes to have deep conversations', 'Is unapologetically themselves'],
   },
   {
     id: 'social_recharge',
@@ -370,6 +370,7 @@ function chunkInto2or3(items) {
 // not listed here fall back to the automatic 2-3 split above.
 const MANUAL_CHAPTER_PAGE_SIZES = {
   basics: [2, 3], // personal + contact | intent + relationship + lifestage
+  drawn_to: [2, 3], // group_role + connection_trigger | social_recharge + conversation_avoid + first_meeting_style
 };
 
 function chunkChapterQuestions(chapterId, items) {
