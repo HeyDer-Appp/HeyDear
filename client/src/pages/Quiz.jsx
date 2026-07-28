@@ -393,10 +393,15 @@ function isAnswered(value) {
 // stutter the drag itself.
 function ScaleSlider({ q, value, onChange }) {
   const [dragValue, setDragValue] = useState(value ?? q.min);
+  const [isDragging, setIsDragging] = useState(false);
   useEffect(() => { setDragValue(value ?? q.min); }, [value, q.min]);
 
   const pct = ((dragValue - q.min) / (q.max - q.min)) * 100;
-  const commit = (e) => onChange(Number(e.target.value));
+  const start = () => setIsDragging(true);
+  const commit = (e) => {
+    onChange(Number(e.target.value));
+    setIsDragging(false);
+  };
 
   return (
     <div>
@@ -404,10 +409,31 @@ function ScaleSlider({ q, value, onChange }) {
         <span className="font-sans text-cream/35 text-xs">{q.labels?.[0]}</span>
         <span className="font-sans text-cream/35 text-xs">{q.labels?.[1]}</span>
       </div>
-      <div className="relative h-8">
+      <div className="relative h-8 mt-8">
+        {/* Floating value readout — only visible while actively sliding */}
+        <AnimatePresence>
+          {isDragging && (
+            <motion.div
+              initial={{ opacity: 0, y: 6, scale: 0.85 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 6, scale: 0.85 }}
+              transition={{ duration: 0.15, ease: 'easeOut' }}
+              className="absolute -top-10 -translate-x-1/2 pointer-events-none"
+              style={{ left: `${pct}%` }}
+            >
+              <div className="relative bg-gold text-navy text-xs font-sans font-bold rounded-lg px-2.5 py-1 shadow-[0_4px_12px_rgba(0,0,0,0.35)]">
+                {dragValue}
+                <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-x-[5px] border-x-transparent border-t-[6px] border-t-gold" />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-2 rounded-full bg-[#e7dcbd]/10" />
         <div
-          className="absolute left-0 top-1/2 -translate-y-1/2 h-2 rounded-full bg-gold pointer-events-none"
+          className={`absolute left-0 top-1/2 -translate-y-1/2 h-2 rounded-full bg-gold pointer-events-none ${
+            isDragging ? '' : 'transition-[width] duration-300 ease-out'
+          }`}
           style={{ width: `${pct}%` }}
         />
         <input
@@ -417,8 +443,11 @@ function ScaleSlider({ q, value, onChange }) {
           step={1}
           value={dragValue}
           onChange={e => setDragValue(Number(e.target.value))}
+          onPointerDown={start}
           onPointerUp={commit}
+          onTouchStart={start}
           onTouchEnd={commit}
+          onKeyDown={start}
           onKeyUp={commit}
           className="quiz-slider absolute inset-0 w-full h-full"
           aria-label={q.title}
