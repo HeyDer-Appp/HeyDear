@@ -316,7 +316,7 @@ export const QUESTIONS = [
     id: 'payment',
     type: 'payment',
     title: 'Reserve your spot',
-    description: 'Choose how you\'d like to join — refundable with 48hrs notice.',
+    description: 'Choose how you\'d like to join.',
   },
 ];
 
@@ -1000,7 +1000,7 @@ export default function Quiz() {
             </div>
             <p className="font-sans text-cream/35 text-xs mb-4">
               {stripeConfigured
-                ? "Choose how you'd like to join — refundable with 48hrs notice."
+                ? "Choose how you'd like to join."
                 : 'Payments are not connected yet — booking will be simulated, no card required.'}
             </p>
 
@@ -1030,7 +1030,7 @@ export default function Quiz() {
                       <span className="font-sans font-semibold text-base">One-time reservation</span>
                       <span className="font-serif text-2xl">$10</span>
                     </div>
-                    <p className={`font-sans text-sm ${selectedPlan === 'one_time' ? 'text-navy/60' : 'text-cream/40'}`}>Reserve just this Tuesday's dinner.</p>
+                    <p className={`font-sans text-sm ${selectedPlan === 'one_time' ? 'text-navy/60' : 'text-cream/40'}`}>Reserve just this Tuesday's dinner. Refundable up to 48hrs before.</p>
                   </motion.button>
                   <motion.button
                     variants={fadeLeftVariant}
@@ -1043,7 +1043,7 @@ export default function Quiz() {
                       <span className="font-sans font-semibold text-base">Monthly membership</span>
                       <span className="font-serif text-2xl">$15<span className="text-sm">/mo</span></span>
                     </div>
-                    <p className={`font-sans text-sm ${selectedPlan === 'subscription' ? 'text-navy/60' : 'text-cream/40'}`}>Unlimited HeyDer dinners this month. Cancel anytime.</p>
+                    <p className={`font-sans text-sm ${selectedPlan === 'subscription' ? 'text-navy/60' : 'text-cream/40'}`}>Unlimited HeyDer dinners this month. Non-refundable.</p>
                   </motion.button>
                 </motion.div>
                 <button
