@@ -622,7 +622,46 @@ export default function Quiz() {
   };
 
   const step = STEPS[stepIndex];
-  const goNext = () => setStepIndex(i => Math.min(i + 1, STEPS.length - 1));
+
+  // Blocks Next until every required (*) field on THIS page is answered —
+  // the final submit still re-validates everything, but this stops someone
+  // from clicking through a whole page of starred questions unanswered.
+  const validateStep = (s) => {
+    const newErrors = {};
+    const missingIds = [];
+
+    if (s.type === 'chapter') {
+      for (const q of s.questions) {
+        if (!q.required) continue;
+        if (q.type === 'personal') {
+          if (!answers.dob) { newErrors.dob = true; missingIds.push('personal'); }
+          if (!answers.gender) { newErrors.gender = true; missingIds.push('personal'); }
+          if (!answers.country) { newErrors.country = true; missingIds.push('personal'); }
+        } else if (q.field && !isAnswered(answers[q.field])) {
+          newErrors[q.field] = true;
+          missingIds.push(q.id);
+        }
+      }
+    } else if (s.type === 'date') {
+      if (!isAnswered(answers.field_CdZldwp5q09o)) {
+        newErrors.field_CdZldwp5q09o = true;
+        missingIds.push('date');
+      }
+    }
+
+    if (missingIds.length) {
+      setErrors(prev => ({ ...prev, ...newErrors }));
+      toast.error('Please fill in the highlighted fields.');
+      document.getElementById(`q-${missingIds[0]}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return false;
+    }
+    return true;
+  };
+
+  const goNext = () => {
+    if (!validateStep(step)) return;
+    setStepIndex(i => Math.min(i + 1, STEPS.length - 1));
+  };
   const goBack = () => setStepIndex(i => Math.max(i - 1, 0));
 
   // Maps a question id back to the page it lives on, so a failed final
@@ -771,7 +810,7 @@ export default function Quiz() {
   return (
     <div className="quiz-bg min-h-screen relative overflow-hidden">
       {/* Header */}
-      <div className="relative z-10 flex items-center justify-between px-6 py-5 border-b border-white/[0.06]">
+      <div className="relative z-20 flex items-center justify-between px-6 py-5 border-b border-white/[0.06]">
         <a href="/"><img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-8" /></a>
         <div className="flex items-center gap-3">
           {savedAt && (
@@ -812,7 +851,7 @@ export default function Quiz() {
                   transition={{ type: 'spring', stiffness: 450, damping: 18 }}
                   className="absolute top-full right-0 mt-3 z-50 origin-top-right"
                 >
-                  <div className="relative bg-[#1f2228] border-2 border-gold/50 rounded-xl pl-4 pr-7 py-2.5 shadow-[0_10px_30px_rgba(0,0,0,0.5)] whitespace-nowrap">
+                  <div className="relative bg-[#1f2228] border-2 border-gold/50 rounded-xl pl-4 pr-9 py-2.5 shadow-[0_10px_30px_rgba(0,0,0,0.5)] whitespace-nowrap">
                     <div className="absolute -top-[7px] right-5 w-3 h-3 bg-[#1f2228] border-t-2 border-l-2 border-gold/50 rotate-45" />
                     <span className="font-sans text-cream text-sm">
                       {answers.photo ? 'Change profile pic' : 'Upload a profile pic'}
@@ -820,7 +859,7 @@ export default function Quiz() {
                     <button
                       type="button"
                       onClick={() => setShowPhotoBubble(false)}
-                      className="absolute top-1.5 right-1.5 text-cream/40 hover:text-cream text-xs leading-none w-4 h-4 flex items-center justify-center"
+                      className="absolute top-1 right-1 text-cream/50 hover:text-cream text-xl leading-none w-6 h-6 flex items-center justify-center"
                       aria-label="Close"
                     >
                       ×
