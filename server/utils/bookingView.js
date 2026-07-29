@@ -19,6 +19,7 @@ function bookingToPerson(id, booking) {
     reliability_score: booking.field_1NDB7q3CaeDQ,
     life_stage: booking.field_aIpzE2elktbh,
     dietary: booking.field_OVB7lzEjSl7C || [],
+    dietary_other: booking.dietary_other || '',
     career_description: booking.field_MQDZqx7wid2f,
     social_battery: booking.field_LosYJHqrbpKO,
     social_circle: booking.field_TaGZoiuhOhh2,

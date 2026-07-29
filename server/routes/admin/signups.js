@@ -110,6 +110,7 @@ router.get('/export/csv', adminAuth, async (req, res) => {
         intent: s.intent, personality: s.personality, budget: s.budget,
         preferred_date: s.preferred_date, tuesday_date: s.tuesday_date,
         reliability: s.reliability_score, dietary: (s.dietary || []).join('; '),
+        dietary_other: s.dietary_other || '',
         submitted_at: s.submitted_at?.toDate?.().toISOString() || '',
       }));
 

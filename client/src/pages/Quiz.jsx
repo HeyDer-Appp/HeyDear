@@ -269,7 +269,9 @@ export const QUESTIONS = [
     field: 'field_OVB7lzEjSl7C',
     chapter: 'practical',
     required: false,
-    choices: ['Not Applicable', 'Gluten free', 'Dairy free', 'Nut free', 'Vegan', 'Vegetarian'],
+    choices: ['Not Applicable', 'Gluten free', 'Dairy free', 'Nut free', 'Vegan', 'Vegetarian', 'Other'],
+    allowOther: true,
+    otherField: 'dietary_other',
   },
   {
     id: 'topics',
@@ -472,7 +474,7 @@ function ScaleSlider({ q, value, onChange }) {
 // One question's answer widget — reused across every chapter section.
 // Title fades up on mount; its options then fade in from the left, one by
 // one, every time this question is freshly mounted (i.e. a new page opens).
-function QuestionField({ q, value, onChange, error }) {
+function QuestionField({ q, value, onChange, error, otherValue, onOtherChange }) {
   return (
     <motion.div
       id={`q-${q.id}`}
@@ -517,27 +519,38 @@ function QuestionField({ q, value, onChange, error }) {
       )}
 
       {q.type === 'multi_choice' && (
-        <motion.div variants={staggerContainerVariant} className="flex flex-wrap gap-2">
-          {q.choices.map(choice => {
-            const cur = value || [];
-            const selected = cur.includes(choice);
-            return (
-              <motion.button
-                key={choice}
-                variants={fadeLeftVariant}
-                type="button"
-                onClick={() => {
-                  if (choice === 'Not Applicable') { onChange(['Not Applicable']); return; }
-                  const filtered = cur.filter(c => c !== 'Not Applicable');
-                  onChange(selected ? filtered.filter(c => c !== choice) : [...filtered, choice]);
-                }}
-                className={`${choiceBase} ${selected ? choiceActive : choiceIdle}`}
-              >
-                {choice}
-              </motion.button>
-            );
-          })}
-        </motion.div>
+        <>
+          <motion.div variants={staggerContainerVariant} className="flex flex-wrap gap-2">
+            {q.choices.map(choice => {
+              const cur = value || [];
+              const selected = cur.includes(choice);
+              return (
+                <motion.button
+                  key={choice}
+                  variants={fadeLeftVariant}
+                  type="button"
+                  onClick={() => {
+                    if (choice === 'Not Applicable') { onChange(['Not Applicable']); return; }
+                    const filtered = cur.filter(c => c !== 'Not Applicable');
+                    onChange(selected ? filtered.filter(c => c !== choice) : [...filtered, choice]);
+                  }}
+                  className={`${choiceBase} ${selected ? choiceActive : choiceIdle}`}
+                >
+                  {choice}
+                </motion.button>
+              );
+            })}
+          </motion.div>
+          {q.allowOther && (value || []).includes('Other') && (
+            <input
+              type="text"
+              value={otherValue || ''}
+              onChange={e => onOtherChange(e.target.value)}
+              placeholder="Tell us what we should know..."
+              className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-3 mt-3 text-cream placeholder-cream/25 font-sans text-sm focus:outline-none focus:border-gold/50"
+            />
+          )}
+        </>
       )}
 
       {q.type === 'scale' && <ScaleSlider q={q} value={value} onChange={onChange} />}
@@ -996,6 +1009,8 @@ export default function Quiz() {
                       value={answers[q.field]}
                       onChange={(v) => handleFieldAnswer(q, v)}
                       error={errors[q.field]}
+                      otherValue={q.otherField ? answers[q.otherField] : undefined}
+                      onOtherChange={q.otherField ? (v) => setValue(q.otherField, v) : undefined}
                     />
                   );
                 })}

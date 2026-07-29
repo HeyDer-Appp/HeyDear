@@ -11,6 +11,7 @@ const ANSWER_FIELDS = [
   'field_MQDZqx7wid2f', 'field_Ar4xQbXT6CLh', 'field_OVB7lzEjSl7C',
   'group_role', 'conflict_style', 'connection_trigger',
   'social_recharge', 'conversation_avoid', 'first_meeting_style',
+  'dietary_other',
 ];
 
 module.exports = { ANSWER_FIELDS };

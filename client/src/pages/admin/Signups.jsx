@@ -145,6 +145,9 @@ export default function AdminSignups() {
                       {s.tuesday_date ? new Date(s.tuesday_date).toLocaleDateString('en-NZ', { day: 'numeric', month: 'short' }) : s.preferred_date}
                     </td>
                     <td className="px-4 py-3 font-sans text-cream/50 text-xs max-w-32 truncate">
+                      {s.dietary_other && (
+                        <span className="text-red-400 mr-1" title={`Flagged: ${s.dietary_other}`}>🚩</span>
+                      )}
                       {(Array.isArray(s.dietary) ? s.dietary : s.dietary ? [s.dietary] : []).join(', ') || '—'}
                     </td>
                     <td className="px-4 py-3 text-center">
@@ -214,6 +217,12 @@ export default function AdminSignups() {
                   <span className="text-cream">{v || '—'}</span>
                 </div>
               ))}
+              {selected.dietary_other && (
+                <div>
+                  <p className="text-red-400 mb-1 font-semibold">🚩 Flagged dietary note:</p>
+                  <p className="text-cream bg-red-500/10 border border-red-500/25 rounded-lg p-3">{selected.dietary_other}</p>
+                </div>
+              )}
               {selected.career_description && (
                 <div>
                   <p className="text-cream/40 mb-1">Career (to a kid):</p>
