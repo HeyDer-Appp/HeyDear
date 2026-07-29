@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
+import BottomNav from '../../components/BottomNav';
 
 const AVATAR = 'https://heyder.nz/wp-content/uploads/2026/06/account-2.png';
 
@@ -321,7 +322,7 @@ export default function PortalDashboard() {
   const past = dinners.filter(d => !d.is_pending && d.date && new Date(d.date) < new Date());
 
   return (
-    <div className="quiz-bg min-h-screen relative overflow-hidden">
+    <div className="quiz-bg min-h-screen relative overflow-hidden pb-24">
       {/* Nav */}
       <nav className="relative z-10 flex items-center justify-between px-6 py-5 border-b border-white/[0.06] backdrop-blur">
         <Link to="/">
@@ -438,6 +439,8 @@ export default function PortalDashboard() {
           Questions? <a href="mailto:info@heyder.nz" className="text-gold/60 hover:text-gold transition-colors">info@heyder.nz</a>
         </p>
       </div>
+
+      <BottomNav />
     </div>
   );
 }

@@ -32,6 +32,9 @@ import PortalLogin from './pages/portal/Login';
 import PortalDashboard from './pages/portal/Dashboard';
 import PortalEditProfile from './pages/portal/EditProfile';
 import PortalTableGlimpse from './pages/portal/TableGlimpse';
+import PortalMyAlbum from './pages/portal/MyAlbum';
+import PortalChat from './pages/portal/Chat';
+import PortalGroupChat from './pages/portal/GroupChat';
 
 import AdminLogin from './pages/admin/Login';
 import AdminDashboard from './pages/admin/Dashboard';
@@ -75,6 +78,9 @@ function AppRoutes() {
       <Route path="/portal/dashboard" element={<PortalRoute><PortalDashboard /></PortalRoute>} />
       <Route path="/portal/profile" element={<PortalRoute><PortalEditProfile /></PortalRoute>} />
       <Route path="/portal/glimpse/:tableId" element={<PortalRoute><PortalTableGlimpse /></PortalRoute>} />
+      <Route path="/portal/album" element={<PortalRoute><PortalMyAlbum /></PortalRoute>} />
+      <Route path="/portal/chat" element={<PortalRoute><PortalChat /></PortalRoute>} />
+      <Route path="/portal/group-chat" element={<PortalRoute><PortalGroupChat /></PortalRoute>} />
 
       <Route path="/admin/login" element={<AdminLogin />} />
       <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />

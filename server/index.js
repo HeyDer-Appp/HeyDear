@@ -15,6 +15,7 @@ const paymentRoutes = require('./routes/payments');
 const portalRoutes = require('./routes/portal');
 const feedbackRoutes = require('./routes/feedback');
 const typeformRoutes = require('./routes/typeform');
+const albumRoutes = require('./routes/album');
 
 const adminSignupsRoutes = require('./routes/admin/signups');
 const adminMatchingRoutes = require('./routes/admin/matching');
@@ -74,6 +75,7 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/portal', portalRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/typeform', typeformRoutes);
+app.use('/api/album', albumRoutes);
 
 app.use('/api/admin/signups', adminSignupsRoutes);
 app.use('/api/admin/matching', adminMatchingRoutes);

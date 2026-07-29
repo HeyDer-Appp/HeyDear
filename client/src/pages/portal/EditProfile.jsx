@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import api from '../../utils/api';
 import { QUESTIONS, CHAPTERS } from '../Quiz';
 import { fileToResizedBase64 } from '../../utils/image';
+import BottomNav from '../../components/BottomNav';
 
 const choiceIdle =
   'border-[#e7dcbd]/18 bg-[#e7dcbd]/[0.04] text-[#e7dcbd]/65 hover:border-[#e7dcbd]/40 hover:bg-[#e7dcbd]/[0.08] hover:text-[#e7dcbd]/95';
@@ -78,7 +79,7 @@ export default function EditProfile() {
   );
 
   return (
-    <div className="quiz-bg min-h-screen relative overflow-hidden">
+    <div className="quiz-bg min-h-screen relative overflow-hidden pb-24">
       <nav className="relative z-10 flex items-center justify-between px-6 py-5 border-b border-white/[0.06] backdrop-blur">
         <Link to="/portal" className="font-sans text-cream/50 text-sm hover:text-cream transition-colors">← Back</Link>
         <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-7" />
@@ -278,6 +279,8 @@ export default function EditProfile() {
           ) : 'Save Changes'}
         </button>
       </div>
+
+      <BottomNav />
     </div>
   );
 }
