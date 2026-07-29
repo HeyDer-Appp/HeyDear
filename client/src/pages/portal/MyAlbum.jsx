@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import api from '../../utils/api';
 import { fileToResizedBase64 } from '../../utils/image';
 import BottomNav from '../../components/BottomNav';
+
+const MAX_STACK = 3;
 
 function formatDinnerDate(iso) {
   if (!iso) return '';
@@ -13,12 +16,9 @@ function formatDinnerDate(iso) {
 // A single printed-photo card — the date is burned in at the bottom in a
 // handwritten style so, months later, someone can tell at a glance which
 // Tuesday a picture is from without reading anything else on the page.
-function PolaroidCard({ photo, dateLabel, style }) {
+function PolaroidCard({ photo, dateLabel }) {
   return (
-    <div
-      className="bg-[#f5edd8] rounded-sm p-2 shadow-[0_10px_28px_rgba(0,0,0,0.5)] select-none"
-      style={style}
-    >
+    <div className="bg-[#f5edd8] rounded-sm p-2 shadow-[0_10px_28px_rgba(0,0,0,0.5)] select-none">
       <div className="w-full aspect-square bg-black/20 overflow-hidden">
         <img src={photo.photo} alt="" className="w-full h-full object-cover" draggable={false} />
       </div>
@@ -98,7 +98,6 @@ export default function MyAlbum() {
         {dinners.map(dinner => {
           const dateLabel = formatDinnerDate(dinner.date);
           const isExpanded = expandedId === dinner.table_id;
-          const stackPhotos = dinner.photos.slice(-3);
 
           return (
             <div key={dinner.table_id} className="quiz-card">
@@ -136,52 +135,55 @@ export default function MyAlbum() {
 
               {dinner.photos.length === 0 ? (
                 <p className="font-sans text-cream/30 text-xs italic">No photos yet.</p>
-              ) : !isExpanded ? (
+              ) : (
                 <div className="flex flex-col items-center">
-                  <button
-                    type="button"
-                    onClick={() => setExpandedId(dinner.table_id)}
-                    className="relative w-32 h-40"
-                    style={{ perspective: 600 }}
+                  <div
+                    className={isExpanded ? 'w-full' : 'relative w-32 h-40 cursor-pointer'}
+                    onClick={() => !isExpanded && setExpandedId(dinner.table_id)}
                   >
-                    {stackPhotos.map((p, i) => (
-                      <div
-                        key={p.id}
-                        className="absolute inset-0 transition-transform"
-                        style={{
-                          transform: `rotate(${(i - (stackPhotos.length - 1) / 2) * 8}deg) translateY(${(stackPhotos.length - 1 - i) * 3}px)`,
-                          zIndex: i,
-                        }}
-                      >
-                        <PolaroidCard photo={p} dateLabel={dateLabel} />
-                      </div>
-                    ))}
-                    {dinner.photos.length > 1 && (
+                    {/* display:contents when stacked so these children position
+                        relative to the outer box above, not this wrapper */}
+                    <div className={isExpanded ? 'flex gap-4 overflow-x-auto pb-2 -mx-1 px-1' : 'contents'}>
+                      {dinner.photos.map((p, i) => {
+                        const distFromEnd = dinner.photos.length - 1 - i;
+                        const inStack = distFromEnd < MAX_STACK;
+                        const stackPos = MAX_STACK - 1 - distFromEnd;
+                        const stackCount = Math.min(dinner.photos.length, MAX_STACK);
+                        return (
+                          <motion.div
+                            key={p.id}
+                            layout
+                            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                            className={isExpanded ? 'w-32 flex-shrink-0' : 'absolute inset-0'}
+                            style={isExpanded ? undefined : {
+                              transform: inStack
+                                ? `rotate(${(stackPos - (stackCount - 1) / 2) * 8}deg) translateY(${(stackCount - 1 - stackPos) * 3}px)`
+                                : 'scale(0.85)',
+                              opacity: inStack ? 1 : 0,
+                              zIndex: i,
+                              pointerEvents: inStack ? 'auto' : 'none',
+                            }}
+                          >
+                            <PolaroidCard photo={p} dateLabel={dateLabel} />
+                            {isExpanded && p.uploaderName && (
+                              <p className="font-sans text-cream/25 text-[10px] text-center mt-1">by {p.uploaderName}</p>
+                            )}
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+                    {!isExpanded && dinner.photos.length > 1 && (
                       <span className="absolute -top-2 -right-2 z-10 bg-gold text-navy text-[10px] font-sans font-bold rounded-full w-5 h-5 flex items-center justify-center shadow">
                         {dinner.photos.length}
                       </span>
                     )}
-                  </button>
-                  <p className="font-sans text-cream/30 text-[11px] mt-3">Tap the stack to see them all</p>
-                </div>
-              ) : (
-                <div>
-                  <div className="flex gap-4 overflow-x-auto pb-2 -mx-1 px-1">
-                    {dinner.photos.map(p => (
-                      <div key={p.id} className="w-32 flex-shrink-0">
-                        <PolaroidCard photo={p} dateLabel={dateLabel} />
-                        {p.uploaderName && (
-                          <p className="font-sans text-cream/25 text-[10px] text-center mt-1">by {p.uploaderName}</p>
-                        )}
-                      </div>
-                    ))}
                   </div>
                   <button
                     type="button"
-                    onClick={() => setExpandedId(null)}
+                    onClick={() => setExpandedId(isExpanded ? null : dinner.table_id)}
                     className="font-sans text-cream/40 hover:text-cream text-xs mt-3 transition-colors"
                   >
-                    ← Stack them back up
+                    {isExpanded ? '← Stack them back up' : 'Tap the stack to see them all'}
                   </button>
                 </div>
               )}
