@@ -26,6 +26,8 @@ router.get('/profile', attendeeAuth, async (req, res) => {
     res.json({
       user: {
         ...user,
+        first_name: user.firstName,
+        last_name: user.lastName,
         dietary: user.field_OVB7lzEjSl7C || [],
         budget: user.field_Ar4xQbXT6CLh || null,
       },
