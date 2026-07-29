@@ -153,13 +153,21 @@ export default function MyAlbum() {
                           <motion.div
                             key={p.id}
                             layout
+                            // Rotate/y/scale as their own motion values (not a raw
+                            // CSS `transform` string) — layout already owns the
+                            // transform property for its own FLIP animation, and
+                            // a plain string in `style` gets silently dropped
+                            // once layout finishes, which is why "stack them back
+                            // up" was landing flat with no rotation.
+                            animate={{
+                              rotate: isExpanded ? 0 : inStack ? (stackPos - (stackCount - 1) / 2) * 8 : 0,
+                              y: isExpanded ? 0 : inStack ? (stackCount - 1 - stackPos) * 3 : 0,
+                              scale: isExpanded || inStack ? 1 : 0.85,
+                              opacity: isExpanded || inStack ? 1 : 0,
+                            }}
                             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                             className={isExpanded ? 'w-32 flex-shrink-0' : 'absolute inset-0'}
                             style={isExpanded ? undefined : {
-                              transform: inStack
-                                ? `rotate(${(stackPos - (stackCount - 1) / 2) * 8}deg) translateY(${(stackCount - 1 - stackPos) * 3}px)`
-                                : 'scale(0.85)',
-                              opacity: inStack ? 1 : 0,
                               zIndex: i,
                               pointerEvents: inStack ? 'auto' : 'none',
                             }}
