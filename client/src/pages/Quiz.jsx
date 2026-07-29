@@ -243,7 +243,7 @@ export const QUESTIONS = [
   {
     id: 'financial',
     type: 'scale',
-    title: 'Financial security comes first',
+    title: 'When I think about the future - financial security comes first',
     field: 'field_heE41fid4m48',
     chapter: 'matters',
     required: true,
