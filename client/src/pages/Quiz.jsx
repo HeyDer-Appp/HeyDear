@@ -298,6 +298,16 @@ export const QUESTIONS = [
   },
 ];
 
+// Date of birth must land somewhere plausible — at least 18 (this is a
+// dinner-dating app) and no more than 100 years ago. Bounds the native date
+// picker itself so an impossible date (e.g. tomorrow, or 5 years old) can't
+// be selected in the first place.
+const todayForDob = new Date();
+const MAX_DOB = new Date(todayForDob.getFullYear() - 18, todayForDob.getMonth(), todayForDob.getDate())
+  .toISOString().split('T')[0];
+const MIN_DOB = new Date(todayForDob.getFullYear() - 100, todayForDob.getMonth(), todayForDob.getDate())
+  .toISOString().split('T')[0];
+
 const COUNTRIES = [
   'New Zealand', 'Australia', 'India', 'United Kingdom', 'United States',
   'China', 'Philippines', 'South Africa', 'Canada', 'Fiji', 'Samoa', 'Tonga',
@@ -383,6 +393,14 @@ const REQUIRED_FIELD_QUESTIONS = QUESTIONS.filter(q => q.required && q.field);
 function isAnswered(value) {
   if (Array.isArray(value)) return value.length > 0;
   return value !== undefined && value !== '' && value !== null;
+}
+
+// The date input's min/max attributes stop the picker UI from offering an
+// impossible date, but someone can still type one directly into the field's
+// segments on desktop — so this gets checked again here as a backstop.
+function isDobValid(dob) {
+  if (!dob) return false;
+  return dob >= MIN_DOB && dob <= MAX_DOB;
 }
 
 // A volume-style slider for scale questions. The fill bar and thumb are
@@ -644,7 +662,7 @@ export default function Quiz() {
       for (const q of s.questions) {
         if (!q.required) continue;
         if (q.type === 'personal') {
-          if (!answers.dob) { newErrors.dob = true; missingIds.push('personal'); }
+          if (!isDobValid(answers.dob)) { newErrors.dob = true; missingIds.push('personal'); }
           if (!answers.gender) { newErrors.gender = true; missingIds.push('personal'); }
           if (!answers.country) { newErrors.country = true; missingIds.push('personal'); }
         } else if (q.field && !isAnswered(answers[q.field])) {
@@ -741,7 +759,7 @@ export default function Quiz() {
     for (const q of REQUIRED_FIELD_QUESTIONS) {
       if (!isAnswered(answers[q.field])) { newErrors[q.field] = true; missingIds.push(q.id); }
     }
-    if (!answers.dob) { newErrors.dob = true; missingIds.push('personal'); }
+    if (!isDobValid(answers.dob)) { newErrors.dob = true; missingIds.push('personal'); }
     if (!answers.gender) { newErrors.gender = true; missingIds.push('personal'); }
     if (!answers.country) { newErrors.country = true; missingIds.push('personal'); }
     if (!isAnswered(answers.field_CdZldwp5q09o)) { newErrors.field_CdZldwp5q09o = true; missingIds.push('date'); }
@@ -944,7 +962,14 @@ export default function Quiz() {
                         <div className="space-y-3">
                           <div>
                             <label className="font-sans text-cream/40 text-xs tracking-[0.1em] uppercase mb-1.5 block">Date of birth</label>
-                            <input type="date" value={answers.dob || ''} onChange={e => setValue('dob', e.target.value)} className="quiz-input" />
+                            <input
+                              type="date"
+                              value={answers.dob || ''}
+                              onChange={e => setValue('dob', e.target.value)}
+                              min={MIN_DOB}
+                              max={MAX_DOB}
+                              className="quiz-input"
+                            />
                           </div>
                           <div>
                             <label className="font-sans text-cream/40 text-xs tracking-[0.1em] uppercase mb-1.5 block">Gender</label>
