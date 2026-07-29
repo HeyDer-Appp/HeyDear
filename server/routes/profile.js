@@ -8,6 +8,21 @@ const { attendeeAuth } = require('../middleware/auth');
 const { getCheckoutSession } = require('../services/stripe');
 const { ANSWER_FIELDS } = require('../utils/answerFields');
 
+// This is an 18+ event — the client already bounds the date picker and
+// blocks navigation on an underage DOB, but that's trivially bypassable by
+// posting to this route directly, so it's re-checked here as the real
+// enforcement point.
+const MIN_AGE_YEARS = 18;
+
+function isAdultDob(dobStr) {
+  if (!dobStr) return false;
+  const dob = new Date(dobStr);
+  if (Number.isNaN(dob.getTime())) return false;
+  const cutoff = new Date();
+  cutoff.setFullYear(cutoff.getFullYear() - MIN_AGE_YEARS);
+  return dob <= cutoff;
+}
+
 router.get('/questions', async (req, res) => {
   try {
     const availableDates = await getAvailableDates();
@@ -95,6 +110,12 @@ router.post('/submit', attendeeAuth, quizLimiter, async (req, res) => {
       // leaving the attendee stuck unable to ever submit their profile.
       const existingUser = userSnap.exists ? userSnap.data() : { email: req.user.email };
 
+      if (!isAdultDob(dob || existingUser.dob)) {
+        const err = new Error('This is an 18+ event — please double check your date of birth.');
+        err.statusCode = 400;
+        throw err;
+      }
+
       const userUpdate = {
         ...answers,
         profileComplete: true,
@@ -165,6 +186,9 @@ router.post('/submit', attendeeAuth, quizLimiter, async (req, res) => {
       message: "You're in. We'll be in touch once your group is ready.",
     });
   } catch (err) {
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({ error: err.message });
+    }
     console.error(err);
     res.status(500).json({ error: 'Server error' });
   }

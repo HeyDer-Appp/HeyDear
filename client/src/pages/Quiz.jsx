@@ -791,7 +791,7 @@ export default function Quiz() {
       sessionStorage.setItem('heyder_quiz_answers', JSON.stringify(answers));
       await stripe.redirectToCheckout({ sessionId: res.data.sessionId });
     } catch (err) {
-      toast.error('Payment setup failed. Please try again.');
+      toast.error(err.response?.data?.error || 'Payment setup failed. Please try again.');
       setSubmitting(false);
     }
   };
@@ -806,7 +806,7 @@ export default function Quiz() {
       });
       navigate('/profile/success');
     } catch (err) {
-      toast.error('Submission failed. Please try again.');
+      toast.error(err.response?.data?.error || 'Submission failed. Please try again.');
       setSubmitting(false);
     }
   };
