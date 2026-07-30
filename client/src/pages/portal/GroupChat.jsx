@@ -29,7 +29,7 @@ function Avatar({ photo, blurred, size = 32 }) {
         src={photo || AVATAR_FALLBACK}
         alt=""
         className="w-full h-full object-cover transition-[filter] duration-700"
-        style={{ filter: blurred ? 'blur(10px)' : 'none', transform: blurred ? 'scale(1.3)' : 'scale(1)' }}
+        style={{ filter: blurred ? 'blur(4px)' : 'none', transform: blurred ? 'scale(1.15)' : 'scale(1)' }}
         draggable={false}
       />
     </div>
