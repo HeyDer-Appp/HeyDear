@@ -52,10 +52,10 @@ export default function Home() {
 
           <div className="flex flex-col sm:flex-row items-start gap-2">
             <Link
-              to="/profile"
+              to={attendeeUser ? '/portal/dashboard' : '/profile'}
               className="btn-primary text-xs tracking-widest"
             >
-              BUILD MY PROFILE
+              {attendeeUser ? 'GO TO MY DASHBOARD' : 'BUILD MY PROFILE'}
             </Link>
             <Link
               to={attendeeUser ? '/portal/dashboard' : '/portal/login'}
