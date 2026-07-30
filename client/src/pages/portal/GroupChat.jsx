@@ -15,15 +15,24 @@ function formatCountdown(ms) {
   return `${h}h ${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`;
 }
 
+// The blur has to live on a wrapper with its own overflow:hidden — a filter
+// applied straight to a rounded element isn't clipped by that element's own
+// border-radius, so the blur bleeds outward into a shapeless haze instead of
+// staying a crisp, contained circle sitting next to the message.
 function Avatar({ photo, blurred, size = 32 }) {
   return (
-    <img
-      src={photo || AVATAR_FALLBACK}
-      alt=""
-      className="rounded-full object-cover flex-shrink-0 border border-white/10 transition-[filter] duration-700"
-      style={{ width: size, height: size, filter: blurred ? 'blur(10px)' : 'none' }}
-      draggable={false}
-    />
+    <div
+      className="rounded-full overflow-hidden flex-shrink-0 border border-white/10"
+      style={{ width: size, height: size }}
+    >
+      <img
+        src={photo || AVATAR_FALLBACK}
+        alt=""
+        className="w-full h-full object-cover transition-[filter] duration-700"
+        style={{ filter: blurred ? 'blur(10px)' : 'none', transform: blurred ? 'scale(1.3)' : 'scale(1)' }}
+        draggable={false}
+      />
+    </div>
   );
 }
 
@@ -88,17 +97,22 @@ export default function GroupChat() {
   const { attendeeUser } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [now, setNow] = useState(Date.now());
   const [showPicker, setShowPicker] = useState(false);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const feedRef = useRef(null);
 
-  const fetchGroup = () => api.get('/group').then(res => setData(res.data)).catch(() => {});
+  const fetchGroup = () => api.get('/group')
+    .then(res => { setData(res.data); setLoadError(false); })
+    .catch(() => setLoadError(true));
 
   useEffect(() => {
     fetchGroup().finally(() => setLoading(false));
-    const poll = setInterval(fetchGroup, 6000);
+    // Shares the site-wide API rate limit with every other request on this
+    // connection, so this has to stay well under budget for a tab left open.
+    const poll = setInterval(fetchGroup, 15000);
     return () => clearInterval(poll);
   }, []);
 
@@ -163,6 +177,20 @@ export default function GroupChat() {
       <div className="w-10" />
     </nav>
   );
+
+  if (loadError && !data) {
+    return (
+      <div className="quiz-bg min-h-screen relative overflow-hidden pb-24">
+        {header}
+        <div className="relative z-10 max-w-lg mx-auto px-5 py-20 text-center">
+          <p className="font-serif text-2xl text-cream mb-3">Couldn't load your group chat</p>
+          <p className="font-sans text-cream/50 text-sm mb-6">Please refresh, or contact info@heyder.nz if this keeps happening.</p>
+          <button onClick={() => window.location.reload()} className="quiz-cta text-xs py-2 px-6">Retry</button>
+        </div>
+        <BottomNav />
+      </div>
+    );
+  }
 
   if (!data?.has_group) {
     return (
