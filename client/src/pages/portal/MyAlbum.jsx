@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import api from '../../utils/api';
 import { fileToResizedBase64 } from '../../utils/image';
@@ -32,11 +31,40 @@ function PolaroidCard({ photo, dateLabel }) {
   );
 }
 
+// A dinner's whole photo set, shown as one physical-looking pile — the last
+// few photos fanned out with a slight rotation — that opens into the full
+// set when tapped.
+function PhotoStack({ photos, dateLabel, onOpen }) {
+  const stacked = photos.slice(-MAX_STACK);
+  return (
+    <button type="button" onClick={onOpen} className="relative block w-full aspect-square">
+      {stacked.map((p, i) => {
+        const rotate = (i - (stacked.length - 1) / 2) * 8;
+        const y = (stacked.length - 1 - i) * 3;
+        return (
+          <div
+            key={p.id}
+            className="absolute inset-0"
+            style={{ transform: `rotate(${rotate}deg) translateY(${y}px)`, zIndex: i }}
+          >
+            <PolaroidCard photo={p} dateLabel={dateLabel} />
+          </div>
+        );
+      })}
+      {photos.length > 1 && (
+        <span className="absolute -top-2 -right-2 z-10 bg-gold text-navy text-[10px] font-sans font-bold rounded-full w-5 h-5 flex items-center justify-center shadow">
+          {photos.length}
+        </span>
+      )}
+    </button>
+  );
+}
+
 export default function MyAlbum() {
   const [dinners, setDinners] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploadingFor, setUploadingFor] = useState(null);
-  const [expandedId, setExpandedId] = useState(null);
+  const [openDinnerId, setOpenDinnerId] = useState(null);
 
   useEffect(() => {
     api.get('/album')
@@ -70,6 +98,8 @@ export default function MyAlbum() {
     );
   }
 
+  const openDinner = dinners.find(d => d.table_id === openDinnerId);
+
   return (
     <div className="quiz-bg min-h-screen relative overflow-hidden pb-24">
       <nav className="relative z-10 flex items-center justify-between px-6 py-5 border-b border-white/[0.06] backdrop-blur">
@@ -78,12 +108,12 @@ export default function MyAlbum() {
         <div className="w-10" />
       </nav>
 
-      <div className="relative z-10 max-w-lg mx-auto px-5 py-8 space-y-8">
-        <div>
+      <div className="relative z-10 max-w-lg mx-auto px-5 py-8">
+        <div className="mb-6">
           <p className="font-sans text-cream/40 text-sm">Your dinners</p>
           <h1 className="font-serif text-3xl text-cream mt-1">My Album</h1>
           <p className="font-sans text-cream/40 text-sm mt-2 leading-relaxed">
-            A stack of photos for every Tuesday. Tap a stack to spread them out.
+            One stack per Tuesday. Tap a stack to see every photo from that night.
           </p>
         </div>
 
@@ -95,110 +125,84 @@ export default function MyAlbum() {
           </div>
         )}
 
-        {dinners.map(dinner => {
-          const dateLabel = formatDinnerDate(dinner.date);
-          const isExpanded = expandedId === dinner.table_id;
+        <div className="grid grid-cols-2 gap-4">
+          {dinners.map(dinner => {
+            const dateLabel = formatDinnerDate(dinner.date);
+            return (
+              <div key={dinner.table_id} className="quiz-card !p-4">
+                <p className="font-serif text-base text-cream leading-tight">{dateLabel}</p>
+                <p className="font-sans text-cream/35 text-[11px] mb-3">{dinner.city}</p>
 
-          return (
-            <div key={dinner.table_id} className="quiz-card">
-              <div className="flex items-center justify-between mb-1">
-                <p className="font-serif text-xl text-cream">{dateLabel}</p>
-                <span className="font-sans text-cream/35 text-xs">{dinner.city}</span>
-              </div>
-              <p className="font-sans text-cream/40 text-xs mb-5">
-                {dinner.attendees.length > 0 ? `With ${dinner.attendees.join(', ')}` : 'Table details unavailable'}
-              </p>
-
-              {dinner.can_upload && (
-                <div className="flex gap-2 mb-6">
-                  <label className={`quiz-cta flex-1 text-xs py-2.5 flex items-center justify-center gap-1.5 cursor-pointer ${uploadingFor === dinner.table_id ? 'opacity-60 pointer-events-none' : ''}`}>
-                    {uploadingFor === dinner.table_id ? 'Uploading...' : '📷 Take photo'}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      capture="environment"
-                      className="hidden"
-                      onChange={e => handleUpload(dinner.table_id, e.target.files?.[0])}
-                    />
-                  </label>
-                  <label className={`flex-1 text-xs py-2.5 rounded-2xl border border-white/15 text-cream/70 flex items-center justify-center gap-1.5 cursor-pointer hover:border-gold/40 transition-colors ${uploadingFor === dinner.table_id ? 'opacity-60 pointer-events-none' : ''}`}>
-                    🖼 Upload
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={e => handleUpload(dinner.table_id, e.target.files?.[0])}
-                    />
-                  </label>
-                </div>
-              )}
-
-              {dinner.photos.length === 0 ? (
-                <p className="font-sans text-cream/30 text-xs italic">No photos yet.</p>
-              ) : (
-                <div className="flex flex-col items-center">
-                  <div
-                    className={isExpanded ? 'w-full' : 'relative w-32 h-40 cursor-pointer'}
-                    onClick={() => !isExpanded && setExpandedId(dinner.table_id)}
-                  >
-                    {/* display:contents when stacked so these children position
-                        relative to the outer box above, not this wrapper */}
-                    <div className={isExpanded ? 'flex gap-4 overflow-x-auto pb-2 -mx-1 px-1' : 'contents'}>
-                      {dinner.photos.map((p, i) => {
-                        const distFromEnd = dinner.photos.length - 1 - i;
-                        const inStack = distFromEnd < MAX_STACK;
-                        const stackPos = MAX_STACK - 1 - distFromEnd;
-                        const stackCount = Math.min(dinner.photos.length, MAX_STACK);
-                        return (
-                          <motion.div
-                            key={p.id}
-                            layout
-                            // Rotate/y/scale as their own motion values (not a raw
-                            // CSS `transform` string) — layout already owns the
-                            // transform property for its own FLIP animation, and
-                            // a plain string in `style` gets silently dropped
-                            // once layout finishes, which is why "stack them back
-                            // up" was landing flat with no rotation.
-                            animate={{
-                              rotate: isExpanded ? 0 : inStack ? (stackPos - (stackCount - 1) / 2) * 8 : 0,
-                              y: isExpanded ? 0 : inStack ? (stackCount - 1 - stackPos) * 3 : 0,
-                              scale: isExpanded || inStack ? 1 : 0.85,
-                              opacity: isExpanded || inStack ? 1 : 0,
-                            }}
-                            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                            className={isExpanded ? 'w-32 flex-shrink-0' : 'absolute inset-0'}
-                            style={isExpanded ? undefined : {
-                              zIndex: i,
-                              pointerEvents: inStack ? 'auto' : 'none',
-                            }}
-                          >
-                            <PolaroidCard photo={p} dateLabel={dateLabel} />
-                            {isExpanded && p.uploaderName && (
-                              <p className="font-sans text-cream/25 text-[10px] text-center mt-1">by {p.uploaderName}</p>
-                            )}
-                          </motion.div>
-                        );
-                      })}
-                    </div>
-                    {!isExpanded && dinner.photos.length > 1 && (
-                      <span className="absolute -top-2 -right-2 z-10 bg-gold text-navy text-[10px] font-sans font-bold rounded-full w-5 h-5 flex items-center justify-center shadow">
-                        {dinner.photos.length}
-                      </span>
-                    )}
+                {dinner.can_upload && (
+                  <div className="flex gap-1.5 mb-3">
+                    <label className={`quiz-cta flex-1 text-[11px] py-2 flex items-center justify-center gap-1 cursor-pointer ${uploadingFor === dinner.table_id ? 'opacity-60 pointer-events-none' : ''}`}>
+                      {uploadingFor === dinner.table_id ? '…' : '📷'}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        className="hidden"
+                        onChange={e => handleUpload(dinner.table_id, e.target.files?.[0])}
+                      />
+                    </label>
+                    <label className={`flex-1 text-[11px] py-2 rounded-2xl border border-white/15 text-cream/70 flex items-center justify-center gap-1 cursor-pointer hover:border-gold/40 transition-colors ${uploadingFor === dinner.table_id ? 'opacity-60 pointer-events-none' : ''}`}>
+                      🖼
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={e => handleUpload(dinner.table_id, e.target.files?.[0])}
+                      />
+                    </label>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setExpandedId(isExpanded ? null : dinner.table_id)}
-                    className="font-sans text-cream/40 hover:text-cream text-xs mt-3 transition-colors"
-                  >
-                    {isExpanded ? '← Stack them back up' : 'Tap the stack to see them all'}
-                  </button>
-                </div>
-              )}
-            </div>
-          );
-        })}
+                )}
+
+                {dinner.photos.length === 0 ? (
+                  <p className="font-sans text-cream/30 text-xs italic">No photos yet.</p>
+                ) : (
+                  <PhotoStack photos={dinner.photos} dateLabel={dateLabel} onOpen={() => setOpenDinnerId(dinner.table_id)} />
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
+
+      {/* Expanded stack — every photo from this one dinner */}
+      {openDinner && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/70"
+          onClick={() => setOpenDinnerId(null)}
+        >
+          <div
+            className="w-full max-w-lg bg-[#16181d] rounded-t-3xl max-h-[85vh] overflow-y-auto p-5 pb-8"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="font-serif text-xl text-cream">{formatDinnerDate(openDinner.date)}</p>
+                <p className="font-sans text-cream/35 text-xs">{openDinner.city}</p>
+              </div>
+              <button
+                onClick={() => setOpenDinnerId(null)}
+                className="font-sans text-cream/40 hover:text-cream text-xs transition-colors"
+              >
+                Close
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              {openDinner.photos.map(p => (
+                <div key={p.id}>
+                  <PolaroidCard photo={p} dateLabel={formatDinnerDate(openDinner.date)} />
+                  {p.uploaderName && (
+                    <p className="font-sans text-cream/25 text-[10px] text-center mt-1">by {p.uploaderName}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       <BottomNav />
     </div>
