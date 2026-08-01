@@ -39,14 +39,14 @@ export const QUESTIONS = [
   {
     id: 'personal',
     type: 'personal',
-    title: 'Just a few more details',
+    title: 'About you',
     chapter: 'basics',
     required: true,
   },
   {
     id: 'contact',
     type: 'contact',
-    title: "What's the best number to reach you on?",
+    title: 'Contact Number',
     chapter: 'basics',
     required: false,
   },
