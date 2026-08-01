@@ -39,10 +39,10 @@ function PolaroidCard({ photo, dateLabel }) {
 function PhotoStack({ photos, dateLabel, onOpen }) {
   const stacked = photos.slice(-MAX_STACK);
   return (
-    <button type="button" onClick={onOpen} className="relative block w-full aspect-square">
+    <button type="button" onClick={onOpen} className="relative block w-full max-w-[128px] aspect-square mx-auto">
       {stacked.map((p, i) => {
-        const rotate = (i - (stacked.length - 1) / 2) * 8;
-        const y = (stacked.length - 1 - i) * 3;
+        const rotate = (i - (stacked.length - 1) / 2) * 6;
+        const y = (stacked.length - 1 - i) * 2;
         return (
           <div
             key={p.id}
