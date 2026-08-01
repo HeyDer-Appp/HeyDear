@@ -168,24 +168,6 @@ export const QUESTIONS = [
     min: 0, max: 10,
     labels: ['Wiped out', 'Recharged'],
   },
-  {
-    id: 'conversation_avoid',
-    type: 'choice',
-    title: 'The conversation you try to avoid most',
-    field: 'conversation_avoid',
-    chapter: 'drawn_to',
-    required: true,
-    choices: ['Small talk', 'Oversharing too soon', 'Debating opinions', 'Talking about work'],
-  },
-  {
-    id: 'first_meeting_style',
-    type: 'choice',
-    title: 'Meeting someone new, you usually…',
-    field: 'first_meeting_style',
-    chapter: 'drawn_to',
-    required: true,
-    choices: ['Ask lots of questions', 'Wait for them to open up', 'Crack a joke to break the ice', 'Just vibe and see what happens'],
-  },
 
   // Chapter 4 — How You Move Through A Conversation
   {
@@ -360,7 +342,6 @@ function chunkInto2or3(items) {
 // not listed here fall back to the automatic 2-3 split above.
 const MANUAL_CHAPTER_PAGE_SIZES = {
   basics: [2, 3], // personal + contact | intent + relationship + lifestage
-  drawn_to: [2, 3], // group_role + connection_trigger | social_recharge + conversation_avoid + first_meeting_style
 };
 
 function chunkChapterQuestions(chapterId, items) {
