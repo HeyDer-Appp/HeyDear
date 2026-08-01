@@ -15,6 +15,11 @@ function formatCountdown(ms) {
   return `${h}h ${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`;
 }
 
+function formatDinnerDate(iso) {
+  if (!iso) return '';
+  return new Date(iso).toLocaleDateString('en-NZ', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+}
+
 // The blur has to live on a wrapper with its own overflow:hidden — a filter
 // applied straight to a rounded element isn't clipped by that element's own
 // border-radius, so the blur bleeds outward into a shapeless haze instead of
@@ -93,7 +98,128 @@ function TextMessage({ msg, photo, isOwn }) {
   );
 }
 
-export default function GroupChat() {
+const header = (
+  <nav className="relative z-10 flex items-center justify-between px-6 py-5 border-b border-white/[0.06] backdrop-blur">
+    <Link to="/portal/dashboard" className="font-sans text-cream/50 text-sm hover:text-cream transition-colors">← Back</Link>
+    <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-7" />
+    <div className="w-10" />
+  </nav>
+);
+
+function StatusBadge({ g }) {
+  if (g.revealed) return <span className="text-emerald-400 text-[10px] font-sans font-semibold uppercase tracking-widest">Attended</span>;
+  if (g.chat_open) return <span className="text-gold text-[10px] font-sans font-semibold uppercase tracking-widest">Open</span>;
+  return <span className="text-cream/30 text-[10px] font-sans font-semibold uppercase tracking-widest">Locked</span>;
+}
+
+function GroupListCard({ g, onOpen, onExit }) {
+  return (
+    <div className="quiz-card">
+      <div className="flex items-center justify-between mb-1">
+        <p className="font-serif text-lg text-cream">{formatDinnerDate(g.dinner_date)}</p>
+        <StatusBadge g={g} />
+      </div>
+      <p className="font-sans text-cream/40 text-xs mb-4">{g.city} · {g.member_count} people</p>
+      <div className="flex items-center gap-4">
+        <button onClick={() => onOpen(g.table_id)} className="quiz-cta text-xs py-2 px-5">Open chat</button>
+        <button onClick={() => onExit(g.table_id)} className="font-sans text-cream/30 hover:text-red-400 text-xs transition-colors">Exit group</button>
+      </div>
+    </div>
+  );
+}
+
+// The list of every group chat this attendee belongs to — split into the
+// upcoming Tuesday (still building up to the reveal) and dinners already
+// attended (fully unlocked). Each is independently selectable and exitable.
+function GroupList({ onOpen }) {
+  const [groups, setGroups] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+
+  const fetchGroups = () => api.get('/group')
+    .then(res => { setGroups(res.data.groups || []); setLoadError(false); })
+    .catch(() => setLoadError(true));
+
+  useEffect(() => {
+    fetchGroups().finally(() => setLoading(false));
+    const poll = setInterval(fetchGroups, 20000);
+    return () => clearInterval(poll);
+  }, []);
+
+  const handleExit = async (tableId) => {
+    if (!confirm("Remove this group from your list? You won't see it here anymore.")) return;
+    try {
+      await api.post(`/group/${tableId}/exit`);
+      setGroups(prev => prev.filter(g => g.table_id !== tableId));
+      toast.success('Left the group.');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Could not leave that group.');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="quiz-bg min-h-screen flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (loadError && !groups) {
+    return (
+      <div className="quiz-bg min-h-screen relative overflow-hidden pb-24">
+        {header}
+        <div className="relative z-10 max-w-lg mx-auto px-5 py-20 text-center">
+          <p className="font-serif text-2xl text-cream mb-3">Couldn't load your groups</p>
+          <p className="font-sans text-cream/50 text-sm mb-6">Please refresh, or contact info@heyder.nz if this keeps happening.</p>
+          <button onClick={() => window.location.reload()} className="quiz-cta text-xs py-2 px-6">Retry</button>
+        </div>
+        <BottomNav />
+      </div>
+    );
+  }
+
+  const upcoming = (groups || []).filter(g => !g.revealed);
+  const attended = (groups || []).filter(g => g.revealed);
+
+  return (
+    <div className="quiz-bg min-h-screen relative overflow-hidden pb-24">
+      {header}
+      <div className="relative z-10 max-w-lg mx-auto px-5 py-8 space-y-8">
+        <div>
+          <p className="font-sans text-cream/40 text-sm">Your dinners</p>
+          <h1 className="font-serif text-3xl text-cream mt-1">Group Chats</h1>
+        </div>
+
+        {(groups || []).length === 0 && (
+          <div className="quiz-card text-center py-10">
+            <p className="font-sans text-cream/40 text-sm">Once you're matched with a table, your group chat shows up here 48 hours before dinner.</p>
+          </div>
+        )}
+
+        {upcoming.length > 0 && (
+          <div className="space-y-3">
+            <p className="font-sans font-semibold text-cream/50 text-xs uppercase tracking-widest">Upcoming</p>
+            {upcoming.map(g => <GroupListCard key={g.table_id} g={g} onOpen={onOpen} onExit={handleExit} />)}
+          </div>
+        )}
+
+        {attended.length > 0 && (
+          <div className="space-y-3">
+            <p className="font-sans font-semibold text-cream/50 text-xs uppercase tracking-widest">Attended</p>
+            {attended.map(g => <GroupListCard key={g.table_id} g={g} onOpen={onOpen} onExit={handleExit} />)}
+          </div>
+        )}
+      </div>
+      <BottomNav />
+    </div>
+  );
+}
+
+// One group's chat: locked countdown before the 48h mark, blurred prompts
+// feed once open, full reveal (clear photos + free text) at 7:30pm — and
+// for anything already attended, that reveal has naturally already happened.
+function GroupDetail({ tableId, onBack }) {
   const { attendeeUser } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -104,17 +230,18 @@ export default function GroupChat() {
   const [sending, setSending] = useState(false);
   const feedRef = useRef(null);
 
-  const fetchGroup = () => api.get('/group')
+  const fetchGroup = () => api.get(`/group/${tableId}`)
     .then(res => { setData(res.data); setLoadError(false); })
     .catch(() => setLoadError(true));
 
   useEffect(() => {
+    setLoading(true);
     fetchGroup().finally(() => setLoading(false));
     // Shares the site-wide API rate limit with every other request on this
     // connection, so this has to stay well under budget for a tab left open.
     const poll = setInterval(fetchGroup, 15000);
     return () => clearInterval(poll);
-  }, []);
+  }, [tableId]);
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
@@ -131,7 +258,7 @@ export default function GroupChat() {
   const handleAsk = async (promptId) => {
     setShowPicker(false);
     try {
-      const res = await api.post(`/group/${data.table_id}/prompts`, { promptId });
+      const res = await api.post(`/group/${tableId}/prompts`, { promptId });
       setData(prev => ({ ...prev, messages: [...(prev.messages || []), res.data.message] }));
     } catch (err) {
       toast.error(err.response?.data?.error || 'Could not post that prompt.');
@@ -140,7 +267,7 @@ export default function GroupChat() {
 
   const handleAnswer = async (messageId, option) => {
     try {
-      const res = await api.post(`/group/${data.table_id}/messages/${messageId}/answer`, { option });
+      const res = await api.post(`/group/${tableId}/messages/${messageId}/answer`, { option });
       setData(prev => ({ ...prev, messages: [...(prev.messages || []), res.data.message] }));
     } catch (err) {
       toast.error(err.response?.data?.error || 'Could not send that answer.');
@@ -152,7 +279,7 @@ export default function GroupChat() {
     if (!value || sending) return;
     setSending(true);
     try {
-      const res = await api.post(`/group/${data.table_id}/messages`, { text: value });
+      const res = await api.post(`/group/${tableId}/messages`, { text: value });
       setData(prev => ({ ...prev, messages: [...(prev.messages || []), res.data.message] }));
       setText('');
     } catch (err) {
@@ -162,6 +289,14 @@ export default function GroupChat() {
     }
   };
 
+  const detailHeader = (
+    <nav className="relative z-10 flex items-center justify-between px-6 py-5 border-b border-white/[0.06] backdrop-blur">
+      <button onClick={onBack} className="font-sans text-cream/50 text-sm hover:text-cream transition-colors">← All groups</button>
+      <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-7" />
+      <div className="w-16" />
+    </nav>
+  );
+
   if (loading) {
     return (
       <div className="quiz-bg min-h-screen flex items-center justify-center">
@@ -170,20 +305,12 @@ export default function GroupChat() {
     );
   }
 
-  const header = (
-    <nav className="relative z-10 flex items-center justify-between px-6 py-5 border-b border-white/[0.06] backdrop-blur">
-      <Link to="/portal/dashboard" className="font-sans text-cream/50 text-sm hover:text-cream transition-colors">← Back</Link>
-      <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-7" />
-      <div className="w-10" />
-    </nav>
-  );
-
   if (loadError && !data) {
     return (
       <div className="quiz-bg min-h-screen relative overflow-hidden pb-24">
-        {header}
+        {detailHeader}
         <div className="relative z-10 max-w-lg mx-auto px-5 py-20 text-center">
-          <p className="font-serif text-2xl text-cream mb-3">Couldn't load your group chat</p>
+          <p className="font-serif text-2xl text-cream mb-3">Couldn't load this group chat</p>
           <p className="font-sans text-cream/50 text-sm mb-6">Please refresh, or contact info@heyder.nz if this keeps happening.</p>
           <button onClick={() => window.location.reload()} className="quiz-cta text-xs py-2 px-6">Retry</button>
         </div>
@@ -192,25 +319,11 @@ export default function GroupChat() {
     );
   }
 
-  if (!data?.has_group) {
+  if (!data?.chat_open) {
+    const msLeft = data ? new Date(data.chat_opens_at) - now : 0;
     return (
       <div className="quiz-bg min-h-screen relative overflow-hidden pb-24">
-        {header}
-        <div className="relative z-10 max-w-lg mx-auto px-5 py-20 text-center">
-          <p className="text-4xl mb-4">👥</p>
-          <h1 className="font-serif text-2xl text-cream mb-2">No group chat yet</h1>
-          <p className="font-sans text-cream/40 text-sm">Once you're matched with a table, your group chat shows up here 48 hours before dinner.</p>
-        </div>
-        <BottomNav />
-      </div>
-    );
-  }
-
-  if (!data.chat_open) {
-    const msLeft = new Date(data.chat_opens_at) - now;
-    return (
-      <div className="quiz-bg min-h-screen relative overflow-hidden pb-24">
-        {header}
+        {detailHeader}
         <div className="relative z-10 max-w-lg mx-auto px-5 py-8">
           <div className="quiz-card text-center py-12">
             <p className="text-4xl mb-4">🔒</p>
@@ -229,12 +342,12 @@ export default function GroupChat() {
 
   return (
     <div className="quiz-bg min-h-screen relative overflow-hidden">
-      {header}
+      {detailHeader}
 
       {/* Blurred-until-revealed avatar strip */}
       <div className="relative z-10 max-w-lg mx-auto px-5 pt-5 pb-2">
         <p className="font-sans text-cream/40 text-xs mb-2">
-          {data.revealed ? 'Your table tonight' : 'Your table — faces reveal at 7:30pm'}
+          {data.revealed ? 'Your table' : 'Your table — faces reveal at 7:30pm'}
         </p>
         <div className="flex items-center">
           {(data.members || []).map((m, i) => (
@@ -324,4 +437,13 @@ export default function GroupChat() {
       <BottomNav />
     </div>
   );
+}
+
+export default function GroupChat() {
+  const [selectedTableId, setSelectedTableId] = useState(null);
+
+  if (selectedTableId) {
+    return <GroupDetail tableId={selectedTableId} onBack={() => setSelectedTableId(null)} />;
+  }
+  return <GroupList onOpen={setSelectedTableId} />;
 }

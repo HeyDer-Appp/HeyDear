@@ -11,8 +11,10 @@ function toDate(v) {
 
 // The group chat is a two-stage build-up to dinner: a prompts-only stage
 // that opens 48h before the 7pm sit-down, then a full reveal (real photos
-// + free-text messaging) at 7:30pm the night of, once everyone's actually
-// meant to be walking in the door.
+// + free-text messaging) at 7:30pm the night of. There's no closing time —
+// once revealed, a group stays fully open (clear photos, free texting)
+// forever after, which is also what makes a past/attended dinner's chat
+// naturally end up in the "revealed" state with zero special-casing.
 function dinnerAt(dinnerDate, hours, minutes = 0) {
   const d = new Date(dinnerDate);
   d.setHours(hours, minutes, 0, 0);
@@ -24,76 +26,95 @@ function chatOpensAt(dinnerDate) {
 function revealAt(dinnerDate) {
   return dinnerAt(dinnerDate, 19, 30);
 }
-
-// Finds the attendee's current relevant table: the soonest confirmed,
-// matched table whose dinner hasn't finished yet. Mirrors the join used in
-// album.js (bookings -> tables -> dinners) but narrowed to one active group
-// rather than a full history.
-async function findActiveTable(userId) {
-  const bookingSnap = await db.collection('bookings')
-    .where('userId', '==', userId)
-    .where('matched', '==', true)
-    .get();
-
-  const tableIds = [...new Set(bookingSnap.docs.map(d => d.data().tableId).filter(Boolean))];
+function timingSummary(dinnerDate) {
+  const opensAt = chatOpensAt(dinnerDate);
+  const revealsAt = revealAt(dinnerDate);
   const now = new Date();
+  return {
+    dinner_date: dinnerDate.toISOString(),
+    chat_opens_at: opensAt.toISOString(),
+    reveal_at: revealsAt.toISOString(),
+    chat_open: now >= opensAt,
+    revealed: now >= revealsAt,
+  };
+}
 
-  const candidates = await Promise.all(tableIds.map(async (tableId) => {
+// A member who has exited a group is treated as if they were never a
+// member for every route below — exiting only removes the group from
+// their own list/access, it doesn't touch the table for anyone else.
+async function requireMembership(tableId, userId) {
+  const memberSnap = await db.collection('tableMembers').doc(`${tableId}_${userId}`).get();
+  if (!memberSnap.exists) return null;
+  const member = memberSnap.data();
+  if (member.hiddenFromGroupList) return null;
+  return member;
+}
+
+// Every group chat this attendee has ever been matched into (not hidden),
+// newest dinner first — mirrors the bookings -> tables -> dinners join used
+// in album.js, but lists everything rather than picking one active table.
+router.get('/', attendeeAuth, async (req, res) => {
+  try {
+    const bookingSnap = await db.collection('bookings')
+      .where('userId', '==', req.user.id)
+      .where('matched', '==', true)
+      .get();
+
+    const tableIds = [...new Set(bookingSnap.docs.map(d => d.data().tableId).filter(Boolean))];
+
+    const groups = await Promise.all(tableIds.map(async (tableId) => {
+      const member = await requireMembership(tableId, req.user.id);
+      if (!member) return null;
+
+      const tableSnap = await db.collection('tables').doc(tableId).get();
+      const table = tableSnap.data();
+      if (!table || table.status !== 'confirmed') return null;
+
+      const dinnerSnap = await db.collection('dinners').doc(table.dinnerId).get();
+      const dinner = dinnerSnap.data();
+      const dinnerDate = toDate(dinner?.date);
+      if (!dinnerDate) return null;
+
+      const membersSnap = await db.collection('tableMembers').where('tableId', '==', tableId).get();
+
+      return {
+        table_id: tableId,
+        city: dinner.city || 'Auckland',
+        member_count: membersSnap.size,
+        ...timingSummary(dinnerDate),
+      };
+    }));
+
+    const clean = groups.filter(Boolean).sort((a, b) => new Date(b.dinner_date) - new Date(a.dinner_date));
+    res.json({ groups: clean });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// One group chat's full detail: locked countdown before the 48h mark,
+// prompts-and-answers feed once open, full reveal (real photos + free text)
+// at 7:30pm — which for any dinner that's already happened is always true.
+router.get('/:tableId', attendeeAuth, async (req, res) => {
+  try {
+    const { tableId } = req.params;
+    const member = await requireMembership(tableId, req.user.id);
+    if (!member) return res.status(404).json({ error: 'Group not found' });
+
     const tableSnap = await db.collection('tables').doc(tableId).get();
     const table = tableSnap.data();
-    if (!table || table.status !== 'confirmed') return null;
+    if (!table) return res.status(404).json({ error: 'Table not found' });
 
     const dinnerSnap = await db.collection('dinners').doc(table.dinnerId).get();
     const dinner = dinnerSnap.data();
     const dinnerDate = toDate(dinner?.date);
-    if (!dinnerDate) return null;
+    if (!dinnerDate) return res.status(404).json({ error: 'Dinner not found' });
 
-    // Stays active through the day after, same as the photo-album window
-    // closing 7pm the next day — people keep chatting past the dinner itself.
-    const cutoff = new Date(dinnerAt(dinnerDate, 19, 0).getTime() + 24 * 60 * 60 * 1000);
-    if (cutoff < now) return null;
+    const timing = timingSummary(dinnerDate);
+    const base = { table_id: tableId, city: dinner.city || 'Auckland', ...timing };
 
-    return { tableId, table, dinnerId: table.dinnerId, dinnerDate };
-  }));
-
-  const valid = candidates.filter(Boolean).sort((a, b) => a.dinnerDate - b.dinnerDate);
-  return valid[0] || null;
-}
-
-async function requireMembership(tableId, userId) {
-  const memberSnap = await db.collection('tableMembers').doc(`${tableId}_${userId}`).get();
-  if (!memberSnap.exists) return null;
-  return memberSnap.data();
-}
-
-// The current attendee's active group chat: locked countdown before the
-// 48h mark, prompts-and-answers feed once open, full reveal at 7:30pm.
-router.get('/', attendeeAuth, async (req, res) => {
-  try {
-    const active = await findActiveTable(req.user.id);
-    if (!active) return res.json({ has_group: false });
-
-    const { tableId, dinnerDate } = active;
-    const member = await requireMembership(tableId, req.user.id);
-    if (!member) return res.json({ has_group: false });
-
-    const opensAt = chatOpensAt(dinnerDate);
-    const revealsAt = revealAt(dinnerDate);
-    const now = new Date();
-    const chatOpen = now >= opensAt;
-    const revealed = now >= revealsAt;
-
-    const base = {
-      has_group: true,
-      table_id: tableId,
-      dinner_date: dinnerDate.toISOString(),
-      chat_opens_at: opensAt.toISOString(),
-      reveal_at: revealsAt.toISOString(),
-      chat_open: chatOpen,
-      revealed,
-    };
-
-    if (!chatOpen) return res.json(base);
+    if (!timing.chat_open) return res.json(base);
 
     const [membersSnap, messagesSnap] = await Promise.all([
       db.collection('tableMembers').where('tableId', '==', tableId).get(),
@@ -123,12 +144,7 @@ router.get('/', attendeeAuth, async (req, res) => {
       };
     });
 
-    res.json({
-      ...base,
-      members,
-      prompts: PROMPTS,
-      messages,
-    });
+    res.json({ ...base, members, prompts: PROMPTS, messages });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
@@ -136,8 +152,7 @@ router.get('/', attendeeAuth, async (req, res) => {
 });
 
 // Posts one of the fixed prompts into the group's chat — only during the
-// prompts stage (48h-before window up to the 7:30pm reveal, though nothing
-// stops it continuing after reveal too).
+// prompts stage (48h-before window onward).
 router.post('/:tableId/prompts', attendeeAuth, async (req, res) => {
   try {
     const { tableId } = req.params;
@@ -290,6 +305,24 @@ router.post('/:tableId/messages', attendeeAuth, async (req, res) => {
         created_at: new Date().toISOString(),
       },
     });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Removes this group from the caller's own list — a personal archive, not
+// a real departure. Everyone else at the table keeps seeing them as a
+// member and keeps seeing their past messages.
+router.post('/:tableId/exit', attendeeAuth, async (req, res) => {
+  try {
+    const { tableId } = req.params;
+    const memberRef = db.collection('tableMembers').doc(`${tableId}_${req.user.id}`);
+    const memberSnap = await memberRef.get();
+    if (!memberSnap.exists) return res.status(403).json({ error: "You weren't seated at this table" });
+
+    await memberRef.set({ hiddenFromGroupList: true }, { merge: true });
+    res.json({ success: true });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
