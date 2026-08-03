@@ -23,6 +23,7 @@ const adminMatchingRoutes = require('./routes/admin/matching');
 const adminAnalyticsRoutes = require('./routes/admin/analytics');
 const adminDinnersRoutes = require('./routes/admin/dinners');
 const adminAmbassadorsRoutes = require('./routes/admin/ambassadors');
+const adminContentRoutes = require('./routes/admin/content');
 
 if (process.env.NODE_ENV === 'production') {
   const required = [
@@ -84,6 +85,7 @@ app.use('/api/admin/matching', adminMatchingRoutes);
 app.use('/api/admin/analytics', adminAnalyticsRoutes);
 app.use('/api/admin/dinners', adminDinnersRoutes);
 app.use('/api/admin/ambassadors', adminAmbassadorsRoutes);
+app.use('/api/admin/content', adminContentRoutes);
 
 app.use('/api', (req, res) => res.status(404).json({ error: 'Not found' }));
 

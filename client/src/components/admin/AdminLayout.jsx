@@ -6,6 +6,7 @@ const navItems = [
   { label: 'Dashboard', href: '/admin/dashboard', icon: '⊞' },
   { label: 'Matching', href: '/admin/matching', icon: '⇄' },
   { label: 'Signups', href: '/admin/signups', icon: '✦' },
+  { label: 'Album & Chat', href: '/admin/content', icon: '📷' },
   { label: 'Dinners', href: '/admin/dinners', icon: '🍽' },
   { label: 'Feedback', href: '/admin/feedback', icon: '💬' },
   { label: 'Analytics', href: '/admin/analytics', icon: '◎' },
