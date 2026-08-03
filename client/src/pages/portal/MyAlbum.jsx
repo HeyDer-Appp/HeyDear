@@ -133,13 +133,22 @@ export default function MyAlbum() {
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-5">
+        <div className="grid grid-cols-2 gap-5 items-start">
           {dinners.map(dinner => {
             const dateLabel = formatDinnerDate(dinner.date);
             return (
-              <div key={dinner.table_id}>
+              <div key={dinner.table_id} className="flex flex-col items-center">
+                {dinner.photos.length === 0 ? (
+                  <div className="w-full max-w-[128px] aspect-square flex flex-col items-center justify-center text-center">
+                    <p className="font-sans text-cream/30 text-xs">{dateLabel}</p>
+                    <p className="font-sans text-cream/30 text-xs italic mt-1">No photos yet.</p>
+                  </div>
+                ) : (
+                  <PhotoStack photos={dinner.photos} dateLabel={dateLabel} onOpen={() => setOpenDinnerId(dinner.table_id)} />
+                )}
+
                 {dinner.can_upload && (
-                  <div className="flex gap-1.5 mb-2">
+                  <div className="flex gap-1.5 mt-2 w-full max-w-[128px]">
                     <label className={`quiz-cta flex-1 text-[11px] py-2 flex items-center justify-center gap-1 cursor-pointer ${uploadingFor === dinner.table_id ? 'opacity-60 pointer-events-none' : ''}`}>
                       {uploadingFor === dinner.table_id ? '…' : '📷'}
                       <input
@@ -160,15 +169,6 @@ export default function MyAlbum() {
                       />
                     </label>
                   </div>
-                )}
-
-                {dinner.photos.length === 0 ? (
-                  <div className="text-center py-4">
-                    <p className="font-sans text-cream/30 text-xs">{dateLabel}</p>
-                    <p className="font-sans text-cream/30 text-xs italic mt-1">No photos yet.</p>
-                  </div>
-                ) : (
-                  <PhotoStack photos={dinner.photos} dateLabel={dateLabel} onOpen={() => setOpenDinnerId(dinner.table_id)} />
                 )}
               </div>
             );
