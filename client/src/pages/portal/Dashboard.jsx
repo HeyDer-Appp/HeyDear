@@ -6,7 +6,6 @@ import api from '../../utils/api';
 import BottomNav from '../../components/BottomNav';
 
 const AVATAR = 'https://heyder.nz/wp-content/uploads/2026/06/account-2.png';
-const DIETARY_OPTIONS = ['Not Applicable', 'Gluten free', 'Dairy free', 'Nut free', 'Vegan', 'Vegetarian'];
 
 const STATUS_CONFIG = {
   pending: {
@@ -188,10 +187,6 @@ export default function PortalDashboard() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [needsProfile, setNeedsProfile] = useState(false);
-  const [dietary, setDietary] = useState([]);
-  const [otherSelected, setOtherSelected] = useState(false);
-  const [otherText, setOtherText] = useState('');
-  const [editDietary, setEditDietary] = useState(false);
   const [location, setLocation] = useState('');
 
   useEffect(() => {
@@ -201,12 +196,6 @@ export default function PortalDashboard() {
     ]).then(([p, d]) => {
       setProfile(p.data.user);
       setDinners(d.data.dinners || []);
-      const dietaryRaw = p.data.user.dietary;
-      const dietaryArr = Array.isArray(dietaryRaw) ? dietaryRaw : dietaryRaw ? [dietaryRaw] : [];
-      const custom = dietaryArr.find(d => !DIETARY_OPTIONS.includes(d));
-      setDietary(dietaryArr.filter(d => DIETARY_OPTIONS.includes(d)));
-      setOtherSelected(!!custom);
-      setOtherText(custom || '');
     }).catch((err) => {
       // A brand-new account (or one that hasn't finished onboarding) has no
       // Firestore profile doc yet — that's a normal state, not a failure.
@@ -218,17 +207,6 @@ export default function PortalDashboard() {
       }
     }).finally(() => setLoading(false));
   }, []);
-
-  const saveDietary = async () => {
-    const finalDietary = dietary.includes('Not Applicable')
-      ? ['Not Applicable']
-      : [...dietary, ...(otherSelected && otherText.trim() ? [otherText.trim()] : [])];
-    try {
-      await api.patch('/portal/dietary', { dietary: finalDietary });
-      toast.success('Dietary preferences updated!');
-      setEditDietary(false);
-    } catch { toast.error('Failed to update'); }
-  };
 
   const cancelBooking = async (tableId) => {
     if (!confirm('Cancel this booking? Refunds take 2-3 working days.')) return;
@@ -331,12 +309,6 @@ export default function PortalDashboard() {
   const upcoming = dinners.filter(d => d.is_pending || !d.date || new Date(d.date) >= new Date());
   const past = dinners.filter(d => !d.is_pending && d.date && new Date(d.date) < new Date());
 
-  // The restaurant needs dietary notes before they can plan the menu, so
-  // once a venue is confirmed for an upcoming dinner, preferences freeze —
-  // any change from here has to go through the restaurant directly.
-  const lockedDinner = upcoming.find(d => d.restaurant_name);
-  const dietaryLocked = !!lockedDinner;
-
   return (
     <div className="quiz-bg min-h-screen relative overflow-hidden pb-24">
       {/* Nav */}
@@ -386,79 +358,6 @@ export default function PortalDashboard() {
             <Link to="/profile" className="quiz-cta text-sm">Book a dinner</Link>
           </div>
         )}
-
-        {/* Dietary */}
-        <div className="quiz-card">
-          <div className="flex items-center justify-between mb-3">
-            <p className="font-sans font-semibold text-cream text-sm">Dietary preferences</p>
-            {!editDietary && !dietaryLocked && (
-              <button onClick={() => setEditDietary(true)} className="font-sans text-gold text-xs hover:text-yellow transition-colors">
-                Edit
-              </button>
-            )}
-          </div>
-          {editDietary && !dietaryLocked ? (
-            <div className="space-y-3">
-              <div className="flex flex-wrap gap-2">
-                {[...DIETARY_OPTIONS, 'Other'].map(opt => {
-                  const sel = opt === 'Other' ? otherSelected : dietary.includes(opt);
-                  return (
-                    <button
-                      key={opt}
-                      onClick={() => {
-                        if (opt === 'Not Applicable') {
-                          setDietary(['Not Applicable']);
-                          setOtherSelected(false);
-                          setOtherText('');
-                          return;
-                        }
-                        if (opt === 'Other') {
-                          setDietary(prev => prev.filter(d => d !== 'Not Applicable'));
-                          setOtherSelected(s => !s);
-                          return;
-                        }
-                        const filtered = dietary.filter(d => d !== 'Not Applicable');
-                        setDietary(sel ? filtered.filter(d => d !== opt) : [...filtered, opt]);
-                      }}
-                      className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
-                        sel ? 'border-gold bg-gold/15 text-cream' : 'border-white/10 text-cream/60 hover:border-gold/30'
-                      }`}
-                    >
-                      {opt}
-                    </button>
-                  );
-                })}
-              </div>
-              {otherSelected && (
-                <input
-                  type="text"
-                  value={otherText}
-                  onChange={e => setOtherText(e.target.value)}
-                  placeholder="Tell us what to know..."
-                  className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-3 py-2 text-cream placeholder-cream/25 font-sans text-xs focus:outline-none focus:border-gold/50"
-                />
-              )}
-              <div className="flex gap-2 pt-1">
-                <button onClick={saveDietary} className="quiz-cta text-xs py-2 px-5">Save</button>
-                <button onClick={() => setEditDietary(false)} className="font-sans text-cream/40 hover:text-cream text-xs px-2 transition-colors">Cancel</button>
-              </div>
-            </div>
-          ) : (
-            <>
-              <p className="font-sans text-cream/50 text-sm">
-                {(() => {
-                  const all = [...dietary, ...(otherSelected && otherText.trim() ? [otherText.trim()] : [])];
-                  return all.length && all[0] !== 'Not Applicable' ? all.join(', ') : 'None specified';
-                })()}
-              </p>
-              {dietaryLocked && (
-                <p className="font-sans text-cream/30 text-xs mt-2 leading-relaxed">
-                  🔒 Locked in — {lockedDinner.restaurant_name} has your order. Need a change? Call the restaurant directly.
-                </p>
-              )}
-            </>
-          )}
-        </div>
 
         {/* Past dinners */}
         {past.length > 0 && (
