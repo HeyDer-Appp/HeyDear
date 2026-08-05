@@ -116,6 +116,40 @@ router.post('/tables', adminAuth, async (req, res) => {
   }
 });
 
+// Assigns (or clears) which restaurant a table is dining at — the field
+// already existed on the table doc and every read path already resolves
+// restaurant_name/address from it, this was just missing a way to set it.
+router.patch('/tables/:tableId', adminAuth, async (req, res) => {
+  try {
+    const { tableId } = req.params;
+    const { restaurantId, tableNumber } = req.body;
+    const updates = { updatedAt: admin.firestore.FieldValue.serverTimestamp() };
+    if ('restaurantId' in req.body) updates.restaurantId = restaurantId || null;
+    if (tableNumber !== undefined) updates.table_number = tableNumber;
+
+    const ref = db.collection('tables').doc(tableId);
+    const snap = await ref.get();
+    if (!snap.exists) return res.status(404).json({ error: 'Table not found' });
+
+    await ref.set(updates, { merge: true });
+
+    let restaurant = null;
+    if (updates.restaurantId) {
+      const restSnap = await db.collection('restaurants').doc(updates.restaurantId).get();
+      restaurant = restSnap.exists ? restSnap.data() : null;
+    }
+
+    res.json({
+      table: { id: ref.id, ...snap.data(), ...updates },
+      restaurant_name: restaurant?.name || null,
+      restaurant_address: restaurant?.address || null,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 router.post('/tables/:tableId/assign', adminAuth, async (req, res) => {
   try {
     const { tableId } = req.params;

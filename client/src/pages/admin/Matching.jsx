@@ -200,7 +200,7 @@ function PersonCard({ person, tableId, onRemove, onHoldOver, onAddNote, onFlagRi
   );
 }
 
-function TableColumn({ table, restaurants, onDropPerson, onRemovePerson, onHoldOver, onAddNote, onFlagRisk, onConfirm, onEmailType }) {
+function TableColumn({ table, restaurants, onDropPerson, onRemovePerson, onHoldOver, onAddNote, onFlagRisk, onConfirm, onEmailType, onSetRestaurant }) {
   const [draggingOver, setDraggingOver] = useState(false);
   const [showEmail, setShowEmail] = useState(false);
   const members = table.members || [];
@@ -234,9 +234,6 @@ function TableColumn({ table, restaurants, onDropPerson, onRemovePerson, onHoldO
         <div className="flex items-center justify-between mb-2">
           <h3 className="font-sans font-semibold text-cream text-sm">
             Table {table.table_number || '—'}
-            {table.restaurant_name && (
-              <span className="text-cream/40 font-normal ml-1 text-xs">@ {table.restaurant_name}</span>
-            )}
           </h3>
           <div className="flex gap-2 items-center">
             <span className="font-sans text-cream/40 text-xs">{members.length}/6</span>
@@ -245,6 +242,19 @@ function TableColumn({ table, restaurants, onDropPerson, onRemovePerson, onHoldO
             )}
           </div>
         </div>
+
+        {onSetRestaurant && (
+          <select
+            value={table.restaurantId || ''}
+            onChange={e => onSetRestaurant(table.id, e.target.value || null)}
+            className="input-field py-1.5 text-xs w-full mb-2"
+          >
+            <option value="">No restaurant assigned</option>
+            {restaurants.map(r => (
+              <option key={r.id} value={r.id}>{r.name}</option>
+            ))}
+          </select>
+        )}
 
         {/* Live composition */}
         {members.length > 0 && (
@@ -473,6 +483,17 @@ export default function AdminMatching() {
     } catch { toast.error('Failed to confirm table'); }
   };
 
+  const setTableRestaurant = async (tableId, restaurantId) => {
+    try {
+      const res = await api.patch(`/admin/matching/tables/${tableId}`, { restaurantId });
+      setTables(prev => prev.map(t =>
+        t.id === tableId
+          ? { ...t, restaurantId, restaurant_name: res.data.restaurant_name, restaurant_address: res.data.restaurant_address }
+          : t
+      ));
+    } catch { toast.error('Failed to set restaurant'); }
+  };
+
   const sendEmail = async (tableId, type) => {
     try {
       const res = await api.post(`/admin/matching/email/${type}`, { tableId });
@@ -568,6 +589,7 @@ export default function AdminMatching() {
                 onFlagRisk={flagRisk}
                 onConfirm={confirmTable}
                 onEmailType={sendEmail}
+                onSetRestaurant={setTableRestaurant}
               />
             ))}
 
