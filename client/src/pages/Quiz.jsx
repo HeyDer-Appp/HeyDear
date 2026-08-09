@@ -566,6 +566,7 @@ export default function Quiz() {
   const [showPhotoBubble, setShowPhotoBubble] = useState(true);
   const hasLoadedRef = useRef(false);
   const autosaveTimer = useRef(null);
+  const hasAutoSkippedRef = useRef(false);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -708,7 +709,11 @@ export default function Quiz() {
   };
 
   const chapterDone = (chapterId) => {
-    const qs = CHAPTER_QUESTIONS.find(c => c.chapter.id === chapterId).questions.filter(q => q.required);
+    // The 'personal' pseudo-question has no single `field` — it's really
+    // dob/gender/country, which personalDone checks separately — so it has
+    // to be excluded here or every chapter with one would look permanently
+    // incomplete (answers[undefined] is never "answered").
+    const qs = CHAPTER_QUESTIONS.find(c => c.chapter.id === chapterId).questions.filter(q => q.required && q.field);
     return qs.length > 0 && qs.every(q => isAnswered(answers[q.field]));
   };
 
@@ -721,6 +726,20 @@ export default function Quiz() {
     (isAnswered(answers.field_CdZldwp5q09o) ? 1 : 0);
   const completionPct = Math.round((filledRequired / totalRequired) * 100);
   const profileReady = CHAPTERS.every(c => chapterDone(c.id)) && personalDone;
+
+  // A profile that's already complete has nothing left to fill in — /profile
+  // is really just "book a dinner" for these people, so skip straight past
+  // the (pre-filled) chapters to the date step instead of making them click
+  // through everything again. They can still go back if they want to change
+  // an answer before booking.
+  useEffect(() => {
+    if (loadingProfile || hasAutoSkippedRef.current) return;
+    hasAutoSkippedRef.current = true;
+    if (profileReady) {
+      const dateStepIndex = STEPS.findIndex(s => s.type === 'date');
+      if (dateStepIndex !== -1) setStepIndex(dateStepIndex);
+    }
+  }, [loadingProfile, profileReady]);
 
   const profileChips = useMemo(() => {
     const chips = [];
