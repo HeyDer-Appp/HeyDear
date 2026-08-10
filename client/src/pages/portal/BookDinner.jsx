@@ -16,6 +16,7 @@ export default function BookDinner() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  const [alreadyBooked, setAlreadyBooked] = useState(false);
   const [answers, setAnswers] = useState(null);
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
   const [dateChoices, setDateChoices] = useState([]);
@@ -30,13 +31,25 @@ export default function BookDinner() {
     Promise.all([
       api.get('/portal/full-profile'),
       api.get('/profile/questions'),
-    ]).then(([profileRes, questionsRes]) => {
+      api.get('/portal/dinners'),
+    ]).then(([profileRes, questionsRes, dinnersRes]) => {
       const { locked, hasActiveSubscription: hasSub, photo, answers: savedAnswers, profileComplete } = profileRes.data;
       if (!profileComplete) {
         // Nothing built yet — this page has nothing to work with.
         navigate('/profile', { replace: true });
         return;
       }
+
+      // One dinner at a time — same rule the server enforces on submit,
+      // checked here too so nobody fills out the whole flow just to hit
+      // an error at the very end.
+      const now = new Date();
+      const hasUpcoming = (dinnersRes.data.dinners || []).some(d => d.is_pending || !d.date || new Date(d.date) >= now);
+      if (hasUpcoming) {
+        setAlreadyBooked(true);
+        return;
+      }
+
       setAnswers({
         first_name: locked.first_name,
         last_name: locked.last_name,
@@ -119,6 +132,23 @@ export default function BookDinner() {
           <p className="font-serif text-2xl text-cream mb-3">Couldn't load booking</p>
           <p className="font-sans text-cream/50 text-sm mb-6">Please refresh, or contact info@heyder.nz if this keeps happening.</p>
           <button onClick={() => window.location.reload()} className="quiz-cta text-xs py-2 px-6">Retry</button>
+        </div>
+        <BottomNav />
+      </div>
+    );
+  }
+
+  if (alreadyBooked) {
+    return (
+      <div className="quiz-bg min-h-screen relative overflow-hidden pb-24">
+        {header}
+        <div className="relative z-10 max-w-lg mx-auto px-5 py-20 text-center">
+          <p className="text-4xl mb-4">🍽</p>
+          <p className="font-serif text-2xl text-cream mb-3">You've already got a dinner booked</p>
+          <p className="font-sans text-cream/50 text-sm mb-6 leading-relaxed">
+            One Tuesday at a time — cancel your current booking from the dashboard first if you'd like to pick a different date.
+          </p>
+          <Link to="/portal/dashboard" className="quiz-cta text-sm py-2.5 px-6">Back to dashboard</Link>
         </div>
         <BottomNav />
       </div>

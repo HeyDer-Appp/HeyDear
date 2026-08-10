@@ -136,7 +136,19 @@ function RevealFlow({ revealAt, venueRevealAt, tableId, dinner }) {
   const venueSecondsLeft = venueRevealAt ? Math.max(0, Math.ceil((new Date(venueRevealAt) - now) / 1000)) : null;
   const venueUnlocked = venueSecondsLeft !== null && venueSecondsLeft <= 0;
 
-  const format = (secs) => `${String(Math.floor(secs / 60)).padStart(2, '0')}:${String(secs % 60).padStart(2, '0')}`;
+  // Reveal windows can be days out right after a table's confirmed, not just
+  // the final minutes — so this breaks out days/hours too instead of just
+  // ever-climbing raw minutes.
+  const format = (secs) => {
+    const days = Math.floor(secs / 86400);
+    const hours = Math.floor((secs % 86400) / 3600);
+    const minutes = Math.floor((secs % 3600) / 60);
+    const seconds = secs % 60;
+    const pad = (n) => String(n).padStart(2, '0');
+    return days > 0
+      ? `${days}d ${pad(hours)}h ${pad(minutes)}m ${pad(seconds)}s`
+      : `${pad(hours)}h ${pad(minutes)}m ${pad(seconds)}s`;
+  };
 
   return (
     <div className="mt-5">

@@ -13,6 +13,11 @@ const { ANSWER_FIELDS } = require('../utils/answerFields');
 // enforcement point.
 const MIN_AGE_YEARS = 18;
 
+function toDate(v) {
+  if (!v) return null;
+  return typeof v.toDate === 'function' ? v.toDate() : new Date(v);
+}
+
 function isAdultDob(dobStr) {
   if (!dobStr) return false;
   const dob = new Date(dobStr);
@@ -106,6 +111,26 @@ router.post('/submit', attendeeAuth, quizLimiter, async (req, res) => {
 
     const userRef = db.collection('users').doc(req.user.id);
     const parsedDate = parseTuesdayDate(field_CdZldwp5q09o);
+
+    // One dinner at a time — re-submitting the same date (e.g. editing an
+    // answer mid-flow) is fine, but a different date while an unresolved
+    // (still-pending) or upcoming (already-matched) booking exists just
+    // creates confusing duplicate bookings on the dashboard.
+    const existingBookingsSnap = await db.collection('bookings').where('userId', '==', req.user.id).get();
+    for (const doc of existingBookingsSnap.docs) {
+      const b = doc.data();
+      if (b.tuesdayDate === parsedDate) continue;
+      if (b.matched === false) {
+        return res.status(409).json({ error: "You already have a dinner booked. Cancel it first if you'd like to book a different Tuesday." });
+      }
+      if (b.matched === true && b.dinnerId) {
+        const dinnerSnap = await db.collection('dinners').doc(b.dinnerId).get();
+        const dinnerDate = dinnerSnap.exists ? toDate(dinnerSnap.data().date) : null;
+        if (dinnerDate && dinnerDate >= new Date()) {
+          return res.status(409).json({ error: "You already have an upcoming dinner booked. Cancel it first if you'd like to book a different Tuesday." });
+        }
+      }
+    }
 
     const answers = {};
     for (const key of ANSWER_FIELDS) {
