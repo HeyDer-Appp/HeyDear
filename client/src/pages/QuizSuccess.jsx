@@ -53,7 +53,7 @@ export default function QuizSuccess() {
         Your booking is confirmed. We're working on finding you the right group for your Tuesday dinner.
       </p>
       <p className="font-sans text-cream/40 text-sm mb-10">
-        Check your email — a confirmation is on its way.
+        Every update happens right here in the app — no emails to keep track of.
       </p>
 
       <div className="bg-dark-card rounded-2xl p-8 border border-white/5 max-w-sm w-full mb-10 text-left space-y-3">
@@ -71,10 +71,7 @@ export default function QuizSuccess() {
         </p>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-4">
-        <Link to="/portal/login" className="btn-primary">View My Booking</Link>
-        <Link to="/" className="btn-outline">Back to HeyDer</Link>
-      </div>
+      <Link to="/portal/dashboard" className="btn-primary">View My Booking</Link>
 
       <p className="font-sans text-cream/30 text-xs mt-10">
         Questions? <a href="mailto:info@heyder.nz" className="text-gold/70 hover:text-gold">info@heyder.nz</a>

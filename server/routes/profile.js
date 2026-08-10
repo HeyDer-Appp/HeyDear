@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const { admin, db } = require('../firebase');
 const { QUIZ_QUESTIONS } = require('../services/typeform');
-const { sendConfirmationEmail } = require('../services/email');
 const { quizLimiter } = require('../middleware/rateLimiter');
 const { attendeeAuth } = require('../middleware/auth');
 const { getCheckoutSession } = require('../services/stripe');
@@ -207,8 +206,6 @@ router.post('/submit', attendeeAuth, quizLimiter, async (req, res) => {
     if (stripe_session_id) {
       await reconcileStripeSession(req.user.id, stripe_session_id, result.bookingRef);
     }
-
-    sendConfirmationEmail(result.mergedUser, answers).catch(console.error);
 
     res.json({
       success: true,
