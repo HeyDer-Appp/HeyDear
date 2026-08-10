@@ -5,17 +5,29 @@ const { attendeeAuth } = require('../middleware/auth');
 const { stripe } = require('../services/stripe');
 const { ANSWER_FIELDS } = require('../utils/answerFields');
 
-// Table glimpse unlocks 48 hours after the table is confirmed, venue details
-// 24 hours after. Override via env vars for local testing only — these
-// defaults are the real production values, so a deploy that forgets to set
-// the env vars still ships safe (long) delays instead of leaking private
-// tablemate/venue info early.
-const GLIMPSE_REVEAL_MINUTES = parseInt(process.env.GLIMPSE_REVEAL_MINUTES) || 2880;
+// Venue details unlock 24 hours after the table is confirmed. Override via
+// env var for local testing only — this default is the real production
+// value, so a deploy that forgets to set it still ships a safe (long) delay
+// instead of leaking venue info early.
 const VENUE_REVEAL_MINUTES = parseInt(process.env.VENUE_REVEAL_MINUTES) || 1440;
 
 function toDate(v) {
   if (!v) return null;
   return typeof v.toDate === 'function' ? v.toDate() : new Date(v);
+}
+
+// The table glimpse (meet-your-table reveal) unlocks 48h before the 7pm
+// sit-down itself — i.e. 7pm the Sunday before a Tuesday dinner — not
+// relative to whenever an admin happened to confirm the table. Mirrors the
+// same dinner-date-relative pattern used for the group chat and album
+// reveal windows.
+function dinnerAt(dinnerDate, hours, minutes = 0) {
+  const d = new Date(dinnerDate);
+  d.setHours(hours, minutes, 0, 0);
+  return d;
+}
+function glimpseRevealAt(dinnerDate) {
+  return new Date(dinnerAt(dinnerDate, 19, 0).getTime() - 48 * 60 * 60 * 1000);
 }
 
 router.get('/profile', attendeeAuth, async (req, res) => {
@@ -158,18 +170,18 @@ router.get('/dinners', attendeeAuth, async (req, res) => {
       const confirmedAt = toDate(table.confirmedAt);
       const venueRevealAt = confirmedAt ? new Date(confirmedAt.getTime() + VENUE_REVEAL_MINUTES * 60000) : null;
       const venueRevealed = venueRevealAt ? new Date() >= venueRevealAt : false;
+      const dinnerDate = dinner.date ? toDate(dinner.date) : null;
+      const revealAt = dinnerDate ? glimpseRevealAt(dinnerDate) : null;
 
       return {
         table_id: booking.tableId,
         table_status: table.status,
         confirmed: true,
         held_over: false,
-        date: dinner.date ? toDate(dinner.date).toISOString() : null,
+        date: dinnerDate ? dinnerDate.toISOString() : null,
         city: dinner.city || 'Auckland',
         status: dinner.status,
-        reveal_at: confirmedAt
-          ? new Date(confirmedAt.getTime() + GLIMPSE_REVEAL_MINUTES * 60000).toISOString()
-          : null,
+        reveal_at: revealAt ? revealAt.toISOString() : null,
         venue_reveal_at: venueRevealAt ? venueRevealAt.toISOString() : null,
         restaurant_name: venueRevealed ? restaurant.name : null,
         restaurant_address: venueRevealed ? restaurant.address : null,
@@ -220,8 +232,8 @@ router.get('/dinners', attendeeAuth, async (req, res) => {
 });
 
 // Server-side gated reveal — only returns tablemate glimpses once the reveal
-// delay has elapsed since the table was confirmed. The client cannot unlock
-// this early by changing device time.
+// delay (48h before the dinner itself) has elapsed. The client cannot
+// unlock this early by changing device time.
 router.get('/glimpse/:tableId', attendeeAuth, async (req, res) => {
   try {
     const { tableId } = req.params;
@@ -231,12 +243,17 @@ router.get('/glimpse/:tableId', attendeeAuth, async (req, res) => {
 
     const tableSnap = await db.collection('tables').doc(tableId).get();
     const table = tableSnap.data();
-    const confirmedAt = toDate(table?.confirmedAt);
-    if (table?.status !== 'confirmed' || !confirmedAt) {
+    if (table?.status !== 'confirmed') {
       return res.status(403).json({ error: 'Your table is not confirmed yet' });
     }
 
-    const revealAt = new Date(confirmedAt.getTime() + GLIMPSE_REVEAL_MINUTES * 60000);
+    const dinnerSnap = await db.collection('dinners').doc(table.dinnerId).get();
+    const dinnerDate = toDate(dinnerSnap.data()?.date);
+    if (!dinnerDate) {
+      return res.status(403).json({ error: 'Your table is not confirmed yet' });
+    }
+
+    const revealAt = glimpseRevealAt(dinnerDate);
     const secondsRemaining = Math.ceil((revealAt - new Date()) / 1000);
     if (secondsRemaining > 0) {
       return res.status(403).json({
@@ -247,12 +264,22 @@ router.get('/glimpse/:tableId', attendeeAuth, async (req, res) => {
     }
 
     const membersSnap = await db.collection('tableMembers').where('tableId', '==', tableId).get();
-    const glimpse = membersSnap.docs
-      .filter(d => d.data().user_id !== req.user.id)
-      .map(d => {
-        const m = d.data();
-        return { country: m.country, career_kid: m.careerDescription };
-      });
+    const otherMembers = membersSnap.docs.filter(d => d.data().user_id !== req.user.id);
+    const photoByUserId = {};
+    await Promise.all(otherMembers.map(async (d) => {
+      const userId = d.data().user_id;
+      const userSnap = await db.collection('users').doc(userId).get();
+      photoByUserId[userId] = userSnap.exists ? userSnap.data().photo || null : null;
+    }));
+
+    const glimpse = otherMembers.map(d => {
+      const m = d.data();
+      return {
+        country: m.country,
+        career_kid: m.career_description,
+        photo: photoByUserId[m.user_id] || null,
+      };
+    });
 
     res.json({ glimpse });
   } catch (err) {

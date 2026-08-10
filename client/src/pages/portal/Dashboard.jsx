@@ -42,11 +42,84 @@ const STATUS_CONFIG = {
   },
 };
 
+// A tablemate's country + career answer, with their photo shown blurred (or
+// a plain placeholder if they never uploaded one) — enough to build
+// anticipation without actually identifying anyone before dinner night.
+function GlimpseCard({ member }) {
+  return (
+    <div className="flex items-center gap-3 bg-white/[0.03] rounded-xl p-3 border border-white/5">
+      {member.photo ? (
+        <div className="rounded-full overflow-hidden w-12 h-12 flex-shrink-0 border border-white/10">
+          <img
+            src={member.photo}
+            alt=""
+            className="w-full h-full object-cover"
+            style={{ filter: 'blur(6px)', transform: 'scale(1.15)' }}
+            draggable={false}
+          />
+        </div>
+      ) : (
+        <div className="rounded-full w-12 h-12 flex-shrink-0 border border-white/10 bg-white/5 flex items-center justify-center text-cream/20 text-lg">
+          👤
+        </div>
+      )}
+      <div className="min-w-0">
+        <p className="font-sans text-cream text-sm">{member.country || 'Somewhere new'}</p>
+        <p className="font-sans text-cream/50 text-xs italic mt-0.5 truncate">
+          {member.career_kid || 'No answer shared'}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// The "meet your table" popup — nationality, job, and a blurred photo (if
+// they have one) for everyone else at the table, with a way straight into
+// the group chat where the icebreakers are already waiting.
+function GlimpseModal({ tableId, onClose }) {
+  const [glimpse, setGlimpse] = useState(null);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    api.get(`/portal/glimpse/${tableId}`)
+      .then(res => setGlimpse(res.data.glimpse || []))
+      .catch(() => setError(true));
+  }, [tableId]);
+
+  return (
+    <div className="fixed inset-0 z-50 bg-navy/80 backdrop-blur flex items-center justify-center p-6" onClick={onClose}>
+      <div className="bg-dark-card rounded-2xl border border-white/10 p-6 max-w-sm w-full max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="flex items-start justify-between mb-4">
+          <h2 className="font-serif text-2xl text-cream">Meet your table</h2>
+          <button onClick={onClose} className="text-cream/40 hover:text-cream text-xl">✕</button>
+        </div>
+
+        {error ? (
+          <p className="font-sans text-cream/40 text-sm text-center py-6">Couldn't load your table yet.</p>
+        ) : glimpse === null ? (
+          <div className="flex justify-center py-6">
+            <div className="w-6 h-6 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {glimpse.map((m, i) => <GlimpseCard key={i} member={m} />)}
+          </div>
+        )}
+
+        <Link to="/portal/group-chat" className="quiz-cta w-full flex items-center justify-center gap-2 mt-6">
+          💬 Go to group chat
+        </Link>
+      </div>
+    </div>
+  );
+}
+
 // Shows exactly one countdown at a time — whichever reveal is next — instead
 // of stacking multiple timers. Once both stages are unlocked, the countdown
 // disappears and the venue info shows in its place.
 function RevealFlow({ revealAt, venueRevealAt, tableId, dinner }) {
   const [now, setNow] = useState(null);
+  const [showGlimpse, setShowGlimpse] = useState(false);
 
   useEffect(() => {
     if (!revealAt) return;
@@ -78,12 +151,14 @@ function RevealFlow({ revealAt, venueRevealAt, tableId, dinner }) {
         </p>
       )}
 
-      <Link
-        to={`/portal/glimpse/${tableId}`}
-        className="quiz-cta w-full flex items-center justify-center gap-2"
-      >
-        👀 Meet your table
-      </Link>
+      {glimpseUnlocked && (
+        <button
+          onClick={() => setShowGlimpse(true)}
+          className="quiz-cta w-full flex items-center justify-center gap-2"
+        >
+          👀 Meet your table
+        </button>
+      )}
 
       {venueUnlocked && dinner.restaurant_name && (
         <div className="mt-4 bg-gold/5 rounded-xl p-4 border border-gold/20">
@@ -98,6 +173,8 @@ function RevealFlow({ revealAt, venueRevealAt, tableId, dinner }) {
           )}
         </div>
       )}
+
+      {showGlimpse && <GlimpseModal tableId={tableId} onClose={() => setShowGlimpse(false)} />}
     </div>
   );
 }
@@ -140,10 +217,8 @@ function DinnerCard({ dinner, onCancel }) {
       {status === 'pending' && (
         <div className="mt-5 space-y-3">
           {[
-            ['✦', 'Group locked in', "You'll see it here once matched"],
-            ['👀', 'Meet your table', 'Right after your group locks in'],
+            ['👀', 'Meet your table', '48 hours before — Sunday 7pm'],
             ['📍', 'Venue revealed', '24 hours before — restaurant & address'],
-            ['🍽', 'Dinner night', 'Show up, sit down, enjoy'],
           ].map(([icon, step, when]) => (
             <div key={step} className="flex items-start gap-3">
               <span className="text-base mt-0.5">{icon}</span>
