@@ -1,6 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import AdminLayout from '../../components/admin/AdminLayout';
 import api from '../../utils/api';
+import { QUESTIONS } from '../Quiz';
+
+// Every question that has its own answer field, in quiz order — drives the
+// "full response" section so it can never drift out of sync with whatever
+// questions currently exist (no hand-maintained field list to forget to update).
+// The Tuesday-date question is shown separately as "Signed up for" above.
+const ANSWER_QUESTIONS = QUESTIONS.filter(q => q.field && q.id !== 'date');
+
+function formatAnswer(value) {
+  if (Array.isArray(value)) return value.length ? value.join(', ') : '—';
+  if (value === undefined || value === null || value === '') return '—';
+  return String(value);
+}
 
 function getAge(dob) {
   if (!dob) return '—';
@@ -195,40 +208,62 @@ export default function AdminSignups() {
               <h2 className="font-serif text-2xl text-cream">{selected.first_name} {selected.last_name}</h2>
               <button onClick={() => setSelected(null)} className="text-cream/40 hover:text-cream text-xl">✕</button>
             </div>
-            <div className="space-y-3 font-sans text-sm">
+
+            {/* Hard filters — the three things matching runs on, always visible first */}
+            <div className="grid grid-cols-3 gap-2 mb-5">
               {[
-                ['Email', selected.email],
-                ['Phone', selected.phone || '—'],
                 ['Age', getAge(selected.dob)],
-                ['Gender', selected.gender],
-                ['Country', selected.country],
-                ['Intent', selected.intent],
-                ['Personality', selected.personality],
-                ['Social battery', selected.field_LosYJHqrbpKO],
-                ['Social circle', selected.social_circle],
-                ['Budget', selected.budget],
-                ['Dietary', (selected.dietary || []).join(', ') || 'None'],
-                ['Reliability', selected.reliability_score],
-                ['Life stage', selected.life_stage],
-                ['Preferred date', selected.preferred_date],
+                ['Gender', selected.gender || '—'],
+                ['Nationality', selected.country || '—'],
               ].map(([k, v]) => (
-                <div key={k} className="flex gap-3">
-                  <span className="text-cream/40 w-36 flex-shrink-0">{k}:</span>
-                  <span className="text-cream">{v || '—'}</span>
+                <div key={k} className="rounded-xl border border-gold/25 bg-gold/[0.08] px-3 py-2.5 text-center">
+                  <p className="font-sans text-gold/70 text-[10px] uppercase tracking-widest mb-0.5">{k}</p>
+                  <p className="font-serif text-cream text-lg leading-tight">{v}</p>
                 </div>
               ))}
+            </div>
+
+            <div className="space-y-3 font-sans text-sm">
+              <div className="flex gap-3">
+                <span className="text-cream/40 w-36 flex-shrink-0">Email:</span>
+                <span className="text-cream">{selected.email || '—'}</span>
+              </div>
+              <div className="flex gap-3">
+                <span className="text-cream/40 w-36 flex-shrink-0">Phone:</span>
+                <span className="text-cream">{selected.phone || '—'}</span>
+              </div>
+              <div className="flex gap-3">
+                <span className="text-cream/40 w-36 flex-shrink-0">Signed up for:</span>
+                <span className="text-cream">{selected.tuesday_date ? new Date(selected.tuesday_date).toLocaleDateString('en-NZ', { day: 'numeric', month: 'long', year: 'numeric' }) : selected.preferred_date || '—'}</span>
+              </div>
+
               {selected.dietary_other && (
                 <div>
                   <p className="text-red-400 mb-1 font-semibold">🚩 Flagged dietary note:</p>
                   <p className="text-cream bg-red-500/10 border border-red-500/25 rounded-lg p-3">{selected.dietary_other}</p>
                 </div>
               )}
-              {selected.career_description && (
-                <div>
-                  <p className="text-cream/40 mb-1">Career (to a kid):</p>
-                  <p className="text-cream/80 italic bg-navy/50 rounded-lg p-3">"{selected.career_description}"</p>
-                </div>
-              )}
+
+              {/* Every quiz answer, in quiz order — the full response, not a curated subset */}
+              <p className="font-sans font-semibold text-cream/50 text-xs uppercase tracking-widest pt-2">Full response</p>
+              {ANSWER_QUESTIONS.map(q => {
+                const value = selected.raw?.[q.field];
+                if (value === undefined) return null;
+                if (q.type === 'text') {
+                  return (
+                    <div key={q.id}>
+                      <p className="text-cream/40 mb-1">{q.title}</p>
+                      <p className="text-cream/80 italic bg-navy/50 rounded-lg p-3">"{formatAnswer(value)}"</p>
+                    </div>
+                  );
+                }
+                return (
+                  <div key={q.id} className="flex gap-3">
+                    <span className="text-cream/40 w-36 flex-shrink-0">{q.title}</span>
+                    <span className="text-cream">{formatAnswer(value)}</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>

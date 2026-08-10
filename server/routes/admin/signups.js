@@ -21,7 +21,10 @@ router.get('/', adminAuth, async (req, res) => {
     let signups = snap.docs.map(d => {
       const person = bookingToPerson(d.id, d.data());
       const data = d.data();
-      return { ...person, is_matched: !!data.matched, table_id: data.tableId || null };
+      // submittedAt is a Firestore Timestamp — already exposed cleanly as
+      // person.submitted_at, so it's dropped here rather than serialized twice.
+      const { submittedAt, ...raw } = data;
+      return { ...person, is_matched: !!data.matched, table_id: data.tableId || null, raw };
     });
 
     if (intent) {
