@@ -12,15 +12,15 @@ import { fileToResizedBase64 } from '../utils/image';
 // Deliberately slow — this is meant to feel like an unfolding moment, not
 // a UI blip.
 const easeOutExpo = [0.22, 1, 0.36, 1];
-const fadeUpVariant = {
+export const fadeUpVariant = {
   hidden: { opacity: 0, y: 22 },
   visible: { opacity: 1, y: 0, transition: { duration: 1, ease: easeOutExpo } },
 };
-const staggerContainerVariant = {
+export const staggerContainerVariant = {
   hidden: {},
   visible: { transition: { staggerChildren: 0.32, delayChildren: 0.55 } },
 };
-const fadeLeftVariant = {
+export const fadeLeftVariant = {
   hidden: { opacity: 0, x: -28 },
   visible: { opacity: 1, x: 0, transition: { duration: 0.9, ease: easeOutExpo } },
 };
@@ -304,16 +304,16 @@ const COUNTRIES = [
 // transition-colors (not transition-all) so this never touches `transform` —
 // Framer Motion owns transform on these buttons during their entrance, and
 // a CSS transition racing it on the same property is what caused the shake.
-const choiceBase =
+export const choiceBase =
   'text-left px-4 py-2.5 rounded-xl border font-sans text-sm transition-colors duration-150 cursor-pointer';
-const choiceIdle =
+export const choiceIdle =
   'border-[#e7dcbd]/18 bg-[#e7dcbd]/[0.04] text-[#e7dcbd]/65 hover:border-[#e7dcbd]/40 hover:bg-[#e7dcbd]/[0.08] hover:text-[#e7dcbd]/95';
 // No font-weight change here on purpose — a bolder selected label is wider,
 // which reflows every other button in the row and reads as "losing position".
-const choiceActive =
+export const choiceActive =
   'border-gold bg-gold text-navy shadow-[0_4px_16px_rgba(232,168,84,0.2)]';
 
-const DATE_Q = QUESTIONS.find(q => q.id === 'date');
+export const DATE_Q = QUESTIONS.find(q => q.id === 'date');
 const CHAPTER_QUESTIONS = CHAPTERS.map(chap => ({
   chapter: chap,
   questions: QUESTIONS.filter(q => q.chapter === chap.id),
@@ -566,7 +566,6 @@ export default function Quiz() {
   const [showPhotoBubble, setShowPhotoBubble] = useState(true);
   const hasLoadedRef = useRef(false);
   const autosaveTimer = useRef(null);
-  const hasAutoSkippedRef = useRef(false);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -575,7 +574,7 @@ export default function Quiz() {
   useEffect(() => {
     api.get('/portal/full-profile')
       .then(res => {
-        const { locked, hasActiveSubscription: hasSub, photo, answers: savedAnswers } = res.data;
+        const { locked, hasActiveSubscription: hasSub, photo, answers: savedAnswers, profileComplete: isComplete } = res.data;
         setAnswers(prev => ({
           ...prev,
           first_name: locked.first_name,
@@ -588,6 +587,14 @@ export default function Quiz() {
           ...savedAnswers,
         }));
         setHasActiveSubscription(!!hasSub);
+        // A profile that's already been submitted once has nothing left to
+        // build — /profile is for constructing a profile from scratch, not
+        // for booking again, so send returning members to the dedicated
+        // booking page instead of walking them back through every chapter.
+        if (isComplete) {
+          navigate('/portal/book', { replace: true });
+          return;
+        }
       })
       .catch(() => {})
       .finally(() => {
@@ -726,20 +733,6 @@ export default function Quiz() {
     (isAnswered(answers.field_CdZldwp5q09o) ? 1 : 0);
   const completionPct = Math.round((filledRequired / totalRequired) * 100);
   const profileReady = CHAPTERS.every(c => chapterDone(c.id)) && personalDone;
-
-  // A profile that's already complete has nothing left to fill in — /profile
-  // is really just "book a dinner" for these people, so skip straight past
-  // the (pre-filled) chapters to the date step instead of making them click
-  // through everything again. They can still go back if they want to change
-  // an answer before booking.
-  useEffect(() => {
-    if (loadingProfile || hasAutoSkippedRef.current) return;
-    hasAutoSkippedRef.current = true;
-    if (profileReady) {
-      const dateStepIndex = STEPS.findIndex(s => s.type === 'date');
-      if (dateStepIndex !== -1) setStepIndex(dateStepIndex);
-    }
-  }, [loadingProfile, profileReady]);
 
   const profileChips = useMemo(() => {
     const chips = [];

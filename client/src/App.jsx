@@ -33,6 +33,7 @@ import PortalDashboard from './pages/portal/Dashboard';
 import PortalEditProfile from './pages/portal/EditProfile';
 import PortalTableGlimpse from './pages/portal/TableGlimpse';
 import PortalMyAlbum from './pages/portal/MyAlbum';
+import PortalBookDinner from './pages/portal/BookDinner';
 import PortalChat from './pages/portal/Chat';
 import PortalGroupChat from './pages/portal/GroupChat';
 
@@ -78,6 +79,7 @@ function AppRoutes() {
       <Route path="/portal" element={<PortalRoute><PortalDashboard /></PortalRoute>} />
       <Route path="/portal/dashboard" element={<PortalRoute><PortalDashboard /></PortalRoute>} />
       <Route path="/portal/profile" element={<PortalRoute><PortalEditProfile /></PortalRoute>} />
+      <Route path="/portal/book" element={<PortalRoute><PortalBookDinner /></PortalRoute>} />
       <Route path="/portal/glimpse/:tableId" element={<PortalRoute><PortalTableGlimpse /></PortalRoute>} />
       <Route path="/portal/album" element={<PortalRoute><PortalMyAlbum /></PortalRoute>} />
       <Route path="/portal/chat" element={<PortalRoute><PortalChat /></PortalRoute>} />

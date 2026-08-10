@@ -39,22 +39,52 @@ router.get('/questions', async (req, res) => {
   }
 });
 
+const MIN_DATE_CHOICES = 3;
+
+// The next N Tuesdays strictly after today — if today happens to be a
+// Tuesday, same-day sign-up is too short notice, so it starts counting
+// from next week instead.
+function nextTuesdays(count, afterDate = new Date()) {
+  const d = new Date(afterDate);
+  d.setHours(0, 0, 0, 0);
+  let daysUntilTuesday = (2 - d.getDay() + 7) % 7;
+  if (daysUntilTuesday === 0) daysUntilTuesday = 7;
+  d.setDate(d.getDate() + daysUntilTuesday);
+
+  const dates = [];
+  for (let i = 0; i < count; i++) {
+    dates.push(new Date(d));
+    d.setDate(d.getDate() + 7);
+  }
+  return dates;
+}
+
 async function getAvailableDates() {
   // Single equality filter only (no range + orderBy combo) so this never
   // depends on a composite index existing in Firestore — dinners are few
   // enough to sort in memory.
   const snap = await db.collection('dinners').where('status', '==', 'upcoming').get();
   const now = Date.now();
-  const availableDates = snap.docs
+  const dates = snap.docs
     .map(d => d.data().date.toDate())
-    .filter(date => date.getTime() > now)
+    .filter(date => date.getTime() > now);
+
+  // Always offer at least a few real Tuesdays to pick from, even before an
+  // admin has explicitly created the dinner row for that week — padding
+  // with computed upcoming Tuesdays rather than a stale hardcoded fallback.
+  if (dates.length < MIN_DATE_CHOICES) {
+    const existingDays = new Set(dates.map(d => d.toDateString()));
+    for (const candidate of nextTuesdays(MIN_DATE_CHOICES * 2)) {
+      if (dates.length >= MIN_DATE_CHOICES) break;
+      if (existingDays.has(candidate.toDateString())) continue;
+      dates.push(candidate);
+      existingDays.add(candidate.toDateString());
+    }
+  }
+
+  return dates
     .sort((a, b) => a - b)
     .map(date => date.toLocaleDateString('en-NZ', { day: 'numeric', month: 'long', year: 'numeric' }));
-
-  if (availableDates.length === 0) {
-    availableDates.push('30th June 2026', '7th July 2026');
-  }
-  return availableDates;
 }
 
 // Builds your profile and books you in for a Tuesday. Requires an

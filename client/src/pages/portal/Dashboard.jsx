@@ -355,7 +355,7 @@ export default function PortalDashboard() {
             <p className="font-sans text-cream/50 text-sm mb-6 leading-relaxed">
               Your table is waiting. Takes 5 minutes to sign up.
             </p>
-            <Link to="/profile" className="quiz-cta text-sm">Book a dinner</Link>
+            <Link to="/portal/book" className="quiz-cta text-sm">Book a dinner</Link>
           </div>
         )}
 
