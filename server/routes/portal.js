@@ -180,8 +180,15 @@ router.get('/dinners', attendeeAuth, async (req, res) => {
       };
     }));
 
+    // Gating on "any matched booking ever" broke returning members: once
+    // someone has attended even one past dinner, matchedDinners is never
+    // empty again, so a brand-new pending booking would never surface. What
+    // actually matters is whether they have an upcoming (not past) matched
+    // dinner already — if not, a newer pending booking should still show.
+    const hasUpcomingMatchedDinner = matchedDinners.some(d => d.date && new Date(d.date) >= new Date());
+
     let pendingDinners = [];
-    if (matchedDinners.length === 0) {
+    if (!hasUpcomingMatchedDinner) {
       // where() + orderBy() on different fields needs a composite index, so
       // filter here and sort in memory instead.
       const pendingSnap = await db.collection('bookings')

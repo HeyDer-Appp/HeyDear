@@ -14,7 +14,7 @@ const STATUS_CONFIG = {
     bg: 'bg-yellow/10',
     border: 'border-yellow/20',
     icon: '⏳',
-    description: "We're curating your perfect table. You'll get an email once your group is locked in.",
+    description: "We're curating your perfect table. You'll see it right here once your group is locked in.",
   },
   matched: {
     label: 'Your group is locked in',
@@ -140,7 +140,7 @@ function DinnerCard({ dinner, onCancel }) {
       {status === 'pending' && (
         <div className="mt-5 space-y-3">
           {[
-            ['✦', 'Group locked in', 'Email once your table is matched'],
+            ['✦', 'Group locked in', "You'll see it here once matched"],
             ['👀', 'Meet your table', 'Right after your group locks in'],
             ['📍', 'Venue revealed', '24 hours before — restaurant & address'],
             ['🍽', 'Dinner night', 'Show up, sit down, enjoy'],
