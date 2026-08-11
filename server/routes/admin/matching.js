@@ -87,6 +87,7 @@ router.get('/tables/:dinnerId', adminAuth, async (req, res) => {
         ...table,
         restaurant_name: restaurant?.name,
         restaurant_address: restaurant?.address,
+        booking_name: table.bookingName || null,
         members,
       };
     }));
@@ -116,16 +117,19 @@ router.post('/tables', adminAuth, async (req, res) => {
   }
 });
 
-// Assigns (or clears) which restaurant a table is dining at — the field
-// already existed on the table doc and every read path already resolves
-// restaurant_name/address from it, this was just missing a way to set it.
+// Assigns (or clears) which restaurant a table is dining at, and the
+// booking name it's held under — a booking name belongs to this specific
+// table's reservation, not the restaurant itself, since one restaurant can
+// host several different HeyDer tables (each under a different host name)
+// on the same night.
 router.patch('/tables/:tableId', adminAuth, async (req, res) => {
   try {
     const { tableId } = req.params;
-    const { restaurantId, tableNumber } = req.body;
+    const { restaurantId, tableNumber, bookingName } = req.body;
     const updates = { updatedAt: admin.firestore.FieldValue.serverTimestamp() };
     if ('restaurantId' in req.body) updates.restaurantId = restaurantId || null;
     if (tableNumber !== undefined) updates.table_number = tableNumber;
+    if ('bookingName' in req.body) updates.bookingName = bookingName || null;
 
     const ref = db.collection('tables').doc(tableId);
     const snap = await ref.get();
@@ -329,7 +333,7 @@ router.post('/email/:type', adminAuth, async (req, res) => {
           await emailService.sendVenueRevealEmail(targetForEmail, {
             name: restaurant.name,
             address: restaurant.address,
-            booking_name: restaurant.bookingName,
+            booking_name: table.bookingName,
             booking_time: restaurant.bookingTime,
             menu_price_min: restaurant.menuPriceMin,
             menu_price_max: restaurant.menuPriceMax,
@@ -338,7 +342,7 @@ router.post('/email/:type', adminAuth, async (req, res) => {
           await emailService.sendReminderEmail(targetForEmail, {
             name: restaurant.name,
             address: restaurant.address,
-            booking_name: restaurant.bookingName,
+            booking_name: table.bookingName,
             booking_time: restaurant.bookingTime,
           });
         } else if (type === 'feedback') {

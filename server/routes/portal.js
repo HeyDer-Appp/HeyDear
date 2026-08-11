@@ -5,12 +5,6 @@ const { attendeeAuth } = require('../middleware/auth');
 const { stripe } = require('../services/stripe');
 const { ANSWER_FIELDS } = require('../utils/answerFields');
 
-// Venue details unlock 24 hours after the table is confirmed. Override via
-// env var for local testing only — this default is the real production
-// value, so a deploy that forgets to set it still ships a safe (long) delay
-// instead of leaking venue info early.
-const VENUE_REVEAL_MINUTES = parseInt(process.env.VENUE_REVEAL_MINUTES) || 1440;
-
 function toDate(v) {
   if (!v) return null;
   return typeof v.toDate === 'function' ? v.toDate() : new Date(v);
@@ -28,6 +22,13 @@ function dinnerAt(dinnerDate, hours, minutes = 0) {
 }
 function glimpseRevealAt(dinnerDate) {
   return new Date(dinnerAt(dinnerDate, 19, 0).getTime() - 48 * 60 * 60 * 1000);
+}
+// Venue details unlock 24h after the group reveal — i.e. 7pm the Monday
+// before a Tuesday dinner (24h before the sit-down itself). Same
+// dinner-relative basis as the group reveal, not tied to whenever an admin
+// happened to confirm the table.
+function venueRevealAt(dinnerDate) {
+  return new Date(glimpseRevealAt(dinnerDate).getTime() + 24 * 60 * 60 * 1000);
 }
 
 router.get('/profile', attendeeAuth, async (req, res) => {
@@ -167,11 +168,10 @@ router.get('/dinners', attendeeAuth, async (req, res) => {
         : null;
       const restaurant = restaurantSnap?.data() || {};
 
-      const confirmedAt = toDate(table.confirmedAt);
-      const venueRevealAt = confirmedAt ? new Date(confirmedAt.getTime() + VENUE_REVEAL_MINUTES * 60000) : null;
-      const venueRevealed = venueRevealAt ? new Date() >= venueRevealAt : false;
       const dinnerDate = dinner.date ? toDate(dinner.date) : null;
       const revealAt = dinnerDate ? glimpseRevealAt(dinnerDate) : null;
+      const venueAt = dinnerDate ? venueRevealAt(dinnerDate) : null;
+      const venueRevealed = venueAt ? new Date() >= venueAt : false;
 
       return {
         table_id: booking.tableId,
@@ -182,10 +182,10 @@ router.get('/dinners', attendeeAuth, async (req, res) => {
         city: dinner.city || 'Auckland',
         status: dinner.status,
         reveal_at: revealAt ? revealAt.toISOString() : null,
-        venue_reveal_at: venueRevealAt ? venueRevealAt.toISOString() : null,
+        venue_reveal_at: venueAt ? venueAt.toISOString() : null,
         restaurant_name: venueRevealed ? restaurant.name : null,
         restaurant_address: venueRevealed ? restaurant.address : null,
-        booking_name: venueRevealed ? restaurant.bookingName : null,
+        booking_name: venueRevealed ? table.bookingName : null,
         booking_time: venueRevealed ? restaurant.bookingTime : null,
         menu_price_min: venueRevealed ? restaurant.menuPriceMin : null,
         menu_price_max: venueRevealed ? restaurant.menuPriceMax : null,

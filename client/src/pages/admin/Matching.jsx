@@ -200,9 +200,11 @@ function PersonCard({ person, tableId, onRemove, onHoldOver, onAddNote, onFlagRi
   );
 }
 
-function TableColumn({ table, restaurants, onDropPerson, onRemovePerson, onHoldOver, onAddNote, onFlagRisk, onConfirm, onEmailType, onSetRestaurant }) {
+function TableColumn({ table, restaurants, onDropPerson, onRemovePerson, onHoldOver, onAddNote, onFlagRisk, onConfirm, onEmailType, onSetRestaurant, onSetBookingName }) {
   const [draggingOver, setDraggingOver] = useState(false);
   const [showEmail, setShowEmail] = useState(false);
+  const [bookingName, setBookingName] = useState(table.booking_name || '');
+  useEffect(() => { setBookingName(table.booking_name || ''); }, [table.booking_name]);
   const members = table.members || [];
   const warnings = tableWarnings(members);
 
@@ -254,6 +256,17 @@ function TableColumn({ table, restaurants, onDropPerson, onRemovePerson, onHoldO
               <option key={r.id} value={r.id}>{r.name}</option>
             ))}
           </select>
+        )}
+
+        {onSetBookingName && (
+          <input
+            type="text"
+            placeholder="Booking name (host)"
+            value={bookingName}
+            onChange={e => setBookingName(e.target.value)}
+            onBlur={() => { if (bookingName !== (table.booking_name || '')) onSetBookingName(table.id, bookingName); }}
+            className="input-field py-1.5 text-xs w-full mb-2"
+          />
         )}
 
         {/* Live composition */}
@@ -494,6 +507,13 @@ export default function AdminMatching() {
     } catch { toast.error('Failed to set restaurant'); }
   };
 
+  const setTableBookingName = async (tableId, bookingName) => {
+    try {
+      await api.patch(`/admin/matching/tables/${tableId}`, { bookingName });
+      setTables(prev => prev.map(t => t.id === tableId ? { ...t, booking_name: bookingName || null } : t));
+    } catch { toast.error('Failed to save booking name'); }
+  };
+
   const sendEmail = async (tableId, type) => {
     try {
       const res = await api.post(`/admin/matching/email/${type}`, { tableId });
@@ -590,6 +610,7 @@ export default function AdminMatching() {
                 onConfirm={confirmTable}
                 onEmailType={sendEmail}
                 onSetRestaurant={setTableRestaurant}
+                onSetBookingName={setTableBookingName}
               />
             ))}
 

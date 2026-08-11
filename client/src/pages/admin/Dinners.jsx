@@ -10,7 +10,7 @@ export default function AdminDinners() {
   const [showAdd, setShowAdd] = useState(false);
   const [showAddRestaurant, setShowAddRestaurant] = useState(false);
   const [newDinner, setNewDinner] = useState({ date: '', city: 'Auckland', status: 'upcoming' });
-  const [newRestaurant, setNewRestaurant] = useState({ name: '', address: '', booking_name: '', booking_time: '19:00', menu_price_min: 45, menu_price_max: 50, capacity: 6, notes: '' });
+  const [newRestaurant, setNewRestaurant] = useState({ name: '', address: '', booking_time: '19:00', menu_price_min: 45, menu_price_max: 50, capacity: 6, notes: '' });
 
   useEffect(() => {
     api.get('/admin/dinners').then(r => setDinners(r.data.dinners || [])).catch(console.error);
@@ -130,7 +130,6 @@ export default function AdminDinners() {
                 <form onSubmit={addRestaurant} className="space-y-3">
                   <input className="input-field" placeholder="Restaurant name *" required value={newRestaurant.name} onChange={e => setNewRestaurant(r => ({ ...r, name: e.target.value }))} />
                   <textarea className="input-field resize-none" rows={2} placeholder="Address *" required value={newRestaurant.address} onChange={e => setNewRestaurant(r => ({ ...r, address: e.target.value }))} />
-                  <input className="input-field" placeholder="Booking name" value={newRestaurant.booking_name} onChange={e => setNewRestaurant(r => ({ ...r, booking_name: e.target.value }))} />
                   <div className="grid grid-cols-3 gap-3">
                     <input type="time" className="input-field" value={newRestaurant.booking_time} onChange={e => setNewRestaurant(r => ({ ...r, booking_time: e.target.value }))} />
                     <input type="number" className="input-field" placeholder="Min $" value={newRestaurant.menu_price_min} onChange={e => setNewRestaurant(r => ({ ...r, menu_price_min: e.target.value }))} />
@@ -157,7 +156,6 @@ export default function AdminDinners() {
                 </div>
                 <p className="font-sans text-cream/60 text-sm mb-2">{r.address}</p>
                 <div className="flex flex-wrap gap-3 text-xs font-sans text-cream/50">
-                  {r.booking_name && <span>Booking: {r.booking_name}</span>}
                   <span>Time: {r.booking_time}</span>
                   <span>Menu: ${r.menu_price_min}–${r.menu_price_max}</span>
                 </div>

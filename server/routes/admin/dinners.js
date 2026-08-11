@@ -86,12 +86,11 @@ router.get('/:id/restaurants', adminAuth, async (req, res) => {
 
 router.post('/:id/restaurants', adminAuth, async (req, res) => {
   try {
-    const { name, address, booking_name, booking_time, menu_price_min, menu_price_max, capacity, notes } = req.body;
+    const { name, address, booking_time, menu_price_min, menu_price_max, capacity, notes } = req.body;
     const ref = await db.collection('restaurants').add({
       dinnerId: req.params.id,
       name,
       address,
-      bookingName: booking_name || null,
       bookingTime: booking_time || '19:00',
       menuPriceMin: menu_price_min ?? null,
       menuPriceMax: menu_price_max ?? null,
@@ -110,7 +109,7 @@ router.post('/:id/restaurants', adminAuth, async (req, res) => {
 router.put('/restaurants/:id', adminAuth, async (req, res) => {
   try {
     const fieldMap = {
-      name: 'name', address: 'address', booking_name: 'bookingName', booking_time: 'bookingTime',
+      name: 'name', address: 'address', booking_time: 'bookingTime',
       menu_price_min: 'menuPriceMin', menu_price_max: 'menuPriceMax', capacity: 'capacity', notes: 'notes',
     };
     const updates = { updatedAt: admin.firestore.FieldValue.serverTimestamp() };
