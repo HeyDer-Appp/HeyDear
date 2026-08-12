@@ -35,6 +35,13 @@ function roleTag(role) {
   return ROLE_TAGS[role] || role;
 }
 
+function dietaryLabel(person) {
+  const items = (person.dietary || []).filter(d => d && d !== 'Not Applicable');
+  if (!items.length) return null;
+  const parts = items.map(d => d === 'Other' && person.dietary_other ? person.dietary_other : d);
+  return parts.join(', ');
+}
+
 function tableWarnings(members) {
   const warnings = [];
   if (!members || members.length < 2) return warnings;
@@ -75,6 +82,7 @@ function PersonCard({ person, tableId, onRemove, onHoldOver, onAddNote, onFlagRi
   const flag = getFlag(person.country);
   const isRisk = person.no_show_risk;
   const isHeld = person.held_over;
+  const dietary = dietaryLabel(person);
 
   return (
     <div
@@ -133,6 +141,10 @@ function PersonCard({ person, tableId, onRemove, onHoldOver, onAddNote, onFlagRi
           )}
         </div>
       </div>
+
+      {dietary && (
+        <p className="text-orange-400 text-xs font-sans mb-2">🍽 {dietary}</p>
+      )}
 
       {/* Tags */}
       <div className="flex flex-wrap gap-1.5 mb-3">
@@ -200,7 +212,7 @@ function PersonCard({ person, tableId, onRemove, onHoldOver, onAddNote, onFlagRi
   );
 }
 
-function TableColumn({ table, restaurants, onDropPerson, onRemovePerson, onHoldOver, onAddNote, onFlagRisk, onConfirm, onEmailType, onSetRestaurant, onSetBookingName }) {
+function TableColumn({ table, restaurants, onDropPerson, onRemovePerson, onHoldOver, onAddNote, onFlagRisk, onConfirm, onUnconfirm, onEmailType, onSetRestaurant, onSetBookingName }) {
   const [draggingOver, setDraggingOver] = useState(false);
   const [showEmail, setShowEmail] = useState(false);
   const [bookingName, setBookingName] = useState(table.booking_name || '');
@@ -216,6 +228,7 @@ function TableColumn({ table, restaurants, onDropPerson, onRemovePerson, onHoldO
   const ages = members.map(m => getAge(m.dob)).filter(a => a !== '—');
   const ageRange = ages.length ? `${Math.min(...ages)}–${Math.max(...ages)}` : '—';
   const budgets = [...new Set(members.map(m => m.budget).filter(Boolean))];
+  const dietaryMembers = members.filter(m => dietaryLabel(m));
 
   return (
     <div
@@ -288,6 +301,12 @@ function TableColumn({ table, restaurants, onDropPerson, onRemovePerson, onHoldO
           <p className="text-yellow text-xs">⚠ Mixed budgets: {budgets.join(' & ')}</p>
         )}
 
+        {dietaryMembers.length > 0 && (
+          <p className="text-orange-400 text-xs mt-1">
+            🍽 {dietaryMembers.map(m => `${m.first_name}: ${dietaryLabel(m)}`).join(' · ')}
+          </p>
+        )}
+
         {/* Warnings */}
         {warnings.map((w, i) => (
           <div key={i} className={`text-xs mt-1 ${w.level === 'red' ? 'text-red-400' : 'text-yellow'}`}>
@@ -332,12 +351,18 @@ function TableColumn({ table, restaurants, onDropPerson, onRemovePerson, onHoldO
             Confirm Table
           </button>
         ) : (
-          <div>
+          <div className="space-y-2">
             <button
               onClick={() => setShowEmail(!showEmail)}
               className="btn-outline w-full text-xs py-2"
             >
               Send Email ▾
+            </button>
+            <button
+              onClick={() => onUnconfirm(table.id)}
+              className="w-full text-xs py-2 rounded-lg border border-red-500/20 text-red-400/70 hover:text-red-400 hover:border-red-500/40 transition-colors"
+            >
+              Unconfirm Table
             </button>
             {showEmail && (
               <div className="mt-2 space-y-1">
@@ -386,7 +411,7 @@ export default function AdminMatching() {
       const [u, t, r] = await Promise.allSettled([
         api.get(`/admin/matching/unmatched/${selectedDinner}`),
         api.get(`/admin/matching/tables/${selectedDinner}`),
-        api.get(`/admin/dinners/${selectedDinner}/restaurants`),
+        api.get('/admin/restaurants'),
       ]);
       if (u.status === 'fulfilled') {
         setUnmatched(u.value.data.unmatched || []);
@@ -494,6 +519,15 @@ export default function AdminMatching() {
       setTables(prev => prev.map(t => t.id === tableId ? { ...t, status: 'confirmed' } : t));
       toast.success('Table confirmed! Group found emails queued.');
     } catch { toast.error('Failed to confirm table'); }
+  };
+
+  const unconfirmTable = async (tableId) => {
+    if (!confirm('Unconfirm this table? It goes back to editable, and no further emails will treat it as locked in.')) return;
+    try {
+      await api.post(`/admin/matching/tables/${tableId}/unconfirm`);
+      setTables(prev => prev.map(t => t.id === tableId ? { ...t, status: 'open' } : t));
+      toast.success('Table unconfirmed — back to editable');
+    } catch { toast.error('Failed to unconfirm table'); }
   };
 
   const setTableRestaurant = async (tableId, restaurantId) => {
@@ -608,6 +642,7 @@ export default function AdminMatching() {
                 onAddNote={addNote}
                 onFlagRisk={flagRisk}
                 onConfirm={confirmTable}
+                onUnconfirm={unconfirmTable}
                 onEmailType={sendEmail}
                 onSetRestaurant={setTableRestaurant}
                 onSetBookingName={setTableBookingName}

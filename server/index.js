@@ -22,6 +22,7 @@ const adminSignupsRoutes = require('./routes/admin/signups');
 const adminMatchingRoutes = require('./routes/admin/matching');
 const adminAnalyticsRoutes = require('./routes/admin/analytics');
 const adminDinnersRoutes = require('./routes/admin/dinners');
+const adminRestaurantsRoutes = require('./routes/admin/restaurants');
 const adminAmbassadorsRoutes = require('./routes/admin/ambassadors');
 const adminContentRoutes = require('./routes/admin/content');
 
@@ -84,6 +85,7 @@ app.use('/api/admin/signups', adminSignupsRoutes);
 app.use('/api/admin/matching', adminMatchingRoutes);
 app.use('/api/admin/analytics', adminAnalyticsRoutes);
 app.use('/api/admin/dinners', adminDinnersRoutes);
+app.use('/api/admin/restaurants', adminRestaurantsRoutes);
 app.use('/api/admin/ambassadors', adminAmbassadorsRoutes);
 app.use('/api/admin/content', adminContentRoutes);
 

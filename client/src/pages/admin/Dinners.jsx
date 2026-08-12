@@ -1,29 +1,45 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import AdminLayout from '../../components/admin/AdminLayout';
 import api from '../../utils/api';
 
+function getAge(dob) {
+  if (!dob) return '—';
+  return Math.floor((Date.now() - new Date(dob)) / (365.25 * 24 * 60 * 60 * 1000));
+}
+
+function dietaryLabel(person) {
+  const items = (person.dietary || []).filter(d => d && d !== 'Not Applicable');
+  if (!items.length) return null;
+  const parts = items.map(d => d === 'Other' && person.dietary_other ? person.dietary_other : d);
+  return parts.join(', ');
+}
+
 export default function AdminDinners() {
   const [dinners, setDinners] = useState([]);
   const [selected, setSelected] = useState(null);
-  const [restaurants, setRestaurants] = useState([]);
+  const [tables, setTables] = useState([]);
+  const [tablesLoading, setTablesLoading] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
-  const [showAddRestaurant, setShowAddRestaurant] = useState(false);
   const [newDinner, setNewDinner] = useState({ date: '', city: 'Auckland', status: 'upcoming' });
-  const [newRestaurant, setNewRestaurant] = useState({ name: '', address: '', booking_time: '19:00', menu_price_min: 45, menu_price_max: 50, capacity: 6, notes: '' });
 
   useEffect(() => {
     api.get('/admin/dinners').then(r => setDinners(r.data.dinners || [])).catch(console.error);
   }, []);
 
-  const loadRestaurants = async (dinnerId) => {
-    const r = await api.get(`/admin/dinners/${dinnerId}/restaurants`);
-    setRestaurants(r.data.restaurants || []);
+  const loadTables = async (dinnerId) => {
+    setTablesLoading(true);
+    try {
+      const r = await api.get(`/admin/matching/tables/${dinnerId}`);
+      setTables(r.data.tables || []);
+    } catch { toast.error('Failed to load tables'); }
+    setTablesLoading(false);
   };
 
   const selectDinner = async (d) => {
     setSelected(d);
-    await loadRestaurants(d.id);
+    await loadTables(d.id);
   };
 
   const createDinner = async (e) => {
@@ -38,26 +54,25 @@ export default function AdminDinners() {
     }
   };
 
-  const addRestaurant = async (e) => {
-    e.preventDefault();
-    try {
-      const r = await api.post(`/admin/dinners/${selected.id}/restaurants`, newRestaurant);
-      setRestaurants(prev => [...prev, r.data.restaurant]);
-      setShowAddRestaurant(false);
-      toast.success('Restaurant added!');
-    } catch { toast.error('Failed to add restaurant'); }
-  };
-
   const updateStatus = async (dinnerId, status) => {
     await api.put(`/admin/dinners/${dinnerId}`, { status });
     setDinners(prev => prev.map(d => d.id === dinnerId ? { ...d, status } : d));
     if (selected?.id === dinnerId) setSelected(d => ({ ...d, status }));
   };
 
+  const unconfirmTable = async (tableId) => {
+    if (!confirm('Unconfirm this table? It goes back to editable.')) return;
+    try {
+      await api.post(`/admin/matching/tables/${tableId}/unconfirm`);
+      setTables(prev => prev.map(t => t.id === tableId ? { ...t, status: 'open' } : t));
+      toast.success('Table unconfirmed');
+    } catch { toast.error('Failed to unconfirm table'); }
+  };
+
   const statusColor = (s) => ({ upcoming: 'text-blue-400', confirmed: 'text-emerald-400', completed: 'text-cream/40' }[s] || '');
 
   return (
-    <AdminLayout title="Dinners & Restaurants">
+    <AdminLayout title="Dinners">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Dinners list */}
         <div className="space-y-4">
@@ -121,55 +136,84 @@ export default function AdminDinners() {
           ))}
         </div>
 
-        {/* Restaurants */}
+        {/* Tables for selected dinner */}
         {selected && (
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <h2 className="font-sans font-semibold text-cream text-sm">
-                Restaurants for{' '}
+                Tables for{' '}
                 {new Date(selected.date).toLocaleDateString('en-NZ', { day: 'numeric', month: 'short' })}
               </h2>
-              <button onClick={() => setShowAddRestaurant(true)} className="btn-primary text-xs py-2 px-4">+ Add Restaurant</button>
+              <Link to={`/admin/matching?dinner=${selected.id}`} className="btn-outline text-xs py-2 px-4">
+                Edit in Matching →
+              </Link>
             </div>
 
-            {showAddRestaurant && (
-              <div className="card">
-                <h3 className="font-sans text-sm text-cream mb-4">New Restaurant</h3>
-                <form onSubmit={addRestaurant} className="space-y-3">
-                  <input className="input-field" placeholder="Restaurant name *" required value={newRestaurant.name} onChange={e => setNewRestaurant(r => ({ ...r, name: e.target.value }))} />
-                  <textarea className="input-field resize-none" rows={2} placeholder="Address *" required value={newRestaurant.address} onChange={e => setNewRestaurant(r => ({ ...r, address: e.target.value }))} />
-                  <div className="grid grid-cols-3 gap-3">
-                    <input type="time" className="input-field" value={newRestaurant.booking_time} onChange={e => setNewRestaurant(r => ({ ...r, booking_time: e.target.value }))} />
-                    <input type="number" className="input-field" placeholder="Min $" value={newRestaurant.menu_price_min} onChange={e => setNewRestaurant(r => ({ ...r, menu_price_min: e.target.value }))} />
-                    <input type="number" className="input-field" placeholder="Max $" value={newRestaurant.menu_price_max} onChange={e => setNewRestaurant(r => ({ ...r, menu_price_max: e.target.value }))} />
-                  </div>
-                  <textarea className="input-field resize-none" rows={2} placeholder="Notes..." value={newRestaurant.notes} onChange={e => setNewRestaurant(r => ({ ...r, notes: e.target.value }))} />
-                  <div className="flex gap-2">
-                    <button type="submit" className="btn-primary text-xs py-2 px-5">Add</button>
-                    <button type="button" onClick={() => setShowAddRestaurant(false)} className="btn-outline text-xs py-2 px-5">Cancel</button>
-                  </div>
-                </form>
+            {tablesLoading ? (
+              <div className="flex justify-center py-12">
+                <div className="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin" />
               </div>
-            )}
-
-            {restaurants.length === 0 ? (
+            ) : tables.length === 0 ? (
               <div className="card text-center py-8">
-                <p className="font-sans text-cream/40 text-sm">No restaurants added yet</p>
+                <p className="font-sans text-cream/40 text-sm mb-3">No tables yet for this dinner</p>
+                <Link to={`/admin/matching?dinner=${selected.id}`} className="btn-primary text-xs py-2 px-4 inline-block">
+                  Build tables in Matching →
+                </Link>
               </div>
-            ) : restaurants.map(r => (
-              <div key={r.id} className="card">
-                <div className="flex items-start justify-between mb-2">
-                  <h3 className="font-sans font-semibold text-cream">{r.name}</h3>
-                  <span className="text-cream/40 text-xs">{r.table_count || 0} tables</span>
+            ) : tables.map(t => {
+              const members = t.members || [];
+              const dietaryMembers = members.filter(m => dietaryLabel(m));
+              return (
+                <div key={t.id} className="card">
+                  <div className="flex items-start justify-between mb-2">
+                    <h3 className="font-sans font-semibold text-cream">
+                      Table {t.table_number || '—'}
+                      <span className="font-sans text-cream/40 text-xs ml-2">{members.length}/6</span>
+                    </h3>
+                    <span className={`font-sans text-xs capitalize ${t.status === 'confirmed' ? 'text-emerald-400' : 'text-cream/40'}`}>
+                      {t.status === 'confirmed' ? '✓ Confirmed' : t.status || 'Open'}
+                    </span>
+                  </div>
+
+                  <p className="font-sans text-cream/60 text-sm mb-1">
+                    {t.restaurant_name || <span className="text-cream/30 italic">No restaurant assigned</span>}
+                  </p>
+                  {t.restaurant_address && <p className="font-sans text-cream/40 text-xs mb-2">{t.restaurant_address}</p>}
+                  {t.booking_name && <p className="font-sans text-cream/40 text-xs mb-2">Booked under: {t.booking_name}</p>}
+
+                  {members.length > 0 && (
+                    <div className="mt-3 space-y-1.5 border-t border-white/5 pt-3">
+                      {members.map(m => {
+                        const diet = dietaryLabel(m);
+                        return (
+                          <div key={m.user_id} className="flex items-center justify-between text-xs">
+                            <span className="font-sans text-cream/70">
+                              {m.first_name} {m.last_name?.[0]}. <span className="text-cream/30">· {getAge(m.dob)}y · {m.gender}</span>
+                            </span>
+                            {diet && <span className="text-orange-400 font-sans">🍽 {diet}</span>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {dietaryMembers.length > 0 && (
+                    <p className="text-orange-400/80 text-xs mt-2 italic">
+                      ⚠ {dietaryMembers.length} {dietaryMembers.length === 1 ? 'person needs' : 'people need'} dietary attention
+                    </p>
+                  )}
+
+                  {t.status === 'confirmed' && (
+                    <button
+                      onClick={() => unconfirmTable(t.id)}
+                      className="mt-3 text-xs px-3 py-1.5 rounded-lg border border-red-500/20 text-red-400/70 hover:text-red-400 hover:border-red-500/40 transition-colors"
+                    >
+                      Unconfirm Table
+                    </button>
+                  )}
                 </div>
-                <p className="font-sans text-cream/60 text-sm mb-2">{r.address}</p>
-                <div className="flex flex-wrap gap-3 text-xs font-sans text-cream/50">
-                  <span>Time: {r.booking_time}</span>
-                  <span>Menu: ${r.menu_price_min}–${r.menu_price_max}</span>
-                </div>
-                {r.notes && <p className="font-sans text-cream/40 text-xs mt-2 italic">{r.notes}</p>}
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

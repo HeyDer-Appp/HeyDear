@@ -72,6 +72,7 @@ router.get('/tables/:dinnerId', adminAuth, async (req, res) => {
           budget: data.budget,
           reliability_score: data.reliability_score,
           dietary: data.dietary,
+          dietary_other: data.dietary_other,
           group_role: data.group_role,
           conflict_style: data.conflict_style,
           connection_trigger: data.connection_trigger,
@@ -209,6 +210,7 @@ router.post('/tables/:tableId/assign', adminAuth, async (req, res) => {
         budget: person.budget,
         reliability_score: person.reliability_score,
         dietary: person.dietary,
+        dietary_other: person.dietary_other,
         group_role: person.group_role,
         conflict_style: person.conflict_style,
         connection_trigger: person.connection_trigger,
@@ -263,6 +265,31 @@ router.post('/tables/:tableId/confirm', adminAuth, async (req, res) => {
     const membersSnap = await db.collection('tableMembers').where('tableId', '==', tableId).get();
     const batch = db.batch();
     membersSnap.docs.forEach(d => batch.set(d.ref, { confirmed: true }, { merge: true }));
+    await batch.commit();
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.post('/tables/:tableId/unconfirm', adminAuth, async (req, res) => {
+  try {
+    const { tableId } = req.params;
+
+    const tableRef = db.collection('tables').doc(tableId);
+    const tableSnap = await tableRef.get();
+    if (!tableSnap.exists) return res.status(404).json({ error: 'Table not found' });
+
+    await tableRef.set({
+      status: 'open',
+      confirmedAt: admin.firestore.FieldValue.delete(),
+      confirmedBy: admin.firestore.FieldValue.delete(),
+    }, { merge: true });
+
+    const membersSnap = await db.collection('tableMembers').where('tableId', '==', tableId).get();
+    const batch = db.batch();
+    membersSnap.docs.forEach(d => batch.set(d.ref, { confirmed: false }, { merge: true }));
     await batch.commit();
 
     res.json({ success: true });
