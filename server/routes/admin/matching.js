@@ -35,6 +35,65 @@ router.get('/unmatched/:dinnerId', adminAuth, async (req, res) => {
   }
 });
 
+// Every confirmed table across every dinner, newest-relevant first — this is
+// the admin's communications hub: no dinner has to be picked first, since a
+// table shows up here the moment it's confirmed in the Matching workspace.
+router.get('/confirmed-tables', adminAuth, async (req, res) => {
+  try {
+    const tablesSnap = await db.collection('tables').where('status', '==', 'confirmed').get();
+    const tables = await Promise.all(tablesSnap.docs.map(async (t) => {
+      const table = t.data();
+      const [dinnerSnap, restaurantSnap, membersSnap] = await Promise.all([
+        db.collection('dinners').doc(table.dinnerId).get(),
+        table.restaurantId ? db.collection('restaurants').doc(table.restaurantId).get() : null,
+        db.collection('tableMembers').where('tableId', '==', t.id).get(),
+      ]);
+      const dinner = dinnerSnap.exists ? dinnerSnap.data() : null;
+      const restaurant = restaurantSnap?.data();
+
+      const sortedMemberDocs = membersSnap.docs.slice().sort((a, b) => (a.data().createdAt?.toMillis?.() || 0) - (b.data().createdAt?.toMillis?.() || 0));
+      const members = sortedMemberDocs.map(m => {
+        const data = m.data();
+        return {
+          id: m.id,
+          user_id: data.user_id,
+          first_name: data.firstName,
+          last_name: data.lastName,
+          gender: data.gender,
+          country: data.country,
+          dob: data.dob,
+          dietary: data.dietary,
+          dietary_other: data.dietary_other,
+          email_group_found_sent: !!data.email_group_found_sent,
+          email_glimpse_sent: !!data.email_glimpse_sent,
+          email_venue_sent: !!data.email_venue_sent,
+          email_reminder_sent: !!data.email_reminder_sent,
+          email_feedback_sent: !!data.email_feedback_sent,
+        };
+      });
+
+      return {
+        id: t.id,
+        dinnerId: table.dinnerId,
+        dinner_date: dinner?.date ? dinner.date.toDate().toISOString() : null,
+        city: dinner?.city || 'Auckland',
+        dinner_status: dinner?.status || null,
+        table_number: table.table_number,
+        restaurant_name: restaurant?.name || null,
+        restaurant_address: restaurant?.address || null,
+        booking_name: table.bookingName || null,
+        members,
+      };
+    }));
+
+    tables.sort((a, b) => new Date(a.dinner_date || 0) - new Date(b.dinner_date || 0));
+    res.json({ tables });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 router.get('/tables/:dinnerId', adminAuth, async (req, res) => {
   try {
     const { dinnerId } = req.params;
