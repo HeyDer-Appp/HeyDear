@@ -459,7 +459,16 @@ export default function PortalDashboard() {
                     </p>
                     {d.restaurant_name && <p className="font-sans text-cream/35 text-xs mt-0.5">{d.restaurant_name}</p>}
                   </div>
-                  <span className="font-sans text-cream/25 text-xs">Attended</span>
+                  {d.has_feedback ? (
+                    <span className="font-sans text-emerald-400/70 text-xs">✓ Feedback sent</span>
+                  ) : (
+                    <Link
+                      to={`/feedback/${d.dinner_id}?uid=${attendeeUser?.uid}`}
+                      className="font-sans text-gold text-xs hover:text-yellow transition-colors"
+                    >
+                      Rate your experience →
+                    </Link>
+                  )}
                 </div>
               ))}
             </div>

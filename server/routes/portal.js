@@ -173,8 +173,18 @@ router.get('/dinners', attendeeAuth, async (req, res) => {
       const venueAt = dinnerDate ? venueRevealAt(dinnerDate) : null;
       const venueRevealed = venueAt ? new Date() >= venueAt : false;
 
+      // Only relevant for past dinners, but cheap enough to check for all —
+      // lets the dashboard show "Rate your experience" only once, not repeat
+      // the prompt after it's already been submitted.
+      const feedbackSnap = await db.collection('feedback')
+        .where('userId', '==', req.user.id)
+        .where('dinnerId', '==', table.dinnerId)
+        .limit(1)
+        .get();
+
       return {
         table_id: booking.tableId,
+        dinner_id: table.dinnerId,
         table_status: table.status,
         confirmed: true,
         held_over: false,
@@ -189,6 +199,7 @@ router.get('/dinners', attendeeAuth, async (req, res) => {
         booking_time: venueRevealed ? restaurant.bookingTime : null,
         menu_price_min: venueRevealed ? restaurant.menuPriceMin : null,
         menu_price_max: venueRevealed ? restaurant.menuPriceMax : null,
+        has_feedback: !feedbackSnap.empty,
       };
     }));
 

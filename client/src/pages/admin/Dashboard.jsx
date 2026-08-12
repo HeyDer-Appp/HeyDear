@@ -14,15 +14,20 @@ function StatCard({ label, value, sub, href }) {
   return href ? <Link to={href}>{content}</Link> : content;
 }
 
+const CITIES = ['Auckland', 'Wellington'];
+
 export default function AdminDashboard() {
+  const [city, setCity] = useState('');
   const [stats, setStats] = useState(null);
   const [upcomingDinners, setUpcomingDinners] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setLoading(true);
+    const params = city ? `?city=${encodeURIComponent(city)}` : '';
     Promise.all([
-      api.get('/admin/analytics'),
-      api.get('/admin/dinners'),
+      api.get(`/admin/analytics${params}`),
+      api.get(`/admin/dinners${params}`),
     ]).then(([analytics, dinners]) => {
       setStats(analytics.data);
       setUpcomingDinners(
@@ -32,7 +37,7 @@ export default function AdminDashboard() {
       );
     }).catch(console.error)
       .finally(() => setLoading(false));
-  }, []);
+  }, [city]);
 
   const importTypeform = async () => {
     try {
@@ -41,6 +46,10 @@ export default function AdminDashboard() {
     } catch (err) {
       alert('Import failed: ' + (err.response?.data?.error || err.message));
     }
+  };
+
+  const exportCSV = () => {
+    window.open('/api/admin/signups/export/csv', '_blank');
   };
 
   if (loading) return (
@@ -54,11 +63,24 @@ export default function AdminDashboard() {
   return (
     <AdminLayout title="Dashboard">
       <div className="space-y-8">
+        {/* City filter */}
+        <div className="flex items-center gap-3">
+          <label className="font-sans text-cream/50 text-xs">City</label>
+          <select
+            value={city}
+            onChange={e => setCity(e.target.value)}
+            className="input-field py-1.5 text-sm w-48"
+          >
+            <option value="">All cities</option>
+            {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+
         {/* Stats grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <StatCard label="Signups today" value={stats?.totals?.today || 0} sub="Last 24 hours" href="/admin/signups" />
           <StatCard label="Total signups" value={stats?.totals?.allTime || 0} sub="All time" href="/admin/signups" />
-          <StatCard label="This week" value={stats?.totals?.thisWeek || 0} sub="New signups" />
-          <StatCard label="Avg NPS" value={stats?.avgNps || '—'} sub="Out of 10" href="/admin/feedback" />
+          <StatCard label="Avg rating" value={stats?.avgRating && stats.avgRating !== '0.0' ? stats.avgRating : '—'} sub="Out of 5" href="/admin/feedback" />
           <StatCard label="Retention" value={`${stats?.retentionRate || 0}%`} sub="Returned for 2nd dinner" />
         </div>
 
@@ -68,17 +90,20 @@ export default function AdminDashboard() {
           <div className="flex flex-wrap gap-3">
             <Link to="/admin/matching" className="btn-primary text-xs py-2.5 px-5">Open Matching Workspace</Link>
             <Link to="/admin/signups" className="btn-outline text-xs py-2.5 px-5">View All Signups</Link>
+            <button onClick={exportCSV} className="btn-outline text-xs py-2.5 px-5">Export Signups (CSV)</button>
             <button onClick={importTypeform} className="btn-outline text-xs py-2.5 px-5">Import Typeform Data</button>
           </div>
         </div>
 
         {/* Upcoming dinners */}
-        {upcomingDinners.length > 0 && (
-          <div className="card">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-sans font-semibold text-cream text-sm">Upcoming Dinners</h2>
-              <Link to="/admin/dinners" className="text-gold text-xs hover:text-yellow">Manage →</Link>
-            </div>
+        <div className="card">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-sans font-semibold text-cream text-sm">Upcoming Dinners</h2>
+            <Link to="/admin/dinners" className="text-gold text-xs hover:text-yellow">Manage →</Link>
+          </div>
+          {upcomingDinners.length === 0 ? (
+            <p className="font-sans text-cream/40 text-sm py-4">No upcoming dinners{city ? ` in ${city}` : ''} yet.</p>
+          ) : (
             <div className="space-y-3">
               {upcomingDinners.map(d => (
                 <div key={d.id} className="flex items-center justify-between py-3 border-b border-white/5 last:border-0">
@@ -92,8 +117,8 @@ export default function AdminDashboard() {
                 </div>
               ))}
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Gender split */}
         {stats?.genderSplit?.length > 0 && (

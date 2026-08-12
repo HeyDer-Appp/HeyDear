@@ -26,6 +26,7 @@ function countBy(items, keyFn) {
 
 router.get('/', adminAuth, async (req, res) => {
   try {
+    const { city } = req.query;
     const [usersSnap, bookingsSnap, feedbackSnap, confirmedMembersSnap] = await Promise.all([
       db.collection('users').get(),
       db.collection('bookings').get(),
@@ -33,11 +34,20 @@ router.get('/', adminAuth, async (req, res) => {
       db.collection('tableMembers').where('confirmed', '==', true).get(),
     ]);
 
-    const users = usersSnap.docs.map(d => d.data());
-    const bookings = bookingsSnap.docs.map(d => d.data());
-    const feedback = feedbackSnap.docs.map(d => d.data());
+    let users = usersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (city) users = users.filter(u => (u.city || 'Auckland') === city);
+    // Bookings/feedback/tableMembers don't carry their own city — joined
+    // back to the signup's city via userId so a city filter applies
+    // consistently everywhere, not just the raw signup count.
+    const cityUserIds = city ? new Set(users.map(u => u.id)) : null;
+
+    let bookings = bookingsSnap.docs.map(d => d.data());
+    if (cityUserIds) bookings = bookings.filter(b => cityUserIds.has(b.userId));
+    let feedback = feedbackSnap.docs.map(d => d.data());
+    if (cityUserIds) feedback = feedback.filter(f => cityUserIds.has(f.userId));
 
     const now = Date.now();
+    const dayAgo = now - 24 * 60 * 60 * 1000;
     const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
     const monthAgo = now - 30 * 24 * 60 * 60 * 1000;
     const createdMs = (u) => u.createdAt?.toMillis?.() || 0;
@@ -76,10 +86,14 @@ router.get('/', adminAuth, async (req, res) => {
 
     const withNps = feedback.filter(f => f.nps != null);
     const avgNps = withNps.length ? withNps.reduce((s, f) => s + f.nps, 0) / withNps.length : 0;
+    const withRating = feedback.filter(f => f.overall_rating != null);
+    const avgRating = withRating.length ? withRating.reduce((s, f) => s + f.overall_rating, 0) / withRating.length : 0;
 
     // Retention — distinct dinners per user among confirmed table members
+    let confirmedMembers = confirmedMembersSnap.docs.map(d => d.data());
+    if (cityUserIds) confirmedMembers = confirmedMembers.filter(m => cityUserIds.has(m.user_id));
     const dinnersByUser = {};
-    for (const m of confirmedMembersSnap.docs.map(d => d.data())) {
+    for (const m of confirmedMembers) {
       if (!dinnersByUser[m.user_id]) dinnersByUser[m.user_id] = new Set();
       dinnersByUser[m.user_id].add(m.dinnerId);
     }
@@ -89,6 +103,7 @@ router.get('/', adminAuth, async (req, res) => {
 
     res.json({
       totals: {
+        today: users.filter(u => createdMs(u) >= dayAgo).length,
         allTime: users.length,
         thisWeek: users.filter(u => createdMs(u) >= weekAgo).length,
         thisMonth: users.filter(u => createdMs(u) >= monthAgo).length,
@@ -98,6 +113,7 @@ router.get('/', adminAuth, async (req, res) => {
       budgetSplit,
       ageDistribution,
       avgNps: avgNps.toFixed(1),
+      avgRating: avgRating.toFixed(1),
       retentionRate,
       topDates,
       countryBreakdown,

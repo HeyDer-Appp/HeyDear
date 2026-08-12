@@ -33,7 +33,9 @@ export default function AdminDinners() {
       setDinners(prev => [r.data.dinner, ...prev]);
       setShowAdd(false);
       toast.success('Dinner created!');
-    } catch { toast.error('Failed to create dinner'); }
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to create dinner');
+    }
   };
 
   const addRestaurant = async (e) => {
@@ -68,8 +70,14 @@ export default function AdminDinners() {
             <div className="card">
               <h3 className="font-sans text-sm text-cream mb-4">New Dinner</h3>
               <form onSubmit={createDinner} className="space-y-3">
-                <input type="date" className="input-field" required value={newDinner.date} onChange={e => setNewDinner(d => ({ ...d, date: e.target.value }))} />
-                <input className="input-field" placeholder="City" value={newDinner.city} onChange={e => setNewDinner(d => ({ ...d, city: e.target.value }))} />
+                <div>
+                  <input type="date" className="input-field" required value={newDinner.date} onChange={e => setNewDinner(d => ({ ...d, date: e.target.value }))} />
+                  <p className="font-sans text-cream/30 text-xs mt-1">HeyDer dinners only happen on Tuesdays.</p>
+                </div>
+                <select className="input-field" value={newDinner.city} onChange={e => setNewDinner(d => ({ ...d, city: e.target.value }))}>
+                  <option value="Auckland">Auckland</option>
+                  <option value="Wellington">Wellington</option>
+                </select>
                 <select className="input-field" value={newDinner.status} onChange={e => setNewDinner(d => ({ ...d, status: e.target.value }))}>
                   <option value="upcoming">Upcoming</option>
                   <option value="confirmed">Confirmed</option>

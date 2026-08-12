@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import toast from 'react-hot-toast';
 import AdminLayout from '../../components/admin/AdminLayout';
 import api from '../../utils/api';
 
@@ -38,12 +37,6 @@ export default function AdminFeedback() {
     setLoading(false);
   };
 
-  const approve = async (id) => {
-    await api.post(`/feedback/testimonials/${id}/approve`);
-    setFeedback(prev => prev.map(f => f.id === id ? { ...f, testimonial_approved: true } : f));
-    toast.success('Testimonial approved!');
-  };
-
   return (
     <AdminLayout title="Feedback">
       <div className="space-y-6">
@@ -52,9 +45,9 @@ export default function AdminFeedback() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
               { label: 'Total Responses', value: stats.total },
-              { label: 'Avg Rating', value: parseFloat(stats.avg_rating || 0).toFixed(1) + ' / 5' },
-              { label: 'Avg NPS', value: parseFloat(stats.avg_nps || 0).toFixed(1) + ' / 10' },
-              { label: 'Would Return', value: parseFloat(stats.return_pct || 0).toFixed(0) + '%' },
+              { label: 'Avg Overall Rating', value: (stats.avg_rating != null ? stats.avg_rating.toFixed(1) : '—') + ' / 5' },
+              { label: 'Avg Table Match', value: (stats.avg_group_fit != null ? stats.avg_group_fit.toFixed(1) : '—') + ' / 5' },
+              { label: 'Avg Restaurant Rating', value: (stats.avg_venue_rating != null ? stats.avg_venue_rating.toFixed(1) : '—') + ' / 5' },
             ].map(s => (
               <div key={s.label} className="card">
                 <p className="font-sans text-cream/50 text-xs mb-2">{s.label}</p>
@@ -102,8 +95,8 @@ export default function AdminFeedback() {
                 <Stars n={f.overall_rating} />
               </div>
 
-              <div className="grid grid-cols-3 gap-2 text-center">
-                {[['Group', f.group_fit], ['Convo', f.conversation_quality], ['NPS', f.nps]].map(([l, v]) => (
+              <div className="grid grid-cols-2 gap-2 text-center">
+                {[['Table matched', f.group_fit], ['Restaurant', f.venue_rating]].map(([l, v]) => (
                   <div key={l} className="bg-navy/60 rounded-lg py-1.5">
                     <p className="font-mono text-sm text-cream">{v ?? '—'}</p>
                     <p className="font-sans text-cream/40 text-xs">{l}</p>
@@ -111,31 +104,10 @@ export default function AdminFeedback() {
                 ))}
               </div>
 
-              {f.surprised_by && (
+              {f.experience_notes && (
                 <div>
-                  <p className="font-sans text-cream/40 text-xs mb-1">What surprised them:</p>
-                  <p className="font-sans text-cream/70 text-sm italic">"{f.surprised_by}"</p>
-                </div>
-              )}
-
-              {f.improvement && (
-                <div>
-                  <p className="font-sans text-cream/40 text-xs mb-1">Improvement:</p>
-                  <p className="font-sans text-cream/70 text-sm">{f.improvement}</p>
-                </div>
-              )}
-
-              {f.testimonial && (
-                <div className="border-t border-white/5 pt-3">
-                  <p className="font-sans text-cream/70 text-sm italic">"{f.testimonial}"</p>
-                  {f.testimonial_name && <p className="font-sans text-cream/40 text-xs mt-1">— {f.testimonial_name}</p>}
-                  <div className="flex items-center gap-2 mt-2">
-                    {f.testimonial_approved ? (
-                      <span className="text-emerald-400 text-xs">✓ Approved</span>
-                    ) : (
-                      <button onClick={() => approve(f.id)} className="text-gold text-xs hover:text-yellow">Approve for website →</button>
-                    )}
-                  </div>
+                  <p className="font-sans text-cream/40 text-xs mb-1">In their words:</p>
+                  <p className="font-sans text-cream/70 text-sm italic">"{f.experience_notes}"</p>
                 </div>
               )}
             </div>

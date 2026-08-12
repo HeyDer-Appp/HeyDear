@@ -8,25 +8,16 @@ router.post('/submit', feedbackLimiter, async (req, res) => {
   try {
     const {
       userId, dinnerId,
-      overall_rating, surprised_by, group_fit, conversation_quality,
-      venue_rating, return_likelihood, nps, improvement,
-      testimonial, testimonial_name,
+      overall_rating, group_fit, venue_rating, experience_notes,
     } = req.body;
 
     const ref = await db.collection('feedback').add({
       userId: userId || null,
       dinnerId: dinnerId || null,
       overall_rating: overall_rating ?? null,
-      surprised_by: surprised_by || null,
       group_fit: group_fit ?? null,
-      conversation_quality: conversation_quality ?? null,
       venue_rating: venue_rating ?? null,
-      return_likelihood: return_likelihood || null,
-      nps: nps ?? null,
-      improvement: improvement || null,
-      testimonial: testimonial || null,
-      testimonial_name: testimonial_name || null,
-      testimonial_approved: false,
+      experience_notes: experience_notes || null,
       submittedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
     const snap = await ref.get();
@@ -54,47 +45,37 @@ router.get('/', adminAuth, async (req, res) => {
       .map(d => ({ id: d.id, ...d.data() }))
       .sort((a, b) => (b.submittedAt?.toMillis?.() || 0) - (a.submittedAt?.toMillis?.() || 0));
 
-    const withRating = feedback.filter(f => f.overall_rating != null);
-    const withNps = feedback.filter(f => f.nps != null);
-    const withReturn = feedback.filter(f => f.return_likelihood != null);
+    const userIds = [...new Set(feedback.map(f => f.userId).filter(Boolean))];
+    const dinnerIds = [...new Set(feedback.map(f => f.dinnerId).filter(Boolean))];
+    const [userDocs, dinnerDocs] = await Promise.all([
+      Promise.all(userIds.map(id => db.collection('users').doc(id).get())),
+      Promise.all(dinnerIds.map(id => db.collection('dinners').doc(id).get())),
+    ]);
+    const usersById = Object.fromEntries(userDocs.filter(d => d.exists).map(d => [d.id, d.data()]));
+    const dinnersById = Object.fromEntries(dinnerDocs.filter(d => d.exists).map(d => [d.id, d.data()]));
+
+    feedback.forEach(f => {
+      const user = usersById[f.userId];
+      const dinner = dinnersById[f.dinnerId];
+      f.first_name = user?.firstName || null;
+      f.last_name = user?.lastName || null;
+      f.dinner_date = dinner?.date?.toDate?.() ? dinner.date.toDate().toISOString() : (dinner?.date || null);
+    });
+
+    const avg = (key) => {
+      const withValue = feedback.filter(f => f[key] != null);
+      return withValue.length ? withValue.reduce((s, f) => s + f[key], 0) / withValue.length : null;
+    };
     const stats = {
-      avg_rating: withRating.length ? withRating.reduce((s, f) => s + f.overall_rating, 0) / withRating.length : null,
-      avg_nps: withNps.length ? withNps.reduce((s, f) => s + f.nps, 0) / withNps.length : null,
-      return_pct: withReturn.length
-        ? (withReturn.filter(f => f.return_likelihood === 'Yes').length / withReturn.length) * 100
-        : 0,
+      avg_rating: avg('overall_rating'),
+      avg_group_fit: avg('group_fit'),
+      avg_venue_rating: avg('venue_rating'),
       total: feedback.length,
     };
 
     res.json({ feedback, stats });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-router.post('/testimonials/:id/approve', adminAuth, async (req, res) => {
-  try {
-    await db.collection('feedback').doc(req.params.id).set({ testimonial_approved: true }, { merge: true });
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-router.get('/testimonials/public', async (req, res) => {
-  try {
-    // where() + orderBy() on different fields needs a composite index, so
-    // filter here and sort/limit in memory instead.
-    const snap = await db.collection('feedback').where('testimonial_approved', '==', true).get();
-    const testimonials = snap.docs
-      .map(d => d.data())
-      .filter(f => f.testimonial)
-      .sort((a, b) => (b.submittedAt?.toMillis?.() || 0) - (a.submittedAt?.toMillis?.() || 0))
-      .slice(0, 10)
-      .map(f => ({ testimonial: f.testimonial, testimonial_name: f.testimonial_name }));
-    res.json({ testimonials });
-  } catch (err) {
     res.status(500).json({ error: 'Server error' });
   }
 });

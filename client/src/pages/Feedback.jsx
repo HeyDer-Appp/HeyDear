@@ -32,15 +32,9 @@ export default function Feedback() {
 
   const [form, setForm] = useState({
     overall_rating: 0,
-    surprised_by: '',
     group_fit: 0,
-    conversation_quality: 0,
     venue_rating: 0,
-    return_likelihood: '',
-    nps: 0,
-    improvement: '',
-    testimonial: '',
-    testimonial_name: '',
+    experience_notes: '',
   });
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -83,115 +77,33 @@ export default function Feedback() {
         </div>
 
         <h1 className="font-serif text-4xl text-cream text-center mb-2">How was it?</h1>
-        <p className="font-sans text-cream/50 text-center mb-10 text-sm">2 minutes. Your feedback directly shapes the experience.</p>
+        <p className="font-sans text-cream/50 text-center mb-10 text-sm">Takes 30 seconds. Your feedback directly shapes the experience.</p>
 
         <form onSubmit={handleSubmit} className="space-y-8">
           <div className="card">
-            <label className="font-sans text-cream font-medium block mb-4">Overall experience *</label>
+            <label className="font-sans text-cream font-medium block mb-4">Rate your overall dinner out of 5 *</label>
             <StarRating value={form.overall_rating} onChange={v => set('overall_rating', v)} />
           </div>
 
           <div className="card">
-            <label className="font-sans text-cream font-medium block mb-3">What surprised you?</label>
-            <textarea
-              className="input-field resize-none"
-              rows={3}
-              placeholder="Something you didn't expect..."
-              value={form.surprised_by}
-              onChange={e => set('surprised_by', e.target.value)}
-            />
-          </div>
-
-          <div className="card">
-            <label className="font-sans text-cream font-medium block mb-4">Did the group feel right? *</label>
+            <label className="font-sans text-cream font-medium block mb-4">Did the table feel matched for you?</label>
             <StarRating value={form.group_fit} onChange={v => set('group_fit', v)} />
           </div>
 
           <div className="card">
-            <label className="font-sans text-cream font-medium block mb-4">How was the conversation? *</label>
-            <StarRating value={form.conversation_quality} onChange={v => set('conversation_quality', v)} />
-          </div>
-
-          <div className="card">
-            <label className="font-sans text-cream font-medium block mb-4">How was the restaurant?</label>
+            <label className="font-sans text-cream font-medium block mb-4">How was the restaurant we chose for you?</label>
             <StarRating value={form.venue_rating} onChange={v => set('venue_rating', v)} />
           </div>
 
           <div className="card">
-            <label className="font-sans text-cream font-medium block mb-4">Would you come back?</label>
-            <div className="flex gap-3 flex-wrap">
-              {['Yes, definitely', 'Maybe', 'Not sure yet', 'No'].map(opt => (
-                <button
-                  key={opt}
-                  type="button"
-                  onClick={() => set('return_likelihood', opt)}
-                  className={`px-4 py-2 rounded-lg border font-sans text-sm transition-all ${
-                    form.return_likelihood === opt
-                      ? 'border-gold bg-gold/15 text-cream'
-                      : 'border-white/10 text-cream/60 hover:border-gold/30'
-                  }`}
-                >
-                  {opt}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="card">
-            <label className="font-sans text-cream font-medium block mb-2">
-              NPS — How likely are you to recommend HeyDer? (1-10)
-            </label>
-            <p className="font-sans text-cream/40 text-xs mb-4">1 = Not at all, 10 = Absolutely</p>
-            <div className="flex gap-2 flex-wrap">
-              {[...Array(10)].map((_, i) => {
-                const n = i + 1;
-                return (
-                  <button
-                    key={n}
-                    type="button"
-                    onClick={() => set('nps', n)}
-                    className={`w-10 h-10 rounded-lg font-sans text-sm font-medium transition-all ${
-                      form.nps === n ? 'bg-gold text-navy' : 'bg-dark-card text-cream/60 hover:bg-gold/20 border border-white/5'
-                    }`}
-                  >
-                    {n}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="card">
-            <label className="font-sans text-cream font-medium block mb-3">One thing we could improve</label>
+            <label className="font-sans text-cream font-medium block mb-3">Few words if you could share about your experience</label>
             <textarea
               className="input-field resize-none"
               rows={3}
-              placeholder="Be honest — it helps us get better."
-              value={form.improvement}
-              onChange={e => set('improvement', e.target.value)}
+              placeholder="Anything you'd like to tell us..."
+              value={form.experience_notes}
+              onChange={e => set('experience_notes', e.target.value)}
             />
-          </div>
-
-          <div className="card">
-            <label className="font-sans text-cream font-medium block mb-3">
-              One sentence testimonial{' '}
-              <span className="text-cream/40 font-normal text-sm">(optional — may be published)</span>
-            </label>
-            <textarea
-              className="input-field resize-none"
-              rows={2}
-              placeholder="What would you tell a friend about HeyDer?"
-              value={form.testimonial}
-              onChange={e => set('testimonial', e.target.value)}
-            />
-            {form.testimonial && (
-              <input
-                className="input-field mt-3"
-                placeholder="Your name (optional)"
-                value={form.testimonial_name}
-                onChange={e => set('testimonial_name', e.target.value)}
-              />
-            )}
           </div>
 
           <button
