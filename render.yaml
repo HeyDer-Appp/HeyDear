@@ -28,6 +28,11 @@ services:
       # URL), update this value to match.
       - key: CLIENT_URL
         value: https://heydear.onrender.com
+      # Comma-separated list of frontend origins allowed to call this API.
+      # Add the standalone admin panel's deployed URL here once it exists
+      # (e.g. "https://heydear.onrender.com,https://heyder-admin.onrender.com").
+      - key: ALLOWED_ORIGINS
+        value: https://heydear.onrender.com
       - key: STRIPE_SECRET_KEY
         sync: false
       - key: STRIPE_WEBHOOK_SECRET

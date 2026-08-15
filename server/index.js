@@ -48,13 +48,23 @@ app.use(helmet({ contentSecurityPolicy: false }));
 app.use(compression());
 app.use(morgan('combined'));
 
-// Browsers never send a trailing slash on the Origin header, but it's an
-// easy typo to make when pasting a URL into an env var (happened in prod) —
-// strip it so a stray "/" doesn't silently break every request with CORS.
-const clientOrigin = (process.env.CLIENT_URL || 'http://localhost:5173').replace(/\/$/, '');
+// ALLOWED_ORIGINS is a comma-separated list so multiple frontends (the main
+// site + the separate admin-panel site, which share this same backend) can
+// both call the API. Falls back to CLIENT_URL for back-compat with the
+// single-origin setup. Browsers never send a trailing slash on the Origin
+// header, but it's an easy typo to make when pasting a URL into an env var
+// (happened in prod) — strip it so a stray "/" doesn't silently break CORS.
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || process.env.CLIENT_URL || 'http://localhost:5173')
+  .split(',')
+  .map((o) => o.trim().replace(/\/$/, ''))
+  .filter(Boolean);
 
 app.use(cors({
-  origin: clientOrigin,
+  origin: (origin, callback) => {
+    // Server-to-server / curl requests send no Origin header at all — let those through.
+    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    callback(new Error('Not allowed by CORS'));
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
