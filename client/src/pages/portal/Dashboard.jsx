@@ -14,7 +14,7 @@ const STATUS_CONFIG = {
     bg: 'bg-yellow/10',
     border: 'border-yellow/20',
     icon: '⏳',
-    description: "We're curating your perfect table. You'll see it right here once your group is locked in.",
+    description: '',
   },
   matched: {
     label: 'Your group is locked in',
@@ -243,7 +243,7 @@ function DinnerCard({ dinner, onCancel }) {
       {/* Date */}
       <h2 className="font-serif text-2xl text-cream mb-1">{formattedDate}</h2>
       <p className="font-sans text-cream/50 text-sm mb-1">{dinner.city || 'Auckland'}</p>
-      <p className="font-sans text-cream/40 text-xs mb-4">{config.description}</p>
+      {config.description && <p className="font-sans text-cream/40 text-xs mb-4">{config.description}</p>}
 
       {/* ── STAGE 1: PENDING — what happens next ──
           Reveal timing is always relative to the fixed Tuesday 7pm dinner
@@ -260,19 +260,18 @@ function DinnerCard({ dinner, onCancel }) {
         const venueSecsLeft = venueRevealAt ? Math.max(0, Math.ceil((venueRevealAt - now) / 1000)) : null;
 
         const steps = [
-          { icon: '👀', step: 'Meet your table', when: '48 hours before — Sunday 7pm', secsLeft: groupSecsLeft, unlocked: groupUnlocked, notStarted: false },
-          { icon: '📍', step: 'Venue revealed', when: '24 hours before — restaurant & address', secsLeft: venueSecsLeft, unlocked: venueSecsLeft !== null && venueSecsLeft <= 0, notStarted: !groupUnlocked },
+          { icon: '👀', step: 'Meet your table', secsLeft: groupSecsLeft, unlocked: groupUnlocked, notStarted: false },
+          { icon: '📍', step: 'Venue revealed', secsLeft: venueSecsLeft, unlocked: venueSecsLeft !== null && venueSecsLeft <= 0, notStarted: !groupUnlocked },
         ];
 
         return (
           <div className="mt-5 space-y-3">
-            {steps.map(({ icon, step, when, secsLeft, unlocked, notStarted }) => (
+            {steps.map(({ icon, step, secsLeft, unlocked, notStarted }) => (
               <div key={step} className="flex items-start gap-3">
                 <span className="text-base mt-0.5">{icon}</span>
                 <div className="flex-1 flex items-start justify-between gap-4">
                   <span className="font-sans text-cream/70 text-sm">{step}</span>
                   <div className="text-right flex-shrink-0">
-                    <span className="font-sans text-cream/30 text-xs block">{when}</span>
                     {notStarted ? (
                       <span className="font-sans text-cream/20 text-xs italic">Starts after table reveal</span>
                     ) : secsLeft !== null && (
