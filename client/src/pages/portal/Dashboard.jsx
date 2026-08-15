@@ -191,12 +191,33 @@ function RevealFlow({ revealAt, venueRevealAt, tableId, dinner }) {
   );
 }
 
+// Days out right after booking, not just the final minutes — so this breaks
+// out days/hours/minutes/seconds instead of just an ever-climbing count.
+function formatCountdown(secs) {
+  const days = Math.floor(secs / 86400);
+  const hours = Math.floor((secs % 86400) / 3600);
+  const minutes = Math.floor((secs % 3600) / 60);
+  const seconds = secs % 60;
+  const pad = (n) => String(n).padStart(2, '0');
+  return days > 0
+    ? `${days}d ${pad(hours)}h ${pad(minutes)}m ${pad(seconds)}s`
+    : `${pad(hours)}h ${pad(minutes)}m ${pad(seconds)}s`;
+}
+
 function DinnerCard({ dinner, onCancel }) {
-  const now = new Date();
-  const isPending = dinner.is_pending || !dinner.table_id;
+  const [now, setNow] = useState(() => new Date());
   const dinnerDate = dinner.date ? new Date(dinner.date.split('T')[0] + 'T19:00:00') : null;
+
+  useEffect(() => {
+    if (!dinnerDate) return;
+    const tick = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(tick);
+  }, [dinner.date]);
+
+  const isPending = dinner.is_pending || !dinner.table_id;
   const isPast = dinnerDate ? dinnerDate < now : false;
   const hoursUntil = dinnerDate ? (dinnerDate - now) / (1000 * 60 * 60) : Infinity;
+  const countdownSecs = dinnerDate ? Math.max(0, Math.ceil((dinnerDate - now) / 1000)) : null;
 
   let status = 'pending';
   if (!isPending && dinner.table_status === 'confirmed') {
@@ -223,6 +244,11 @@ function DinnerCard({ dinner, onCancel }) {
       {/* Date */}
       <h2 className="font-serif text-2xl text-cream mb-1">{formattedDate}</h2>
       <p className="font-sans text-cream/50 text-sm mb-1">{dinner.city || 'Auckland'}</p>
+      {!isPast && countdownSecs !== null && (
+        <p className="font-sans text-gold text-sm font-semibold tracking-wide mb-1">
+          {formatCountdown(countdownSecs)}
+        </p>
+      )}
       <p className="font-sans text-cream/40 text-xs mb-4">{config.description}</p>
 
       {/* ── STAGE 1: PENDING — what happens next ── */}
