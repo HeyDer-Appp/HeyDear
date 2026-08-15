@@ -251,21 +251,35 @@ function DinnerCard({ dinner, onCancel }) {
       )}
       <p className="font-sans text-cream/40 text-xs mb-4">{config.description}</p>
 
-      {/* ── STAGE 1: PENDING — what happens next ── */}
+      {/* ── STAGE 1: PENDING — what happens next ──
+          Reveal timing is always relative to the fixed Tuesday 7pm dinner
+          slot, not to table matching, so the countdown here works off
+          dinnerDate directly and ticks even before a table is confirmed. */}
       {status === 'pending' && (
         <div className="mt-5 space-y-3">
           {[
-            ['👀', 'Meet your table', '48 hours before — Sunday 7pm'],
-            ['📍', 'Venue revealed', '24 hours before — restaurant & address'],
-          ].map(([icon, step, when]) => (
-            <div key={step} className="flex items-start gap-3">
-              <span className="text-base mt-0.5">{icon}</span>
-              <div className="flex-1 flex items-start justify-between gap-4">
-                <span className="font-sans text-cream/70 text-sm">{step}</span>
-                <span className="font-sans text-cream/30 text-xs text-right flex-shrink-0">{when}</span>
+            { icon: '👀', step: 'Meet your table', when: '48 hours before — Sunday 7pm', targetDate: dinnerDate ? new Date(dinnerDate.getTime() - 48 * 3600 * 1000) : null },
+            { icon: '📍', step: 'Venue revealed', when: '24 hours before — restaurant & address', targetDate: dinnerDate ? new Date(dinnerDate.getTime() - 24 * 3600 * 1000) : null },
+          ].map(({ icon, step, when, targetDate }) => {
+            const secsLeft = targetDate ? Math.max(0, Math.ceil((targetDate - now) / 1000)) : null;
+            const unlocked = secsLeft !== null && secsLeft <= 0;
+            return (
+              <div key={step} className="flex items-start gap-3">
+                <span className="text-base mt-0.5">{icon}</span>
+                <div className="flex-1 flex items-start justify-between gap-4">
+                  <span className="font-sans text-cream/70 text-sm">{step}</span>
+                  <div className="text-right flex-shrink-0">
+                    <span className="font-sans text-cream/30 text-xs block">{when}</span>
+                    {secsLeft !== null && (
+                      <span className="font-sans text-gold text-xs font-semibold">
+                        {unlocked ? 'Any moment now' : formatCountdown(secsLeft)}
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
