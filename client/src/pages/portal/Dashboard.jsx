@@ -217,7 +217,6 @@ function DinnerCard({ dinner, onCancel }) {
   const isPending = dinner.is_pending || !dinner.table_id;
   const isPast = dinnerDate ? dinnerDate < now : false;
   const hoursUntil = dinnerDate ? (dinnerDate - now) / (1000 * 60 * 60) : Infinity;
-  const countdownSecs = dinnerDate ? Math.max(0, Math.ceil((dinnerDate - now) / 1000)) : null;
 
   let status = 'pending';
   if (!isPending && dinner.table_status === 'confirmed') {
@@ -244,33 +243,39 @@ function DinnerCard({ dinner, onCancel }) {
       {/* Date */}
       <h2 className="font-serif text-2xl text-cream mb-1">{formattedDate}</h2>
       <p className="font-sans text-cream/50 text-sm mb-1">{dinner.city || 'Auckland'}</p>
-      {!isPast && countdownSecs !== null && (
-        <p className="font-sans text-gold text-sm font-semibold tracking-wide mb-1">
-          {formatCountdown(countdownSecs)}
-        </p>
-      )}
       <p className="font-sans text-cream/40 text-xs mb-4">{config.description}</p>
 
       {/* ── STAGE 1: PENDING — what happens next ──
           Reveal timing is always relative to the fixed Tuesday 7pm dinner
           slot, not to table matching, so the countdown here works off
-          dinnerDate directly and ticks even before a table is confirmed. */}
-      {status === 'pending' && (
-        <div className="mt-5 space-y-3">
-          {[
-            { icon: '👀', step: 'Meet your table', when: '48 hours before — Sunday 7pm', targetDate: dinnerDate ? new Date(dinnerDate.getTime() - 48 * 3600 * 1000) : null },
-            { icon: '📍', step: 'Venue revealed', when: '24 hours before — restaurant & address', targetDate: dinnerDate ? new Date(dinnerDate.getTime() - 24 * 3600 * 1000) : null },
-          ].map(({ icon, step, when, targetDate }) => {
-            const secsLeft = targetDate ? Math.max(0, Math.ceil((targetDate - now) / 1000)) : null;
-            const unlocked = secsLeft !== null && secsLeft <= 0;
-            return (
+          dinnerDate directly and ticks even before a table is confirmed.
+          The venue step only starts its own countdown once the group
+          reveal step has finished — they run one at a time, not in
+          parallel, matching how RevealFlow behaves post-confirmation. */}
+      {status === 'pending' && (() => {
+        const groupRevealAt = dinnerDate ? new Date(dinnerDate.getTime() - 48 * 3600 * 1000) : null;
+        const groupSecsLeft = groupRevealAt ? Math.max(0, Math.ceil((groupRevealAt - now) / 1000)) : null;
+        const groupUnlocked = groupSecsLeft !== null && groupSecsLeft <= 0;
+        const venueRevealAt = dinnerDate ? new Date(dinnerDate.getTime() - 24 * 3600 * 1000) : null;
+        const venueSecsLeft = venueRevealAt ? Math.max(0, Math.ceil((venueRevealAt - now) / 1000)) : null;
+
+        const steps = [
+          { icon: '👀', step: 'Meet your table', when: '48 hours before — Sunday 7pm', secsLeft: groupSecsLeft, unlocked: groupUnlocked, notStarted: false },
+          { icon: '📍', step: 'Venue revealed', when: '24 hours before — restaurant & address', secsLeft: venueSecsLeft, unlocked: venueSecsLeft !== null && venueSecsLeft <= 0, notStarted: !groupUnlocked },
+        ];
+
+        return (
+          <div className="mt-5 space-y-3">
+            {steps.map(({ icon, step, when, secsLeft, unlocked, notStarted }) => (
               <div key={step} className="flex items-start gap-3">
                 <span className="text-base mt-0.5">{icon}</span>
                 <div className="flex-1 flex items-start justify-between gap-4">
                   <span className="font-sans text-cream/70 text-sm">{step}</span>
                   <div className="text-right flex-shrink-0">
                     <span className="font-sans text-cream/30 text-xs block">{when}</span>
-                    {secsLeft !== null && (
+                    {notStarted ? (
+                      <span className="font-sans text-cream/20 text-xs italic">Starts after table reveal</span>
+                    ) : secsLeft !== null && (
                       <span className="font-sans text-gold text-xs font-semibold">
                         {unlocked ? 'Any moment now' : formatCountdown(secsLeft)}
                       </span>
@@ -278,10 +283,10 @@ function DinnerCard({ dinner, onCancel }) {
                   </div>
                 </div>
               </div>
-            );
-          })}
-        </div>
-      )}
+            ))}
+          </div>
+        );
+      })()}
 
       {/* ── Group locked in onward — one countdown at a time, then reveals ── */}
       {dinner.table_status === 'confirmed' && (
