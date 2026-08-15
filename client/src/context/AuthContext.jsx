@@ -24,7 +24,11 @@ export function AuthProvider({ children }) {
         return;
       }
 
-      const tokenResult = await fbUser.getIdTokenResult();
+      // Force a refresh — right after sign-in, the Auth emulator doesn't
+      // reliably bake newly-set custom claims (e.g. role: admin) into the
+      // first unforced token read, which was bouncing fresh admin logins
+      // straight back out.
+      const tokenResult = await fbUser.getIdTokenResult(true);
       const profile = { uid: fbUser.uid, email: fbUser.email, name: fbUser.displayName };
 
       if (tokenResult.claims.role === 'admin') {
@@ -52,7 +56,7 @@ export function AuthProvider({ children }) {
 
   const loginAdmin = async (email, password) => {
     const cred = await signInWithEmailAndPassword(auth, email, password);
-    const tokenResult = await cred.user.getIdTokenResult();
+    const tokenResult = await cred.user.getIdTokenResult(true);
     if (tokenResult.claims.role !== 'admin') {
       await signOut(auth);
       throw new Error('This account does not have admin access.');

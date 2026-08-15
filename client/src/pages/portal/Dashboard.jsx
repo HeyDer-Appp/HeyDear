@@ -166,9 +166,9 @@ function RevealFlow({ revealAt, venueRevealAt, tableId, dinner }) {
       {glimpseUnlocked && (
         <button
           onClick={() => setShowGlimpse(true)}
-          className="quiz-cta w-full flex items-center justify-center gap-2"
+          className="quiz-cta w-full flex items-center justify-center gap-2 whitespace-nowrap"
         >
-          👀 Meet your table
+          <span>👀</span><span>Meet your table</span>
         </button>
       )}
 
@@ -235,8 +235,8 @@ function DinnerCard({ dinner, onCancel }) {
     <div className={`quiz-card ${config.border}`}>
       {/* Status badge */}
       <div className="flex items-center justify-between mb-5">
-        <span className={`inline-flex items-center gap-2 text-xs font-sans font-semibold tracking-wider uppercase px-3 py-1.5 rounded-full ${config.bg} ${config.color}`}>
-          <span>{config.icon}</span> {config.label}
+        <span className={`inline-flex items-center gap-2 text-xs font-sans font-semibold tracking-wider uppercase px-3 py-1.5 rounded-full whitespace-nowrap ${config.bg} ${config.color}`}>
+          <span>{config.icon}</span><span>{config.label}</span>
         </span>
         {!isPast && <span className="font-sans text-cream/30 text-xs">7:00 PM</span>}
       </div>
