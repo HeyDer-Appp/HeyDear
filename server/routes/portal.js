@@ -223,7 +223,12 @@ router.get('/dinners', attendeeAuth, async (req, res) => {
         const booking = latestDoc.data();
         pendingDinners = [{
           table_id: null,
-          date: null,
+          // tuesdayDate is the normalized 'YYYY-MM-DD' chosen at signup — the
+          // dinners collection doc (and its `date` field) only gets created
+          // once matching happens, but the dashboard's reveal countdowns are
+          // timed off this date regardless of match status, so it needs to
+          // go out even for an unmatched booking.
+          date: booking.tuesdayDate || null,
           preferred_date: booking.field_CdZldwp5q09o,
           city: 'Auckland',
           table_status: null,
