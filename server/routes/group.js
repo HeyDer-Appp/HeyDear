@@ -137,6 +137,7 @@ router.get('/:tableId', attendeeAuth, async (req, res) => {
       user_id: id,
       photo: infoById[id]?.photo || null,
       first_name: infoById[id]?.firstName || null,
+      country: infoById[id]?.country || null,
     }));
 
     const messages = messagesSnap.docs.map(d => {

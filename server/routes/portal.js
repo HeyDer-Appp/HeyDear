@@ -295,8 +295,10 @@ router.get('/glimpse/:tableId', attendeeAuth, async (req, res) => {
     }));
 
     // Name and photo ship either way — the client is what blurs/masks both
-    // until `revealed` flips true, same pattern as the group chat. Only the
-    // "describe your job to a kid" answer is unmasked from the start.
+    // until `revealed` flips true, same pattern as the group chat. Country
+    // only ever renders as a flag icon next to the name, never as text, so
+    // it isn't gated the same way — the job-for-a-kid answer is unmasked
+    // from the start too.
     const revealed = new Date() >= fullRevealAt(dinnerDate);
     const glimpse = otherMembers.map(d => {
       const m = d.data();
@@ -305,6 +307,7 @@ router.get('/glimpse/:tableId', attendeeAuth, async (req, res) => {
         career_kid: m.career_description,
         photo: info.photo || null,
         first_name: info.firstName || null,
+        country: info.country || null,
       };
     });
 

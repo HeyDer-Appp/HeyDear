@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
 import BottomNav from '../../components/BottomNav';
+import { flagEmoji } from '../../utils/flags';
 
 const AVATAR_FALLBACK = 'https://heyder.nz/wp-content/uploads/2026/06/account-2.png';
 
@@ -262,7 +263,12 @@ function GroupDetail({ tableId, onBack }) {
 
   const photoByUser = {};
   const nameByUser = {};
-  (data?.members || []).forEach(m => { photoByUser[m.user_id] = m.photo; nameByUser[m.user_id] = m.first_name; });
+  const countryByUser = {};
+  (data?.members || []).forEach(m => {
+    photoByUser[m.user_id] = m.photo;
+    nameByUser[m.user_id] = m.first_name;
+    countryByUser[m.user_id] = m.country;
+  });
 
   const handleAsk = async (promptId) => {
     setShowPicker(false);
@@ -363,7 +369,9 @@ function GroupDetail({ tableId, onBack }) {
             <div key={m.user_id} className="flex flex-col items-center w-14">
               <Avatar photo={m.photo} blurred={!data.revealed} size={44} />
               <p className="font-sans text-cream/60 text-[10px] mt-1 truncate max-w-full">
-                {data.revealed ? (m.first_name || 'Guest') : '•••'}
+                {data.revealed ? (
+                  <>{m.first_name || 'Guest'} {m.country && flagEmoji(m.country)}</>
+                ) : '•••'}
               </p>
             </div>
           ))}
@@ -380,7 +388,8 @@ function GroupDetail({ tableId, onBack }) {
         {(data.messages || []).map(msg => {
           const isOwn = msg.user_id === attendeeUser?.uid;
           const photo = photoByUser[msg.user_id];
-          const name = data.revealed ? (nameByUser[msg.user_id] || 'Guest') : null;
+          const country = countryByUser[msg.user_id];
+          const name = data.revealed ? `${nameByUser[msg.user_id] || 'Guest'}${country ? ` ${flagEmoji(country)}` : ''}` : null;
           if (msg.type === 'prompt') {
             return <PromptMessage key={msg.id} msg={msg} photo={photo} name={name} blurred={!data.revealed} onAnswer={handleAnswer} />;
           }
