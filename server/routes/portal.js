@@ -30,6 +30,12 @@ function glimpseRevealAt(dinnerDate) {
 function venueRevealAt(dinnerDate) {
   return new Date(glimpseRevealAt(dinnerDate).getTime() + 24 * 60 * 60 * 1000);
 }
+// Names and clear photos unlock at 8pm dinner night, once dinner is
+// underway — same threshold group.js uses for the group chat's full
+// reveal, kept in sync manually since these live in separate route files.
+function fullRevealAt(dinnerDate) {
+  return dinnerAt(dinnerDate, 20, 0);
+}
 
 router.get('/profile', attendeeAuth, async (req, res) => {
   try {
@@ -281,24 +287,28 @@ router.get('/glimpse/:tableId', attendeeAuth, async (req, res) => {
 
     const membersSnap = await db.collection('tableMembers').where('tableId', '==', tableId).get();
     const otherMembers = membersSnap.docs.filter(d => d.data().user_id !== req.user.id);
-    const photoByUserId = {};
+    const infoByUserId = {};
     await Promise.all(otherMembers.map(async (d) => {
       const userId = d.data().user_id;
       const userSnap = await db.collection('users').doc(userId).get();
-      photoByUserId[userId] = userSnap.exists ? userSnap.data().photo || null : null;
+      infoByUserId[userId] = userSnap.exists ? userSnap.data() : {};
     }));
 
-    // Only the "describe your job to a kid" answer ships here — no name, no
-    // country, nothing else identifying — alongside the blurred photo.
+    // Name and photo ship either way — the client is what blurs/masks both
+    // until `revealed` flips true, same pattern as the group chat. Only the
+    // "describe your job to a kid" answer is unmasked from the start.
+    const revealed = new Date() >= fullRevealAt(dinnerDate);
     const glimpse = otherMembers.map(d => {
       const m = d.data();
+      const info = infoByUserId[m.user_id] || {};
       return {
         career_kid: m.career_description,
-        photo: photoByUserId[m.user_id] || null,
+        photo: info.photo || null,
+        first_name: info.firstName || null,
       };
     });
 
-    res.json({ glimpse });
+    res.json({ glimpse, revealed });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });

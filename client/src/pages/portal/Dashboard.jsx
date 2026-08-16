@@ -42,10 +42,9 @@ const STATUS_CONFIG = {
   },
 };
 
-// A tablemate's country + career answer, with their photo shown blurred (or
-// a plain placeholder if they never uploaded one) — enough to build
-// anticipation without actually identifying anyone before dinner night.
-function GlimpseCard({ member }) {
+// A tablemate's career answer, with their name and photo both masked until
+// the 8pm reveal — only the job-for-a-kid answer is visible from the start.
+function GlimpseCard({ member, revealed }) {
   return (
     <div className="flex items-center gap-3 bg-white/[0.03] rounded-xl p-3 border border-white/5">
       {member.photo ? (
@@ -53,8 +52,8 @@ function GlimpseCard({ member }) {
           <img
             src={member.photo}
             alt=""
-            className="w-full h-full object-cover"
-            style={{ filter: 'blur(6px)', transform: 'scale(1.15)' }}
+            className="w-full h-full object-cover transition-[filter] duration-700"
+            style={revealed ? undefined : { filter: 'blur(6px)', transform: 'scale(1.15)' }}
             draggable={false}
           />
         </div>
@@ -64,6 +63,9 @@ function GlimpseCard({ member }) {
         </div>
       )}
       <div className="min-w-0">
+        <p className="font-sans text-cream/60 text-xs font-semibold mb-0.5">
+          {revealed ? (member.first_name || 'Guest') : '•••'}
+        </p>
         <p className="font-sans text-cream/40 text-[10px] uppercase tracking-widest mb-0.5">Describes their job as</p>
         <p className="font-sans text-cream text-sm italic truncate">
           "{member.career_kid || 'No answer shared'}"
@@ -73,26 +75,30 @@ function GlimpseCard({ member }) {
   );
 }
 
-// The "meet your table" popup — nationality, job, and a blurred photo (if
-// they have one) for everyone else at the table, with a way straight into
-// the group chat where the icebreakers are already waiting.
+// The group-info popup — everyone else at the table, name and photo both
+// blurred/masked until 8pm dinner night, with a way straight into the group
+// chat where the icebreakers are already waiting.
 function GlimpseModal({ tableId, onClose }) {
   const [glimpse, setGlimpse] = useState(null);
+  const [revealed, setRevealed] = useState(false);
   const [error, setError] = useState(false);
 
   useEffect(() => {
     api.get(`/portal/glimpse/${tableId}`)
-      .then(res => setGlimpse(res.data.glimpse || []))
+      .then(res => { setGlimpse(res.data.glimpse || []); setRevealed(!!res.data.revealed); })
       .catch(() => setError(true));
   }, [tableId]);
 
   return (
     <div className="fixed inset-0 z-50 bg-navy/80 backdrop-blur flex items-center justify-center p-6" onClick={onClose}>
       <div className="bg-dark-card rounded-2xl border border-white/10 p-6 max-w-sm w-full max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <div className="flex items-start justify-between mb-4">
-          <h2 className="font-serif text-2xl text-cream">Meet your table</h2>
+        <div className="flex items-start justify-between mb-1">
+          <h2 className="font-serif text-2xl text-cream">Group Info</h2>
           <button onClick={onClose} className="text-cream/40 hover:text-cream text-xl">✕</button>
         </div>
+        <p className="font-sans text-cream/30 text-xs mb-4">
+          {revealed ? 'Names and photos revealed' : 'Names & photos reveal 8pm on the night'}
+        </p>
 
         {error ? (
           <p className="font-sans text-cream/40 text-sm text-center py-6">Couldn't load your table yet.</p>
@@ -102,7 +108,7 @@ function GlimpseModal({ tableId, onClose }) {
           </div>
         ) : (
           <div className="space-y-3">
-            {glimpse.map((m, i) => <GlimpseCard key={i} member={m} />)}
+            {glimpse.map((m, i) => <GlimpseCard key={i} member={m} revealed={revealed} />)}
           </div>
         )}
 
@@ -168,7 +174,7 @@ function RevealFlow({ revealAt, venueRevealAt, tableId, dinner }) {
           onClick={() => setShowGlimpse(true)}
           className="quiz-cta w-full flex items-center justify-center gap-2 whitespace-nowrap"
         >
-          <span>👀</span><span>Meet your table</span>
+          <span>👀</span><span>Group Info</span>
         </button>
       )}
 
