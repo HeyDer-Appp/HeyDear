@@ -17,7 +17,7 @@ function formatCountdown(ms) {
 
 function formatDinnerDate(iso) {
   if (!iso) return '';
-  return new Date(iso).toLocaleDateString('en-NZ', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  return new Date(iso).toLocaleDateString('en-NZ', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Pacific/Auckland' });
 }
 
 // The blur has to live on a wrapper with its own overflow:hidden — a filter

@@ -4,6 +4,7 @@ const { admin, db } = require('../firebase');
 const { attendeeAuth } = require('../middleware/auth');
 const { stripe } = require('../services/stripe');
 const { ANSWER_FIELDS } = require('../utils/answerFields');
+const { nzTime } = require('../utils/nzTime');
 
 function toDate(v) {
   if (!v) return null;
@@ -15,13 +16,8 @@ function toDate(v) {
 // relative to whenever an admin happened to confirm the table. Mirrors the
 // same dinner-date-relative pattern used for the group chat and album
 // reveal windows.
-function dinnerAt(dinnerDate, hours, minutes = 0) {
-  const d = new Date(dinnerDate);
-  d.setHours(hours, minutes, 0, 0);
-  return d;
-}
 function glimpseRevealAt(dinnerDate) {
-  return new Date(dinnerAt(dinnerDate, 19, 0).getTime() - 48 * 60 * 60 * 1000);
+  return new Date(nzTime(dinnerDate, 19, 0).getTime() - 48 * 60 * 60 * 1000);
 }
 // Venue details unlock 24h after the group reveal — i.e. 7pm the Monday
 // before a Tuesday dinner (24h before the sit-down itself). Same
@@ -34,7 +30,7 @@ function venueRevealAt(dinnerDate) {
 // underway — same threshold group.js uses for the group chat's full
 // reveal, kept in sync manually since these live in separate route files.
 function fullRevealAt(dinnerDate) {
-  return dinnerAt(dinnerDate, 20, 0);
+  return nzTime(dinnerDate, 20, 0);
 }
 
 router.get('/profile', attendeeAuth, async (req, res) => {
@@ -194,7 +190,11 @@ router.get('/dinners', attendeeAuth, async (req, res) => {
         table_status: table.status,
         confirmed: true,
         held_over: false,
-        date: dinnerDate ? dinnerDate.toISOString() : null,
+        // Sent as the actual 7pm-NZT dinner-start instant (not midnight UTC
+        // of the calendar day) so the client can use it directly as a
+        // countdown target without having to know anything about NZ's
+        // timezone/DST itself.
+        date: dinnerDate ? nzTime(dinnerDate, 19, 0).toISOString() : null,
         city: dinner.city || 'Auckland',
         status: dinner.status,
         reveal_at: revealAt ? revealAt.toISOString() : null,
@@ -234,7 +234,7 @@ router.get('/dinners', attendeeAuth, async (req, res) => {
           // once matching happens, but the dashboard's reveal countdowns are
           // timed off this date regardless of match status, so it needs to
           // go out even for an unmatched booking.
-          date: booking.tuesdayDate || null,
+          date: booking.tuesdayDate ? nzTime(booking.tuesdayDate, 19, 0).toISOString() : null,
           preferred_date: booking.field_CdZldwp5q09o,
           city: 'Auckland',
           table_status: null,
@@ -343,7 +343,7 @@ router.post('/cancel/:tableId', attendeeAuth, async (req, res) => {
     const table = tableSnap.data();
     const dinnerSnap = await db.collection('dinners').doc(table.dinnerId).get();
     const dinnerDate = toDate(dinnerSnap.data()?.date);
-    const hoursUntil = dinnerDate ? (dinnerDate - new Date()) / (1000 * 60 * 60) : Infinity;
+    const hoursUntil = dinnerDate ? (nzTime(dinnerDate, 19, 0) - new Date()) / (1000 * 60 * 60) : Infinity;
 
     if (hoursUntil < 48) {
       return res.status(400).json({ error: 'Cancellations must be made at least 48 hours before dinner.' });

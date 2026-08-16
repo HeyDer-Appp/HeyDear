@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { admin, db } = require('../firebase');
 const { attendeeAuth } = require('../middleware/auth');
+const { nzTime } = require('../utils/nzTime');
 
 function toDate(v) {
   if (!v) return null;
@@ -12,8 +13,7 @@ function toDate(v) {
 // closes 7pm the following day (Wednesday) — one full day to share photos
 // from the night out, then it's locked for good.
 function albumWindow(dinnerDate) {
-  const open = new Date(dinnerDate);
-  open.setHours(19, 0, 0, 0);
+  const open = nzTime(dinnerDate, 19, 0);
   const close = new Date(open.getTime() + 24 * 60 * 60 * 1000);
   return { open, close };
 }
@@ -71,7 +71,9 @@ router.get('/', attendeeAuth, async (req, res) => {
 
       return {
         table_id: tableId,
-        date: dinnerDate ? dinnerDate.toISOString() : null,
+        // The 7pm-NZT dinner-start instant, not midnight UTC of the day —
+        // avoids the date label shifting a day off in some viewer timezones.
+        date: dinnerDate ? nzTime(dinnerDate, 19, 0).toISOString() : null,
         city: dinner.city || 'Auckland',
         attendees,
         photos,

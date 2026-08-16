@@ -10,7 +10,7 @@ const MAX_STACK = 3;
 
 function formatDinnerDate(iso) {
   if (!iso) return '';
-  return new Date(iso).toLocaleDateString('en-NZ', { day: 'numeric', month: 'short', year: 'numeric' });
+  return new Date(iso).toLocaleDateString('en-NZ', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Pacific/Auckland' });
 }
 
 // A single printed-photo card — the date is burned in at the bottom in a

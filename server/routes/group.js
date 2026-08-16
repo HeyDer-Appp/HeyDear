@@ -3,6 +3,7 @@ const router = express.Router();
 const { admin, db } = require('../firebase');
 const { attendeeAuth } = require('../middleware/auth');
 const { PROMPTS, getPrompt } = require('../data/prompts');
+const { nzTime } = require('../utils/nzTime');
 
 function toDate(v) {
   if (!v) return null;
@@ -16,23 +17,20 @@ function toDate(v) {
 // once revealed, a group stays fully open (clear photos, free texting)
 // forever after, which is also what makes a past/attended dinner's chat
 // naturally end up in the "revealed" state with zero special-casing.
-function dinnerAt(dinnerDate, hours, minutes = 0) {
-  const d = new Date(dinnerDate);
-  d.setHours(hours, minutes, 0, 0);
-  return d;
-}
 function chatOpensAt(dinnerDate) {
-  return new Date(dinnerAt(dinnerDate, 19, 0).getTime() - 48 * 60 * 60 * 1000);
+  return new Date(nzTime(dinnerDate, 19, 0).getTime() - 48 * 60 * 60 * 1000);
 }
 function revealAt(dinnerDate) {
-  return dinnerAt(dinnerDate, 20, 0);
+  return nzTime(dinnerDate, 20, 0);
 }
 function timingSummary(dinnerDate) {
   const opensAt = chatOpensAt(dinnerDate);
   const revealsAt = revealAt(dinnerDate);
   const now = new Date();
   return {
-    dinner_date: dinnerDate.toISOString(),
+    // The 7pm-NZT dinner-start instant, not midnight UTC of the day — used
+    // for both display and the sort/upcoming-vs-attended split below.
+    dinner_date: nzTime(dinnerDate, 19, 0).toISOString(),
     chat_opens_at: opensAt.toISOString(),
     reveal_at: revealsAt.toISOString(),
     chat_open: now >= opensAt,

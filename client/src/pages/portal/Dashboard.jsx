@@ -212,7 +212,11 @@ function formatCountdown(secs) {
 
 function DinnerCard({ dinner, onCancel }) {
   const [now, setNow] = useState(() => new Date());
-  const dinnerDate = dinner.date ? new Date(dinner.date.split('T')[0] + 'T19:00:00') : null;
+  // dinner.date is the actual 7pm-NZT dinner-start instant (server-computed,
+  // timezone-correct) — used as-is rather than re-deriving "7pm" from a
+  // bare date string in the viewer's own local timezone, which would be
+  // wrong for anyone not physically on NZ time.
+  const dinnerDate = dinner.date ? new Date(dinner.date) : null;
 
   useEffect(() => {
     if (!dinnerDate) return;
@@ -233,7 +237,7 @@ function DinnerCard({ dinner, onCancel }) {
 
   const config = STATUS_CONFIG[status];
   const formattedDate = dinnerDate
-    ? dinnerDate.toLocaleDateString('en-NZ', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+    ? dinnerDate.toLocaleDateString('en-NZ', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Pacific/Auckland' })
     : dinner.preferred_date || 'Upcoming Tuesday';
 
   return (
@@ -505,7 +509,7 @@ export default function PortalDashboard() {
                 <div key={d.table_id} className="rounded-xl border border-white/5 px-5 py-4 flex items-center justify-between" style={{ background: 'rgba(231,220,189,0.02)' }}>
                   <div>
                     <p className="font-sans text-cream/60 text-sm">
-                      {new Date(d.date).toLocaleDateString('en-NZ', { day: 'numeric', month: 'long', year: 'numeric' })}
+                      {new Date(d.date).toLocaleDateString('en-NZ', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Pacific/Auckland' })}
                     </p>
                     {d.restaurant_name && <p className="font-sans text-cream/35 text-xs mt-0.5">{d.restaurant_name}</p>}
                   </div>
