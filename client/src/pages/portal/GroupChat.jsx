@@ -428,7 +428,10 @@ function GroupDetail({ tableId, onBack }) {
               </button>
             </>
           ) : (
-            <p className="flex-1 font-sans text-cream/30 text-xs px-1">🔒 Messaging opens at 8pm on dinner night</p>
+            <div className="flex-1 px-1">
+              <p className="font-sans text-cream/70 text-sm font-semibold">Chat opens soon</p>
+              <p className="font-sans text-cream/30 text-xs mt-0.5">🔒 Messaging opens at 8pm on dinner night</p>
+            </div>
           )}
         </div>
       </div>
