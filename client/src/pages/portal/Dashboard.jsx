@@ -64,10 +64,9 @@ function GlimpseCard({ member, revealed }) {
         </div>
       )}
       <div className="min-w-0">
-        <p className="font-sans text-cream/60 text-xs font-semibold mb-0.5">
-          {revealed ? (member.first_name || 'Guest') : '•••'} {member.country && flagEmoji(member.country)}
+        <p className="font-sans text-cream/60 text-xs font-semibold mb-1 flex items-center gap-1.5">
+          {revealed ? (member.first_name || 'Guest') : '•••'} {member.country && <span className="text-lg leading-none">{flagEmoji(member.country)}</span>}
         </p>
-        <p className="font-sans text-cream/40 text-[10px] uppercase tracking-widest mb-0.5">Describes their job as</p>
         <p className="font-sans text-cream text-sm italic">
           "{member.career_kid || 'No answer shared'}"
         </p>
@@ -97,6 +96,7 @@ function GlimpseModal({ tableId, onClose }) {
           <h2 className="font-serif text-2xl text-cream">Group Info</h2>
           <button onClick={onClose} className="text-cream/40 hover:text-cream text-xl">✕</button>
         </div>
+        <p className="font-sans text-cream/50 text-sm mb-1">Just a glimpse of people you are meeting</p>
         <p className="font-sans text-cream/30 text-xs mb-4">
           {revealed ? 'Names and photos revealed' : 'Names & photos reveal 8pm on the night'}
         </p>
