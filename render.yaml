@@ -77,7 +77,7 @@ services:
       # See NOTE on CLIENT_URL above — bare hostname from fromService/host
       # doesn't work as a fetch target, so hardcode the real URL.
       - key: VITE_API_URL
-        value: https://heydearr.onrender.com
+        value: https://heyder-server.onrender.com
       - key: VITE_STRIPE_PUBLISHABLE_KEY
         sync: false
       - key: VITE_VAPID_PUBLIC_KEY
