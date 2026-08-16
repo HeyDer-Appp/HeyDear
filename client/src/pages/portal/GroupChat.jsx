@@ -41,11 +41,12 @@ function Avatar({ photo, blurred, size = 32 }) {
   );
 }
 
-function PromptMessage({ msg, photo, blurred, onAnswer }) {
+function PromptMessage({ msg, photo, name, blurred, onAnswer }) {
   return (
     <div className="flex items-end gap-2 mb-3">
       <Avatar photo={photo} blurred={blurred} />
       <div className="max-w-[75%]">
+        {name && <p className="font-sans text-cream/30 text-[10px] mb-1 ml-1">{name}</p>}
         <div className="bg-white/[0.06] rounded-2xl rounded-bl-sm px-4 py-2.5">
           <p className="font-sans text-cream/35 text-[10px] uppercase tracking-widest mb-1">Asked</p>
           <p className="font-serif text-cream text-base leading-snug">{msg.prompt_text}</p>
@@ -65,34 +66,40 @@ function PromptMessage({ msg, photo, blurred, onAnswer }) {
   );
 }
 
-function AnswerMessage({ msg, photo, blurred, isOwn }) {
+function AnswerMessage({ msg, photo, name, blurred, isOwn }) {
   return (
     <div className={`flex items-end gap-2 mb-3 ${isOwn ? 'flex-row-reverse' : ''}`}>
       <Avatar photo={photo} blurred={blurred} />
-      <div
-        className={`max-w-[75%] rounded-2xl px-4 py-2.5 ${
-          isOwn ? 'bg-gold text-navy rounded-br-sm' : 'bg-white/[0.06] text-cream rounded-bl-sm'
-        }`}
-      >
-        <p className={`font-sans text-[10px] uppercase tracking-widest mb-1 ${isOwn ? 'text-navy/50' : 'text-cream/40'}`}>
-          ↳ replied to "{msg.prompt_text}"
-        </p>
-        <p className="font-sans text-sm font-medium">{msg.option}</p>
+      <div className={`max-w-[75%] ${isOwn ? 'text-right' : ''}`}>
+        {name && !isOwn && <p className="font-sans text-cream/30 text-[10px] mb-1 ml-1">{name}</p>}
+        <div
+          className={`rounded-2xl px-4 py-2.5 ${
+            isOwn ? 'bg-gold text-navy rounded-br-sm' : 'bg-white/[0.06] text-cream rounded-bl-sm'
+          }`}
+        >
+          <p className={`font-sans text-[10px] uppercase tracking-widest mb-1 ${isOwn ? 'text-navy/50' : 'text-cream/40'}`}>
+            ↳ replied to "{msg.prompt_text}"
+          </p>
+          <p className="font-sans text-sm font-medium">{msg.option}</p>
+        </div>
       </div>
     </div>
   );
 }
 
-function TextMessage({ msg, photo, isOwn }) {
+function TextMessage({ msg, photo, name, isOwn }) {
   return (
     <div className={`flex items-end gap-2 mb-3 ${isOwn ? 'flex-row-reverse' : ''}`}>
       <Avatar photo={photo} blurred={false} />
-      <div
-        className={`max-w-[75%] rounded-2xl px-4 py-2.5 font-sans text-sm ${
-          isOwn ? 'bg-gold text-navy rounded-br-sm' : 'bg-white/[0.06] text-cream rounded-bl-sm'
-        }`}
-      >
-        {msg.text}
+      <div className={`max-w-[75%] ${isOwn ? 'text-right' : ''}`}>
+        {name && !isOwn && <p className="font-sans text-cream/30 text-[10px] mb-1 ml-1">{name}</p>}
+        <div
+          className={`rounded-2xl px-4 py-2.5 font-sans text-sm ${
+            isOwn ? 'bg-gold text-navy rounded-br-sm' : 'bg-white/[0.06] text-cream rounded-bl-sm'
+          }`}
+        >
+          {msg.text}
+        </div>
       </div>
     </div>
   );
@@ -217,8 +224,9 @@ function GroupList({ onOpen }) {
 }
 
 // One group's chat: locked countdown before the 48h mark, blurred prompts
-// feed once open, full reveal (clear photos + free text) at 7:30pm — and
-// for anything already attended, that reveal has naturally already happened.
+// feed once open, full reveal (clear photos, real names + free text) at
+// 8pm — and for anything already attended, that reveal has naturally
+// already happened.
 function GroupDetail({ tableId, onBack }) {
   const { attendeeUser } = useAuth();
   const [data, setData] = useState(null);
@@ -253,7 +261,8 @@ function GroupDetail({ tableId, onBack }) {
   }, [data?.messages?.length]);
 
   const photoByUser = {};
-  (data?.members || []).forEach(m => { photoByUser[m.user_id] = m.photo; });
+  const nameByUser = {};
+  (data?.members || []).forEach(m => { photoByUser[m.user_id] = m.photo; nameByUser[m.user_id] = m.first_name; });
 
   const handleAsk = async (promptId) => {
     setShowPicker(false);
@@ -329,7 +338,7 @@ function GroupDetail({ tableId, onBack }) {
             <p className="text-4xl mb-4">🔒</p>
             <h1 className="font-serif text-2xl text-cream mb-2">Group chat opens soon</h1>
             <p className="font-sans text-cream/40 text-sm mb-6 leading-relaxed">
-              You'll be able to meet your table with a few icebreakers 48 hours before dinner. Full profile photos and messaging unlock at 7:30pm on the night.
+              You'll be able to meet your table with a few icebreakers 48 hours before dinner. Full profiles — names, photos — and messaging unlock at 8pm on the night.
             </p>
             <p className="font-serif text-3xl text-gold tabular-nums">{formatCountdown(msLeft)}</p>
             <p className="font-sans text-cream/30 text-xs mt-1 uppercase tracking-widest">until it opens</p>
@@ -347,12 +356,15 @@ function GroupDetail({ tableId, onBack }) {
       {/* Blurred-until-revealed avatar strip */}
       <div className="relative z-10 max-w-lg mx-auto px-5 pt-5 pb-2">
         <p className="font-sans text-cream/40 text-xs mb-2">
-          {data.revealed ? 'Your table' : 'Your table — faces reveal at 7:30pm'}
+          {data.revealed ? 'Your table' : 'Your table — names & faces reveal at 8pm'}
         </p>
-        <div className="flex items-center">
-          {(data.members || []).map((m, i) => (
-            <div key={m.user_id} style={{ marginLeft: i === 0 ? 0 : -10, zIndex: i }}>
+        <div className="flex items-start gap-4 flex-wrap">
+          {(data.members || []).map(m => (
+            <div key={m.user_id} className="flex flex-col items-center w-14">
               <Avatar photo={m.photo} blurred={!data.revealed} size={44} />
+              <p className="font-sans text-cream/60 text-[10px] mt-1 truncate max-w-full">
+                {data.revealed ? (m.first_name || 'Guest') : '•••'}
+              </p>
             </div>
           ))}
         </div>
@@ -368,13 +380,14 @@ function GroupDetail({ tableId, onBack }) {
         {(data.messages || []).map(msg => {
           const isOwn = msg.user_id === attendeeUser?.uid;
           const photo = photoByUser[msg.user_id];
+          const name = data.revealed ? (nameByUser[msg.user_id] || 'Guest') : null;
           if (msg.type === 'prompt') {
-            return <PromptMessage key={msg.id} msg={msg} photo={photo} blurred={!data.revealed} onAnswer={handleAnswer} />;
+            return <PromptMessage key={msg.id} msg={msg} photo={photo} name={name} blurred={!data.revealed} onAnswer={handleAnswer} />;
           }
           if (msg.type === 'answer') {
-            return <AnswerMessage key={msg.id} msg={msg} photo={photo} blurred={!data.revealed} isOwn={isOwn} />;
+            return <AnswerMessage key={msg.id} msg={msg} photo={photo} name={name} blurred={!data.revealed} isOwn={isOwn} />;
           }
-          return <TextMessage key={msg.id} msg={msg} photo={photo} isOwn={isOwn} />;
+          return <TextMessage key={msg.id} msg={msg} photo={photo} name={name} isOwn={isOwn} />;
         })}
       </div>
 
@@ -406,7 +419,7 @@ function GroupDetail({ tableId, onBack }) {
               </button>
             </>
           ) : (
-            <p className="flex-1 font-sans text-cream/30 text-xs px-1">🔒 Messaging opens at 7:30pm on dinner night</p>
+            <p className="flex-1 font-sans text-cream/30 text-xs px-1">🔒 Messaging opens at 8pm on dinner night</p>
           )}
         </div>
       </div>

@@ -64,9 +64,9 @@ function GlimpseCard({ member }) {
         </div>
       )}
       <div className="min-w-0">
-        <p className="font-sans text-cream text-sm">{member.country || 'Somewhere new'}</p>
-        <p className="font-sans text-cream/50 text-xs italic mt-0.5 truncate">
-          {member.career_kid || 'No answer shared'}
+        <p className="font-sans text-cream/40 text-[10px] uppercase tracking-widest mb-0.5">Describes their job as</p>
+        <p className="font-sans text-cream text-sm italic truncate">
+          "{member.career_kid || 'No answer shared'}"
         </p>
       </div>
     </div>

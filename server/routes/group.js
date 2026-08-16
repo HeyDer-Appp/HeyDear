@@ -10,8 +10,9 @@ function toDate(v) {
 }
 
 // The group chat is a two-stage build-up to dinner: a prompts-only stage
-// that opens 48h before the 7pm sit-down, then a full reveal (real photos
-// + free-text messaging) at 7:30pm the night of. There's no closing time —
+// that opens 48h before the 7pm sit-down, then a full reveal (real photos,
+// real names + free-text messaging) at 8pm the night of, once dinner is
+// underway. There's no closing time —
 // once revealed, a group stays fully open (clear photos, free texting)
 // forever after, which is also what makes a past/attended dinner's chat
 // naturally end up in the "revealed" state with zero special-casing.
@@ -24,7 +25,7 @@ function chatOpensAt(dinnerDate) {
   return new Date(dinnerAt(dinnerDate, 19, 0).getTime() - 48 * 60 * 60 * 1000);
 }
 function revealAt(dinnerDate) {
-  return dinnerAt(dinnerDate, 19, 30);
+  return dinnerAt(dinnerDate, 20, 0);
 }
 function timingSummary(dinnerDate) {
   const opensAt = chatOpensAt(dinnerDate);
@@ -94,8 +95,9 @@ router.get('/', attendeeAuth, async (req, res) => {
 });
 
 // One group chat's full detail: locked countdown before the 48h mark,
-// prompts-and-answers feed once open, full reveal (real photos + free text)
-// at 7:30pm — which for any dinner that's already happened is always true.
+// prompts-and-answers feed once open, full reveal (real photos, real names
+// + free text) at 8pm — which for any dinner that's already happened is
+// always true.
 router.get('/:tableId', attendeeAuth, async (req, res) => {
   try {
     const { tableId } = req.params;
@@ -116,17 +118,28 @@ router.get('/:tableId', attendeeAuth, async (req, res) => {
 
     if (!timing.chat_open) return res.json(base);
 
+    // where() + orderBy() on different fields needs a composite index, so
+    // filter here and sort in memory instead (same pattern used everywhere
+    // else in this codebase).
     const [membersSnap, messagesSnap] = await Promise.all([
       db.collection('tableMembers').where('tableId', '==', tableId).get(),
-      db.collection('groupMessages').where('tableId', '==', tableId).orderBy('createdAt', 'asc').get(),
+      db.collection('groupMessages').where('tableId', '==', tableId).get(),
     ]);
+    messagesSnap.docs.sort((a, b) => (a.data().createdAt?.toMillis?.() || 0) - (b.data().createdAt?.toMillis?.() || 0));
 
     const memberIds = membersSnap.docs.map(d => d.data().user_id).filter(Boolean);
     const userDocs = await Promise.all(memberIds.map(id => db.collection('users').doc(id).get()));
-    const photoById = {};
-    userDocs.forEach(snap => { if (snap.exists) photoById[snap.id] = snap.data().photo || null; });
+    const infoById = {};
+    userDocs.forEach(snap => { if (snap.exists) infoById[snap.id] = snap.data(); });
 
-    const members = memberIds.map(id => ({ user_id: id, photo: photoById[id] || null }));
+    // Names ship alongside photos the same way — the client is what blurs/
+    // masks both until the 8pm reveal, not a server-side gate, since the
+    // messages feed already relies on the same client-side reveal flag.
+    const members = memberIds.map(id => ({
+      user_id: id,
+      photo: infoById[id]?.photo || null,
+      first_name: infoById[id]?.firstName || null,
+    }));
 
     const messages = messagesSnap.docs.map(d => {
       const m = d.data();
@@ -262,7 +275,7 @@ router.post('/:tableId/messages/:messageId/answer', attendeeAuth, async (req, re
   }
 });
 
-// Free-text messages — locked until 7:30pm on the dinner night, checked
+// Free-text messages — locked until 8pm on the dinner night, checked
 // server-side so the client-side composer lock can't just be bypassed.
 router.post('/:tableId/messages', attendeeAuth, async (req, res) => {
   try {
@@ -283,7 +296,7 @@ router.post('/:tableId/messages', attendeeAuth, async (req, res) => {
     const dinnerDate = toDate(dinnerSnap.data()?.date);
 
     if (!dinnerDate || new Date() < revealAt(dinnerDate)) {
-      return res.status(403).json({ error: 'Messaging opens at 7:30pm on dinner night.' });
+      return res.status(403).json({ error: 'Messaging opens at 8pm on dinner night.' });
     }
 
     const docRef = await db.collection('groupMessages').add({

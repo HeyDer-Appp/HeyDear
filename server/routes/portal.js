@@ -288,10 +288,11 @@ router.get('/glimpse/:tableId', attendeeAuth, async (req, res) => {
       photoByUserId[userId] = userSnap.exists ? userSnap.data().photo || null : null;
     }));
 
+    // Only the "describe your job to a kid" answer ships here — no name, no
+    // country, nothing else identifying — alongside the blurred photo.
     const glimpse = otherMembers.map(d => {
       const m = d.data();
       return {
-        country: m.country,
         career_kid: m.career_description,
         photo: photoByUserId[m.user_id] || null,
       };
