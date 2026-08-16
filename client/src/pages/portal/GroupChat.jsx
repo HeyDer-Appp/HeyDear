@@ -130,7 +130,7 @@ function GroupListCard({ g, onOpen, onExit }) {
       <p className="font-sans text-cream/40 text-xs mb-4">{g.city} · {g.member_count} people</p>
       <div className="flex items-center gap-4">
         <button onClick={() => onOpen(g.table_id)} className="quiz-cta text-xs py-2 px-5">Open chat</button>
-        <button onClick={() => onExit(g.table_id)} className="font-sans text-cream/30 hover:text-red-400 text-xs transition-colors">Exit group</button>
+        {onExit && <button onClick={() => onExit(g.table_id)} className="font-sans text-cream/30 hover:text-red-400 text-xs transition-colors">Exit group</button>}
       </div>
     </div>
   );
@@ -208,7 +208,7 @@ function GroupList({ onOpen }) {
         {upcoming.length > 0 && (
           <div className="space-y-3">
             <p className="font-sans font-semibold text-cream/50 text-xs uppercase tracking-widest">Upcoming</p>
-            {upcoming.map(g => <GroupListCard key={g.table_id} g={g} onOpen={onOpen} onExit={handleExit} />)}
+            {upcoming.map(g => <GroupListCard key={g.table_id} g={g} onOpen={onOpen} />)}
           </div>
         )}
 
