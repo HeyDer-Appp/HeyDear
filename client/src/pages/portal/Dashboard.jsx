@@ -78,7 +78,7 @@ function GlimpseCard({ member, revealed }) {
 // The group-info popup — everyone else at the table, name and photo both
 // blurred/masked until 8pm dinner night, with a way straight into the group
 // chat where the icebreakers are already waiting.
-function GlimpseModal({ tableId, onClose }) {
+export function GlimpseModal({ tableId, onClose }) {
   const [glimpse, setGlimpse] = useState(null);
   const [revealed, setRevealed] = useState(false);
   const [error, setError] = useState(false);

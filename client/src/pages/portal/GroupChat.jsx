@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
 import BottomNav from '../../components/BottomNav';
 import { flagEmoji } from '../../utils/flags';
+import { GlimpseModal } from './Dashboard';
 
 const AVATAR_FALLBACK = 'https://heyder.nz/wp-content/uploads/2026/06/account-2.png';
 
@@ -235,6 +236,7 @@ function GroupDetail({ tableId, onBack }) {
   const [loadError, setLoadError] = useState(false);
   const [now, setNow] = useState(Date.now());
   const [showPicker, setShowPicker] = useState(false);
+  const [showGroupInfo, setShowGroupInfo] = useState(false);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const feedRef = useRef(null);
@@ -359,24 +361,29 @@ function GroupDetail({ tableId, onBack }) {
     <div className="quiz-bg min-h-screen relative overflow-hidden">
       {detailHeader}
 
-      {/* Blurred-until-revealed avatar strip */}
-      <div className="relative z-10 max-w-lg mx-auto px-5 pt-5 pb-2">
-        <p className="font-sans text-cream/40 text-xs mb-2">
-          {data.revealed ? 'Your table' : 'Your table — names & faces reveal at 8pm'}
-        </p>
-        <div className="flex items-start gap-4 flex-wrap">
-          {(data.members || []).map(m => (
-            <div key={m.user_id} className="flex flex-col items-center w-14">
-              <Avatar photo={m.photo} blurred={!data.revealed} size={44} />
-              <p className="font-sans text-cream/60 text-[10px] mt-1 truncate max-w-full">
-                {data.revealed ? (
-                  <>{m.first_name || 'Guest'} {m.country && flagEmoji(m.country)}</>
-                ) : '•••'}
-              </p>
+      {/* Compact group-info bar — tap to see everyone, WhatsApp-style */}
+      <button
+        onClick={() => setShowGroupInfo(true)}
+        className="relative z-10 w-full max-w-lg mx-auto px-5 py-3 flex items-center gap-3 text-left border-b border-white/[0.06]"
+      >
+        <div className="flex -space-x-2 flex-shrink-0">
+          {(data.members || []).slice(0, 5).map(m => (
+            <div key={m.user_id} className="rounded-full ring-2 ring-[#16181d]">
+              <Avatar photo={m.photo} blurred={!data.revealed} size={28} />
             </div>
           ))}
+          {(data.members || []).length > 5 && (
+            <div className="w-7 h-7 rounded-full ring-2 ring-[#16181d] bg-white/10 flex items-center justify-center text-cream/60 text-[10px] font-sans font-semibold">
+              +{data.members.length - 5}
+            </div>
+          )}
         </div>
-      </div>
+        <p className="font-sans text-cream/40 text-xs">
+          {data.revealed ? 'Your table' : 'Your table — names & faces reveal at 8pm'}
+        </p>
+      </button>
+
+      {showGroupInfo && <GlimpseModal tableId={tableId} onClose={() => setShowGroupInfo(false)} />}
 
       {/* Feed */}
       <div ref={feedRef} className="relative z-10 max-w-lg mx-auto px-5 pt-2 pb-40 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 220px)' }}>
