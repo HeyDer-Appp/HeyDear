@@ -2,10 +2,23 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { Image, Users, MessageCircle, User } from 'lucide-react';
 
-// Just the plate emoji, plain — every custom SVG version of this got
-// rejected as too fussy, the emoji itself is what was actually wanted.
-function PlateEmoji({ size = 22 }) {
-  return <span style={{ fontSize: size, lineHeight: 1 }}>🍽️</span>;
+// Fork, plate, spoon — traced from a reference icon, filled solid instead
+// of outlined like the other four nav icons. currentColor so it still
+// tints gold on the active tab.
+function PlateForkSpoonIcon() {
+  return (
+    <svg width="27" height="22" viewBox="0 0 30 24" fill="currentColor">
+      <rect x="0.2" y="1.5" width="1" height="6.5" rx="0.5" />
+      <rect x="1.7" y="1.5" width="1" height="6.5" rx="0.5" />
+      <rect x="3.2" y="1.5" width="1" height="6.5" rx="0.5" />
+      <rect x="4.7" y="1.5" width="1" height="6.5" rx="0.5" />
+      <path d="M0.2 7h5.5v1.2c0 1.8-1.2 2.8-2.75 2.8S0.2 10 0.2 8.2Z" />
+      <rect x="2.2" y="10.5" width="1.3" height="11.5" rx="0.6" />
+      <circle cx="15" cy="12" r="8.3" />
+      <ellipse cx="25.5" cy="5" rx="2.6" ry="3.6" />
+      <rect x="24.85" y="8" width="1.3" height="14" rx="0.6" />
+    </svg>
+  );
 }
 
 // Order matters — Home stays dead center, Group Chat/My Album to its left,
@@ -13,7 +26,7 @@ function PlateEmoji({ size = 22 }) {
 const ITEMS = [
   { to: '/portal/album', icon: Image, label: 'Album' },
   { to: '/portal/group-chat', icon: Users, label: 'Group' },
-  { to: '/portal/dashboard', icon: PlateEmoji, label: 'My Table' },
+  { to: '/portal/dashboard', icon: PlateForkSpoonIcon, label: 'My Table' },
   { to: '/portal/chat', icon: MessageCircle, label: 'Chat' },
   { to: '/portal/profile', icon: User, label: 'Profile' },
 ];
