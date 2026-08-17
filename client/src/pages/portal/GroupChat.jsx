@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
 import BottomNav from '../../components/BottomNav';
-import { flagEmoji } from '../../utils/flags';
+import { flagUrl } from '../../utils/flags';
 import { GlimpseModal } from './Dashboard';
 
 const AVATAR_FALLBACK = 'https://heyder.nz/wp-content/uploads/2026/06/account-2.png';
@@ -43,12 +43,24 @@ function Avatar({ photo, blurred, size = 32 }) {
   );
 }
 
-function PromptMessage({ msg, photo, name, blurred, onAnswer }) {
+// Windows doesn't render Unicode flag emoji as actual flags (just plain
+// "NZ"/"IN" letters), so this is a real flag image instead.
+function NameTag({ name, country }) {
+  if (!name) return null;
+  return (
+    <p className="font-sans text-cream/30 text-[10px] mb-1 ml-1 flex items-center gap-1">
+      {name}
+      {country && flagUrl(country) && <img src={flagUrl(country)} alt={country} className="h-2.5 rounded-[1px]" />}
+    </p>
+  );
+}
+
+function PromptMessage({ msg, photo, name, country, blurred, onAnswer }) {
   return (
     <div className="flex items-end gap-2 mb-3">
       <Avatar photo={photo} blurred={blurred} />
       <div className="max-w-[75%]">
-        {name && <p className="font-sans text-cream/30 text-[10px] mb-1 ml-1">{name}</p>}
+        <NameTag name={name} country={country} />
         <div className="bg-white/[0.06] rounded-2xl rounded-bl-sm px-4 py-2.5">
           <p className="font-sans text-cream/35 text-[10px] uppercase tracking-widest mb-1">Asked</p>
           <p className="font-serif text-cream text-base leading-snug">{msg.prompt_text}</p>
@@ -68,12 +80,12 @@ function PromptMessage({ msg, photo, name, blurred, onAnswer }) {
   );
 }
 
-function AnswerMessage({ msg, photo, name, blurred, isOwn }) {
+function AnswerMessage({ msg, photo, name, country, blurred, isOwn }) {
   return (
     <div className={`flex items-end gap-2 mb-3 ${isOwn ? 'flex-row-reverse' : ''}`}>
       <Avatar photo={photo} blurred={blurred} />
       <div className={`max-w-[75%] ${isOwn ? 'text-right' : ''}`}>
-        {name && !isOwn && <p className="font-sans text-cream/30 text-[10px] mb-1 ml-1">{name}</p>}
+        {!isOwn && <NameTag name={name} country={country} />}
         <div
           className={`rounded-2xl px-4 py-2.5 ${
             isOwn ? 'bg-gold text-navy rounded-br-sm' : 'bg-white/[0.06] text-cream rounded-bl-sm'
@@ -89,12 +101,12 @@ function AnswerMessage({ msg, photo, name, blurred, isOwn }) {
   );
 }
 
-function TextMessage({ msg, photo, name, isOwn }) {
+function TextMessage({ msg, photo, name, country, isOwn }) {
   return (
     <div className={`flex items-end gap-2 mb-3 ${isOwn ? 'flex-row-reverse' : ''}`}>
       <Avatar photo={photo} blurred={false} />
       <div className={`max-w-[75%] ${isOwn ? 'text-right' : ''}`}>
-        {name && !isOwn && <p className="font-sans text-cream/30 text-[10px] mb-1 ml-1">{name}</p>}
+        {!isOwn && <NameTag name={name} country={country} />}
         <div
           className={`rounded-2xl px-4 py-2.5 font-sans text-sm ${
             isOwn ? 'bg-gold text-navy rounded-br-sm' : 'bg-white/[0.06] text-cream rounded-bl-sm'
@@ -396,14 +408,14 @@ function GroupDetail({ tableId, onBack }) {
           const isOwn = msg.user_id === attendeeUser?.uid;
           const photo = photoByUser[msg.user_id];
           const country = countryByUser[msg.user_id];
-          const name = data.revealed ? `${nameByUser[msg.user_id] || 'Guest'}${country ? ` ${flagEmoji(country)}` : ''}` : null;
+          const name = data.revealed ? (nameByUser[msg.user_id] || 'Guest') : null;
           if (msg.type === 'prompt') {
-            return <PromptMessage key={msg.id} msg={msg} photo={photo} name={name} blurred={!data.revealed} onAnswer={handleAnswer} />;
+            return <PromptMessage key={msg.id} msg={msg} photo={photo} name={name} country={country} blurred={!data.revealed} onAnswer={handleAnswer} />;
           }
           if (msg.type === 'answer') {
-            return <AnswerMessage key={msg.id} msg={msg} photo={photo} name={name} blurred={!data.revealed} isOwn={isOwn} />;
+            return <AnswerMessage key={msg.id} msg={msg} photo={photo} name={name} country={country} blurred={!data.revealed} isOwn={isOwn} />;
           }
-          return <TextMessage key={msg.id} msg={msg} photo={photo} name={name} isOwn={isOwn} />;
+          return <TextMessage key={msg.id} msg={msg} photo={photo} name={name} country={country} isOwn={isOwn} />;
         })}
       </div>
 

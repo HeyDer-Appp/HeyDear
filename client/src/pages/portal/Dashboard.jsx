@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
 import BottomNav from '../../components/BottomNav';
-import { flagEmoji } from '../../utils/flags';
+import { flagUrl } from '../../utils/flags';
 
 const AVATAR = 'https://heyder.nz/wp-content/uploads/2026/06/account-2.png';
 
@@ -65,7 +65,10 @@ function GlimpseCard({ member, revealed }) {
       )}
       <div className="min-w-0">
         <p className="font-sans text-cream/60 text-xs font-semibold mb-1 flex items-center gap-1.5">
-          {revealed ? (member.first_name || 'Guest') : '•••'} {member.country && <span className="text-lg leading-none">{flagEmoji(member.country)}</span>}
+          {revealed ? (member.first_name || 'Guest') : '•••'}
+          {member.country && flagUrl(member.country) && (
+            <img src={flagUrl(member.country)} alt={member.country} className="h-3.5 rounded-[2px] flex-shrink-0" />
+          )}
         </p>
         <p className="font-sans text-cream text-sm italic">
           "{member.career_kid || 'No answer shared'}"
