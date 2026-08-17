@@ -468,19 +468,21 @@ export default function PortalDashboard() {
 
       <div className="relative z-10 max-w-lg mx-auto px-5 py-8 space-y-6">
 
-        {/* Greeting */}
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="font-sans text-cream/40 text-sm">Welcome back</p>
-            <h1 className="font-serif text-4xl text-cream mt-1">
-              {profile?.first_name} {profile?.last_name?.charAt(0)}.
-            </h1>
-          </div>
+        {/* Profile header */}
+        <div className="flex items-center gap-3">
+          <img
+            src={profile?.photo || AVATAR}
+            alt=""
+            className="w-14 h-14 rounded-full border-2 border-gold/40 object-cover flex-shrink-0"
+          />
+          <h1 className="font-serif text-xl text-cream flex-1">
+            {profile?.first_name} {profile?.last_name?.charAt(0)}.
+          </h1>
           <Link
             to="/portal/profile"
-            className="font-sans text-gold text-xs hover:text-yellow transition-colors whitespace-nowrap mt-2"
+            className="font-sans text-gold text-xs hover:text-yellow transition-colors whitespace-nowrap"
           >
-            Edit profile →
+            Edit →
           </Link>
         </div>
 
