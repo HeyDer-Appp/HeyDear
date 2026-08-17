@@ -476,7 +476,7 @@ export default function PortalDashboard() {
             className="w-14 h-14 rounded-full border-2 border-gold/40 object-cover flex-shrink-0"
           />
           <h1 className="font-serif text-xl text-cream flex-1">
-            {profile?.first_name} {profile?.last_name?.charAt(0)}.
+            {profile?.first_name}
           </h1>
           <Link
             to="/portal/profile"
