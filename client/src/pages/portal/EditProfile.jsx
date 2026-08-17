@@ -22,6 +22,7 @@ export default function EditProfile() {
   const navigate = useNavigate();
   const [locked, setLocked] = useState(null);
   const [answers, setAnswers] = useState({});
+  const [initialAnswers, setInitialAnswers] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [photoUploading, setPhotoUploading] = useState(false);
@@ -30,11 +31,18 @@ export default function EditProfile() {
     api.get('/portal/full-profile')
       .then(res => {
         setLocked(res.data.locked);
-        setAnswers({ ...(res.data.answers || {}), photo: res.data.photo || null });
+        const loaded = { ...(res.data.answers || {}), photo: res.data.photo || null };
+        setAnswers(loaded);
+        setInitialAnswers(loaded);
       })
       .catch(() => toast.error('Failed to load your profile'))
       .finally(() => setLoading(false));
   }, []);
+
+  // The save button only shows up once something's actually been touched —
+  // compares against a snapshot taken right after load (and refreshed after
+  // every successful save), not a dirty flag that could drift out of sync.
+  const isDirty = initialAnswers !== null && JSON.stringify(answers) !== JSON.stringify(initialAnswers);
 
   const setValue = (field, value) => setAnswers(prev => ({ ...prev, [field]: value }));
 
@@ -55,6 +63,7 @@ export default function EditProfile() {
     setSaving(true);
     try {
       await api.patch('/portal/profile', answers);
+      setInitialAnswers(answers);
       toast.success('Profile updated!');
     } catch {
       toast.error('Failed to save changes');
@@ -81,7 +90,23 @@ export default function EditProfile() {
   return (
     <div className="quiz-bg min-h-screen relative overflow-hidden pb-24">
       <nav className="relative z-10 flex items-center justify-between px-6 py-5 border-b border-white/[0.06] backdrop-blur">
-        <Link to="/portal" className="font-sans text-cream/50 text-sm hover:text-cream transition-colors">← Back</Link>
+        <div className="flex items-center gap-3">
+          <Link to="/portal" className="font-sans text-cream/50 text-sm hover:text-cream transition-colors">← Back</Link>
+          {isDirty && (
+            <button
+              onClick={save}
+              disabled={saving}
+              className="quiz-cta text-xs py-1.5 px-4 flex items-center gap-1.5 disabled:opacity-60"
+            >
+              {saving ? (
+                <>
+                  <div className="w-3 h-3 border-2 border-navy/60 border-t-transparent rounded-full animate-spin" />
+                  Saving...
+                </>
+              ) : 'Save Changes'}
+            </button>
+          )}
+        </div>
         <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-7" />
         <div className="w-10" />
       </nav>
@@ -265,19 +290,6 @@ export default function EditProfile() {
             </div>
           );
         })}
-
-        <button
-          onClick={save}
-          disabled={saving}
-          className="quiz-cta w-full flex items-center justify-center gap-2 disabled:opacity-60"
-        >
-          {saving ? (
-            <>
-              <div className="w-4 h-4 border-2 border-navy/60 border-t-transparent rounded-full animate-spin" />
-              Saving...
-            </>
-          ) : 'Save Changes'}
-        </button>
       </div>
 
       <BottomNav />
