@@ -35,6 +35,8 @@ import PortalMyAlbum from './pages/portal/MyAlbum';
 import PortalBookDinner from './pages/portal/BookDinner';
 import PortalChat from './pages/portal/Chat';
 import PortalGroupChat from './pages/portal/GroupChat';
+import PortalPersonProfile from './pages/portal/PersonProfile';
+import PortalDirectChat from './pages/portal/DirectChat';
 
 import AdminLogin from './pages/admin/Login';
 import AdminDashboard from './pages/admin/Dashboard';
@@ -83,6 +85,8 @@ function AppRoutes() {
       <Route path="/portal/album" element={<PortalRoute><PortalMyAlbum /></PortalRoute>} />
       <Route path="/portal/chat" element={<PortalRoute><PortalChat /></PortalRoute>} />
       <Route path="/portal/group-chat" element={<PortalRoute><PortalGroupChat /></PortalRoute>} />
+      <Route path="/portal/person/:userId" element={<PortalRoute><PortalPersonProfile /></PortalRoute>} />
+      <Route path="/portal/dm/:connectionId" element={<PortalRoute><PortalDirectChat /></PortalRoute>} />
 
       <Route path="/admin/login" element={<AdminLogin />} />
       <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />

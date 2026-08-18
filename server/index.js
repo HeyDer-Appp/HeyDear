@@ -17,6 +17,7 @@ const feedbackRoutes = require('./routes/feedback');
 const typeformRoutes = require('./routes/typeform');
 const albumRoutes = require('./routes/album');
 const groupRoutes = require('./routes/group');
+const connectionsRoutes = require('./routes/connections');
 
 const adminSignupsRoutes = require('./routes/admin/signups');
 const adminMatchingRoutes = require('./routes/admin/matching');
@@ -90,6 +91,7 @@ app.use('/api/feedback', feedbackRoutes);
 app.use('/api/typeform', typeformRoutes);
 app.use('/api/album', albumRoutes);
 app.use('/api/group', groupRoutes);
+app.use('/api/connections', connectionsRoutes);
 
 app.use('/api/admin/signups', adminSignupsRoutes);
 app.use('/api/admin/matching', adminMatchingRoutes);

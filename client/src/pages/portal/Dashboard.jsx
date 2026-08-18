@@ -45,9 +45,13 @@ const STATUS_CONFIG = {
 
 // A tablemate's career answer, with their name and photo both masked until
 // the 8pm reveal — only the job-for-a-kid answer is visible from the start.
+// Once revealed, the whole card links through to their profile — the
+// "click their name to view albums/connect" entry point from there on.
 function GlimpseCard({ member, revealed }) {
+  const Wrapper = revealed ? Link : 'div';
+  const wrapperProps = revealed ? { to: `/portal/person/${member.user_id}` } : {};
   return (
-    <div className="flex items-center gap-3 bg-white/[0.03] rounded-xl p-3 border border-white/5">
+    <Wrapper {...wrapperProps} className={`flex items-center gap-3 bg-white/[0.03] rounded-xl p-3 border border-white/5 ${revealed ? 'hover:border-gold/30 transition-colors' : ''}`}>
       {member.photo ? (
         <div className="rounded-full overflow-hidden w-12 h-12 flex-shrink-0 border border-white/10">
           <img
@@ -74,7 +78,7 @@ function GlimpseCard({ member, revealed }) {
           "{member.career_kid || 'No answer shared'}"
         </p>
       </div>
-    </div>
+    </Wrapper>
   );
 }
 
