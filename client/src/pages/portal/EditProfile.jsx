@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../../utils/api';
-import { QUESTIONS, CHAPTERS } from '../Quiz';
+import { QUESTIONS, CHAPTERS, isPhoneValid } from '../Quiz';
 import { fileToResizedBase64 } from '../../utils/image';
 import BottomNav from '../../components/BottomNav';
 
@@ -16,7 +16,33 @@ function getAge(dob) {
   return Math.floor((Date.now() - new Date(dob)) / (365.25 * 24 * 60 * 60 * 1000));
 }
 
-const EDITABLE_QUESTIONS = QUESTIONS.filter(q => q.chapter);
+// 'personal' (dob/gender/country) and 'contact' (phone) each have their own
+// dedicated card above instead of going through this generic loop, which
+// only knows how to render yes_no/choice/multi_choice/scale/text — leaving
+// them in here rendered as an empty, input-less card with just the title.
+const EDITABLE_QUESTIONS = QUESTIONS.filter(q => q.chapter && q.type !== 'personal' && q.type !== 'contact');
+
+// Shared between the top-nav (compact) and bottom-of-form (full-width)
+// save buttons — a change made scrolled down at the bottom otherwise has
+// no visible save action without scrolling all the way back up to notice it.
+function SaveButton({ onClick, saving, compact }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={saving}
+      className={compact
+        ? 'quiz-cta text-xs py-1.5 px-4 flex items-center gap-1.5 disabled:opacity-60'
+        : 'quiz-cta w-full flex items-center justify-center gap-2 disabled:opacity-60'}
+    >
+      {saving ? (
+        <>
+          <div className={`${compact ? 'w-3 h-3' : 'w-4 h-4'} border-2 border-navy/60 border-t-transparent rounded-full animate-spin`} />
+          Saving...
+        </>
+      ) : 'Save Changes'}
+    </button>
+  );
+}
 
 export default function EditProfile() {
   const navigate = useNavigate();
@@ -31,7 +57,7 @@ export default function EditProfile() {
     api.get('/portal/full-profile')
       .then(res => {
         setLocked(res.data.locked);
-        const loaded = { ...(res.data.answers || {}), photo: res.data.photo || null };
+        const loaded = { ...(res.data.answers || {}), phone: res.data.locked?.phone || '', photo: res.data.photo || null };
         setAnswers(loaded);
         setInitialAnswers(loaded);
       })
@@ -43,6 +69,7 @@ export default function EditProfile() {
   // compares against a snapshot taken right after load (and refreshed after
   // every successful save), not a dirty flag that could drift out of sync.
   const isDirty = initialAnswers !== null && JSON.stringify(answers) !== JSON.stringify(initialAnswers);
+  const phoneError = !isPhoneValid(answers.phone);
 
   const setValue = (field, value) => setAnswers(prev => ({ ...prev, [field]: value }));
 
@@ -60,6 +87,10 @@ export default function EditProfile() {
   };
 
   const save = async () => {
+    if (phoneError) {
+      toast.error('Enter a 10-digit phone number.');
+      return;
+    }
     setSaving(true);
     try {
       await api.patch('/portal/profile', answers);
@@ -92,20 +123,7 @@ export default function EditProfile() {
       <nav className="relative z-10 flex items-center justify-between px-6 py-5 border-b border-white/[0.06] backdrop-blur">
         <div className="flex items-center gap-3">
           <Link to="/portal" className="font-sans text-cream/50 text-sm hover:text-cream transition-colors">← Back</Link>
-          {isDirty && (
-            <button
-              onClick={save}
-              disabled={saving}
-              className="quiz-cta text-xs py-1.5 px-4 flex items-center gap-1.5 disabled:opacity-60"
-            >
-              {saving ? (
-                <>
-                  <div className="w-3 h-3 border-2 border-navy/60 border-t-transparent rounded-full animate-spin" />
-                  Saving...
-                </>
-              ) : 'Save Changes'}
-            </button>
-          )}
+          {isDirty && <SaveButton onClick={save} saving={saving} compact />}
         </div>
         <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-7" />
         <div className="w-10" />
@@ -168,10 +186,6 @@ export default function EditProfile() {
               <p className="text-cream/70">{getAge(locked.dob)}</p>
             </div>
             <div>
-              <p className="text-cream/30 text-xs">Mobile</p>
-              <p className="text-cream/70">{locked.phone || '—'}</p>
-            </div>
-            <div>
               <p className="text-cream/30 text-xs">Email</p>
               <p className="text-cream/70 truncate">{locked.email}</p>
             </div>
@@ -179,6 +193,23 @@ export default function EditProfile() {
           <p className="font-sans text-cream/25 text-xs mt-3">
             Need to fix one of these? Email <a href="mailto:info@heyder.nz" className="text-gold/70 hover:text-gold">info@heyder.nz</a>
           </p>
+        </div>
+
+        {/* Contact number — editable here, unlike name/dob/email above */}
+        <div className="quiz-card">
+          <p className="font-sans font-semibold text-cream text-sm mb-1">Contact number</p>
+          <input
+            type="tel"
+            inputMode="numeric"
+            placeholder="Phone number"
+            value={answers.phone || ''}
+            onChange={e => setValue('phone', e.target.value.replace(/\D/g, '').slice(0, 10))}
+            maxLength={10}
+            className={`quiz-input ${phoneError && answers.phone ? 'border-red-400/60' : ''}`}
+          />
+          {phoneError && answers.phone && (
+            <p className="font-sans text-red-400/80 text-xs mt-1.5">Enter a 10-digit phone number.</p>
+          )}
         </div>
 
         {/* Editable answers, grouped by chapter */}
@@ -290,6 +321,8 @@ export default function EditProfile() {
             </div>
           );
         })}
+
+        {isDirty && <SaveButton onClick={save} saving={saving} />}
       </div>
 
       <BottomNav />

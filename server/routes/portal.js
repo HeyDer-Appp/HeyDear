@@ -54,9 +54,11 @@ router.get('/profile', attendeeAuth, async (req, res) => {
 });
 
 // Fields the attendee is allowed to edit after profile setup.
-// Name, date of birth (age), phone, and email are intentionally excluded —
-// those are edited via a support request, not this endpoint.
+// Name, date of birth (age), and email are intentionally excluded — those
+// are edited via a support request, not this endpoint. Phone is editable
+// (see the dedicated validation on it below).
 const EDITABLE_FIELDS = [
+  'phone',
   'field_cqCcs6psQuhE', 'field_3zmnHXYzZn17', 'field_aIpzE2elktbh',
   'field_L6GblNns9C7v', 'field_LosYJHqrbpKO', 'field_lS4ks7Km1VlA',
   'field_PyYcCusA8b74', 'field_Y8VLrSMSZLmb', 'field_heE41fid4m48',
@@ -117,6 +119,10 @@ async function syncPendingBooking(uid, updates) {
 
 router.patch('/profile', attendeeAuth, async (req, res) => {
   try {
+    if ('phone' in req.body && req.body.phone && !/^\d{10}$/.test(req.body.phone)) {
+      return res.status(400).json({ error: 'Phone number must be exactly 10 digits.' });
+    }
+
     const updates = {};
     for (const key of EDITABLE_FIELDS) {
       if (key in req.body) {
@@ -304,6 +310,7 @@ router.get('/glimpse/:tableId', attendeeAuth, async (req, res) => {
       const m = d.data();
       const info = infoByUserId[m.user_id] || {};
       return {
+        user_id: m.user_id,
         career_kid: m.career_description,
         photo: info.photo || null,
         first_name: info.firstName || null,

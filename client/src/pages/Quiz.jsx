@@ -386,6 +386,14 @@ function isDobValid(dob) {
   return dob >= MIN_DOB && dob <= MAX_DOB;
 }
 
+// Contact number is optional, but if someone's typed anything at all it has
+// to be a real 10-digit number — the input itself already strips non-digits
+// and caps at 10 as they type, this is just the submit-time backstop.
+export function isPhoneValid(phone) {
+  if (!phone) return true;
+  return /^\d{10}$/.test(phone);
+}
+
 // A volume-style slider for scale questions. The fill bar and thumb are
 // plain divs updated by directly mutating their style/text via refs on every
 // native 'input' tick — bypassing React's render cycle entirely during the
@@ -660,11 +668,23 @@ export default function Quiz() {
     const newErrors = {};
     const missingIds = [];
 
+    let underage = false;
+
     if (s.type === 'chapter') {
       for (const q of s.questions) {
+        // Phone's format still needs checking even though the field itself
+        // is optional — a half-typed number shouldn't silently save.
+        if (q.type === 'contact' && !isPhoneValid(answers.phone)) {
+          newErrors.phone = true;
+          missingIds.push('contact');
+        }
         if (!q.required) continue;
         if (q.type === 'personal') {
-          if (!isDobValid(answers.dob)) { newErrors.dob = true; missingIds.push('personal'); }
+          if (!isDobValid(answers.dob)) {
+            newErrors.dob = true;
+            missingIds.push('personal');
+            if (answers.dob) underage = true;
+          }
           if (!answers.gender) { newErrors.gender = true; missingIds.push('personal'); }
           if (!answers.country) { newErrors.country = true; missingIds.push('personal'); }
         } else if (q.field && !isAnswered(answers[q.field])) {
@@ -681,7 +701,10 @@ export default function Quiz() {
 
     if (missingIds.length) {
       setErrors(prev => ({ ...prev, ...newErrors }));
-      toast.error('Please fill in the highlighted fields.');
+      // A typed-but-invalid DOB (someone under 18, or a date so old it's
+      // clearly a typo) needs its own message — "fill in the highlighted
+      // fields" reads as if the date box is empty, which it isn't.
+      toast.error(underage ? 'You must be 18 or older to join HeyDer.' : 'Please fill in the highlighted fields.');
       document.getElementById(`q-${missingIds[0]}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return false;
     }
@@ -762,17 +785,24 @@ export default function Quiz() {
     const newErrors = {};
     const missingIds = [];
 
+    let underage = false;
+
     for (const q of REQUIRED_FIELD_QUESTIONS) {
       if (!isAnswered(answers[q.field])) { newErrors[q.field] = true; missingIds.push(q.id); }
     }
-    if (!isDobValid(answers.dob)) { newErrors.dob = true; missingIds.push('personal'); }
+    if (!isDobValid(answers.dob)) {
+      newErrors.dob = true;
+      missingIds.push('personal');
+      if (answers.dob) underage = true;
+    }
     if (!answers.gender) { newErrors.gender = true; missingIds.push('personal'); }
     if (!answers.country) { newErrors.country = true; missingIds.push('personal'); }
     if (!isAnswered(answers.field_CdZldwp5q09o)) { newErrors.field_CdZldwp5q09o = true; missingIds.push('date'); }
+    if (!isPhoneValid(answers.phone)) { newErrors.phone = true; missingIds.push('contact'); }
 
     setErrors(newErrors);
     if (missingIds.length) {
-      toast.error('Please fill in the highlighted fields.');
+      toast.error(underage ? 'You must be 18 or older to join HeyDer.' : 'Please fill in the highlighted fields.');
       scrollToFirstError(missingIds);
       return false;
     }
@@ -953,11 +983,16 @@ export default function Quiz() {
                         <motion.p initial="hidden" animate="visible" variants={fadeUpVariant} className="font-sans text-cream text-[15px] mb-3">{q.title}</motion.p>
                         <input
                           type="tel"
+                          inputMode="numeric"
                           placeholder="Phone number"
                           value={answers.phone || ''}
-                          onChange={e => setValue('phone', e.target.value)}
-                          className="quiz-input"
+                          onChange={e => setValue('phone', e.target.value.replace(/\D/g, '').slice(0, 10))}
+                          maxLength={10}
+                          className={`quiz-input ${errors.phone ? 'border-red-400/60' : ''}`}
                         />
+                        {errors.phone && (
+                          <p className="font-sans text-red-400/80 text-xs mt-1.5">Enter a 10-digit phone number.</p>
+                        )}
                       </div>
                     );
                   }
