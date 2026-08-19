@@ -153,7 +153,11 @@ export default function MyAlbum() {
                 )}
 
                 {dinner.can_upload && (
-                  <div className="flex gap-1.5 mt-2 w-full max-w-[128px]">
+                  // relative + z-20: the fanned, rotated polaroids above are
+                  // position:absolute and their corners spill outside the
+                  // stack's own square — without this they render on top of
+                  // (and swallow clicks meant for) these buttons underneath.
+                  <div className="relative z-20 flex gap-1.5 mt-2 w-full max-w-[128px]">
                     <label className={`quiz-cta flex-1 text-[11px] py-2 flex items-center justify-center gap-1 cursor-pointer ${uploadingFor === dinner.table_id ? 'opacity-60 pointer-events-none' : ''}`}>
                       {uploadingFor === dinner.table_id ? '…' : '📷'}
                       <input
