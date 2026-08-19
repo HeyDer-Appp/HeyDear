@@ -55,6 +55,30 @@ async function sharedRevealedTableId(uidA, uidB) {
   return null;
 }
 
+// Every distinct person across every revealed table this user has ever sat
+// at — the full "people you could connect with" pool the Chat tab lists,
+// not just the ones already messaged/requested.
+async function allRevealedTablemates(uid) {
+  const mySnap = await db.collection('tableMembers').where('user_id', '==', uid).get();
+  const myTableIds = [...new Set(mySnap.docs.map(d => d.data().tableId))];
+  if (!myTableIds.length) return [];
+
+  const revealedResults = await Promise.all(myTableIds.map(confirmedRevealedTable));
+  const revealedTableIds = myTableIds.filter((_, i) => revealedResults[i]);
+  if (!revealedTableIds.length) return [];
+
+  const tablemateIds = new Set();
+  for (let i = 0; i < revealedTableIds.length; i += 30) {
+    const chunk = revealedTableIds.slice(i, i + 30);
+    const snap = await db.collection('tableMembers').where('tableId', 'in', chunk).get();
+    snap.docs.forEach((d) => {
+      const other = d.data().user_id;
+      if (other && other !== uid) tablemateIds.add(other);
+    });
+  }
+  return [...tablemateIds];
+}
+
 function isExpired(reqData) {
   return reqData.status === 'pending' && Date.now() - (reqData.createdAt?.toMillis?.() || 0) > SEVEN_DAYS_MS;
 }
@@ -82,43 +106,81 @@ async function connectionCount(uid) {
   return asA.size + asB.size;
 }
 
-// List my accepted connections plus any pending requests (incoming and
-// outgoing) that haven't expired — expired ones are simply left out here
-// rather than written back to Firestore, same lazy-computation pattern
-// used everywhere else in this codebase for time-based state.
+// Every person from a shared revealed table, each tagged with where things
+// stand: connected (tap to message), a request either direction, or
+// 'none' (show Connect / X). Someone X'd from 'none' just stops appearing
+// here for the person who dismissed them — it's one-directional and does
+// nothing to the other side's view.
 router.get('/', attendeeAuth, async (req, res) => {
   try {
     const uid = req.user.id;
 
-    const [asA, asB, incomingSnap, outgoingSnap] = await Promise.all([
+    const [tablemateIds, asA, asB, incomingSnap, outgoingSnap, dismissedSnap] = await Promise.all([
+      allRevealedTablemates(uid),
       db.collection('connections').where('user1Id', '==', uid).get(),
       db.collection('connections').where('user2Id', '==', uid).get(),
       db.collection('connectionRequests').where('toUserId', '==', uid).where('status', '==', 'pending').get(),
       db.collection('connectionRequests').where('fromUserId', '==', uid).where('status', '==', 'pending').get(),
+      db.collection('connectionDismissals').where('dismisserId', '==', uid).get(),
     ]);
 
-    const connectionDocs = [...asA.docs, ...asB.docs];
-    const connections = await Promise.all(connectionDocs.map(async (d) => {
+    const connectionByOther = new Map();
+    [...asA.docs, ...asB.docs].forEach((d) => {
       const c = d.data();
-      const otherId = c.user1Id === uid ? c.user2Id : c.user1Id;
-      return { connection_id: d.id, ...(await userSummary(otherId)), created_at: toDate(c.createdAt)?.toISOString() || null };
-    }));
-    connections.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+      connectionByOther.set(c.user1Id === uid ? c.user2Id : c.user1Id, d.id);
+    });
+    const incomingByFrom = new Map();
+    incomingSnap.docs.filter((d) => !isExpired(d.data())).forEach((d) => incomingByFrom.set(d.data().fromUserId, d.id));
+    const outgoingByTo = new Set();
+    outgoingSnap.docs.filter((d) => !isExpired(d.data())).forEach((d) => outgoingByTo.add(d.data().toUserId));
+    const dismissedIds = new Set(dismissedSnap.docs.map((d) => d.data().targetId));
 
-    const incoming = await Promise.all(
-      incomingSnap.docs.filter(d => !isExpired(d.data())).map(async (d) => {
-        const r = d.data();
-        return { request_id: d.id, ...(await userSummary(r.fromUserId)), created_at: toDate(r.createdAt)?.toISOString() || null };
-      })
-    );
-    const outgoing = await Promise.all(
-      outgoingSnap.docs.filter(d => !isExpired(d.data())).map(async (d) => {
-        const r = d.data();
-        return { request_id: d.id, ...(await userSummary(r.toUserId)), created_at: toDate(r.createdAt)?.toISOString() || null };
-      })
-    );
+    const STATUS_ORDER = { pending_incoming: 0, connected: 1, pending_outgoing: 2, none: 3 };
 
-    res.json({ connections, incoming_requests: incoming, outgoing_requests: outgoing });
+    const people = (await Promise.all(tablemateIds.map(async (otherId) => {
+      let status = 'none';
+      let connectionId = null;
+      let requestId = null;
+      if (connectionByOther.has(otherId)) { status = 'connected'; connectionId = connectionByOther.get(otherId); }
+      else if (incomingByFrom.has(otherId)) { status = 'pending_incoming'; requestId = incomingByFrom.get(otherId); }
+      else if (outgoingByTo.has(otherId)) { status = 'pending_outgoing'; }
+      else if (dismissedIds.has(otherId)) { return null; }
+      return { ...(await userSummary(otherId)), status, connection_id: connectionId, request_id: requestId };
+    }))).filter(Boolean);
+
+    people.sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status]);
+
+    res.json({ people });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// A lightweight poll target for the bottom-nav notification dot — just a
+// count, not full profile summaries with base64 photos, since this gets
+// hit far more often than the full list above.
+router.get('/pending-count', attendeeAuth, async (req, res) => {
+  try {
+    const snap = await db.collection('connectionRequests')
+      .where('toUserId', '==', req.user.id)
+      .where('status', '==', 'pending')
+      .get();
+    const count = snap.docs.filter((d) => !isExpired(d.data())).length;
+    res.json({ count });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.post('/:userId/dismiss', attendeeAuth, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    await db.collection('connectionDismissals').doc(`${req.user.id}_${userId}`).set({
+      dismisserId: req.user.id, targetId: userId, createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    res.json({ success: true });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });

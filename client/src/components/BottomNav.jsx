@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { Image, Users, MessageCircle, User } from 'lucide-react';
+import api from '../utils/api';
 
 // Fork, plate, spoon — traced from a reference icon, filled solid instead
 // of outlined like the other four nav icons. currentColor so it still
@@ -32,6 +33,19 @@ const ITEMS = [
 ];
 
 export default function BottomNav() {
+  // A lightweight poll (count only, no photos) so a pending connect request
+  // shows up as a dot on the Chat tab without having to open it first —
+  // green rather than the OS-level red badge convention, so it doesn't read
+  // as an error/alert.
+  const [pendingCount, setPendingCount] = useState(0);
+
+  useEffect(() => {
+    const check = () => api.get('/connections/pending-count').then(res => setPendingCount(res.data.count || 0)).catch(() => {});
+    check();
+    const poll = setInterval(check, 30000);
+    return () => clearInterval(poll);
+  }, []);
+
   return (
     <nav className="fixed bottom-0 inset-x-0 z-40 border-t border-white/[0.06] bg-[#16181d]/95 backdrop-blur">
       <div className="max-w-lg mx-auto flex items-center justify-between px-4 py-2">
@@ -42,12 +56,17 @@ export default function BottomNav() {
               key={item.to}
               to={item.to}
               className={({ isActive }) =>
-                `flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors ${
+                `relative flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors ${
                   isActive ? 'text-gold' : 'text-cream/40 hover:text-cream/70'
                 }`
               }
             >
-              <Icon size={22} strokeWidth={1.75} />
+              <span className="relative">
+                <Icon size={22} strokeWidth={1.75} />
+                {item.to === '/portal/chat' && pendingCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-[#16181d]" />
+                )}
+              </span>
               <span className="font-sans text-[10px] tracking-wide">{item.label}</span>
             </NavLink>
           );
