@@ -279,7 +279,7 @@ function DinnerCard({ dinner, onCancel }) {
 
         const steps = [
           { icon: '👀', step: 'Meet your table', secsLeft: groupSecsLeft, unlocked: groupUnlocked, notStarted: false },
-          { icon: '📍', step: 'Venue revealed', secsLeft: venueSecsLeft, unlocked: venueSecsLeft !== null && venueSecsLeft <= 0, notStarted: !groupUnlocked },
+          { icon: '📍', step: 'Venue', secsLeft: venueSecsLeft, unlocked: venueSecsLeft !== null && venueSecsLeft <= 0, notStarted: !groupUnlocked },
         ];
 
         return (

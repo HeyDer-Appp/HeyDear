@@ -161,8 +161,10 @@ export default function MyAlbum() {
                   // position:absolute and their corners spill outside the
                   // stack's own square — without this they render on top of
                   // (and swallow clicks meant for) these buttons underneath.
-                  <div className="relative z-20 flex gap-1.5 mt-2 w-full max-w-[128px]">
-                    <label className={`quiz-cta flex-1 text-[11px] py-2 flex items-center justify-center gap-1 cursor-pointer ${uploadingFor === dinner.table_id ? 'opacity-60 pointer-events-none' : ''}`}>
+                  // White/cream background (not transparent) so both read as
+                  // real buttons sitting under the polaroid, not stray icons.
+                  <div className="relative z-20 flex gap-1.5 mt-2.5 w-full max-w-[128px]">
+                    <label className={`flex-1 bg-[#f5edd8] text-[#2a2a2a] rounded-lg text-base py-2 flex items-center justify-center cursor-pointer shadow-[0_2px_8px_rgba(0,0,0,0.3)] hover:bg-white transition-colors ${uploadingFor === dinner.table_id ? 'opacity-60 pointer-events-none' : ''}`}>
                       {uploadingFor === dinner.table_id ? '…' : '📷'}
                       <input
                         type="file"
@@ -172,7 +174,7 @@ export default function MyAlbum() {
                         onChange={e => handleUpload(dinner.table_id, e.target.files?.[0])}
                       />
                     </label>
-                    <label className={`flex-1 text-[11px] py-2 rounded-2xl border border-white/15 text-cream/70 flex items-center justify-center gap-1 cursor-pointer hover:border-gold/40 transition-colors ${uploadingFor === dinner.table_id ? 'opacity-60 pointer-events-none' : ''}`}>
+                    <label className={`flex-1 bg-[#f5edd8] text-[#2a2a2a] rounded-lg text-base py-2 flex items-center justify-center cursor-pointer shadow-[0_2px_8px_rgba(0,0,0,0.3)] hover:bg-white transition-colors ${uploadingFor === dinner.table_id ? 'opacity-60 pointer-events-none' : ''}`}>
                       🖼
                       <input
                         type="file"
