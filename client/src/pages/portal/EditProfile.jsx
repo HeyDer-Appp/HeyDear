@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import api from '../../utils/api';
 import { QUESTIONS, CHAPTERS, isPhoneValid } from '../Quiz';
 import { fileToResizedBase64 } from '../../utils/image';
+import { DIAL_CODES } from '../../utils/flags';
 import BottomNav from '../../components/BottomNav';
 
 const choiceIdle =
@@ -57,7 +58,12 @@ export default function EditProfile() {
     api.get('/portal/full-profile')
       .then(res => {
         setLocked(res.data.locked);
-        const loaded = { ...(res.data.answers || {}), phone: res.data.locked?.phone || '', photo: res.data.photo || null };
+        const loaded = {
+          ...(res.data.answers || {}),
+          phone: res.data.locked?.phone || '',
+          phoneCountryCode: res.data.locked?.phoneCountryCode || '+64',
+          photo: res.data.photo || null,
+        };
         setAnswers(loaded);
         setInitialAnswers(loaded);
       })
@@ -88,7 +94,7 @@ export default function EditProfile() {
 
   const save = async () => {
     if (phoneError) {
-      toast.error('Enter a 10-digit phone number.');
+      toast.error('Enter a valid phone number.');
       return;
     }
     setSaving(true);
@@ -198,17 +204,28 @@ export default function EditProfile() {
         {/* Contact number — editable here, unlike name/dob/email above */}
         <div className="quiz-card">
           <p className="font-sans font-semibold text-cream text-sm mb-1">Contact number</p>
-          <input
-            type="tel"
-            inputMode="numeric"
-            placeholder="Phone number"
-            value={answers.phone || ''}
-            onChange={e => setValue('phone', e.target.value.replace(/\D/g, '').slice(0, 10))}
-            maxLength={10}
-            className={`quiz-input ${phoneError && answers.phone ? 'border-red-400/60' : ''}`}
-          />
+          <div className="flex gap-2">
+            <select
+              value={answers.phoneCountryCode || '+64'}
+              onChange={e => setValue('phoneCountryCode', e.target.value)}
+              className="quiz-input w-24 flex-shrink-0 px-2"
+            >
+              {DIAL_CODES.map(([name, code]) => (
+                <option key={name} value={code} className="bg-navy text-cream">{code}</option>
+              ))}
+            </select>
+            <input
+              type="tel"
+              inputMode="numeric"
+              placeholder="Phone number"
+              value={answers.phone || ''}
+              onChange={e => setValue('phone', e.target.value.replace(/\D/g, '').slice(0, 15))}
+              maxLength={15}
+              className={`quiz-input flex-1 ${phoneError && answers.phone ? 'border-red-400/60' : ''}`}
+            />
+          </div>
           {phoneError && answers.phone && (
-            <p className="font-sans text-red-400/80 text-xs mt-1.5">Enter a 10-digit phone number.</p>
+            <p className="font-sans text-red-400/80 text-xs mt-1.5">Enter a valid phone number.</p>
           )}
         </div>
 

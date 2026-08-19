@@ -58,7 +58,7 @@ router.get('/profile', attendeeAuth, async (req, res) => {
 // are edited via a support request, not this endpoint. Phone is editable
 // (see the dedicated validation on it below).
 const EDITABLE_FIELDS = [
-  'phone',
+  'phone', 'phoneCountryCode',
   'field_cqCcs6psQuhE', 'field_3zmnHXYzZn17', 'field_aIpzE2elktbh',
   'field_L6GblNns9C7v', 'field_LosYJHqrbpKO', 'field_lS4ks7Km1VlA',
   'field_PyYcCusA8b74', 'field_Y8VLrSMSZLmb', 'field_heE41fid4m48',
@@ -94,6 +94,7 @@ router.get('/full-profile', attendeeAuth, async (req, res) => {
         last_name: user.lastName,
         dob: user.dob,
         phone: user.phone,
+        phoneCountryCode: user.phoneCountryCode,
         email: user.email,
         gender: user.gender,
         country: user.country,
@@ -119,8 +120,10 @@ async function syncPendingBooking(uid, updates) {
 
 router.patch('/profile', attendeeAuth, async (req, res) => {
   try {
-    if ('phone' in req.body && req.body.phone && !/^\d{10}$/.test(req.body.phone)) {
-      return res.status(400).json({ error: 'Phone number must be exactly 10 digits.' });
+    // Length varies by country (NZ mobiles are commonly 9 digits) — this is
+    // just a sanity range, not a strict per-country format check.
+    if ('phone' in req.body && req.body.phone && !/^\d{6,15}$/.test(req.body.phone)) {
+      return res.status(400).json({ error: 'Enter a valid phone number.' });
     }
 
     const updates = {};

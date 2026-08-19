@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { fileToResizedBase64 } from '../utils/image';
+import { DIAL_CODES } from '../utils/flags';
 
 // A question's title fades up on entry; its options then fade in from the
 // left, one after another, orchestrated by the stagger container below.
@@ -391,7 +392,9 @@ function isDobValid(dob) {
 // and caps at 10 as they type, this is just the submit-time backstop.
 export function isPhoneValid(phone) {
   if (!phone) return true;
-  return /^\d{10}$/.test(phone);
+  // Length varies by country (NZ mobiles are commonly 9 digits) — this is
+  // just a sanity range, not a strict per-country format check.
+  return /^\d{6,15}$/.test(phone);
 }
 
 // A volume-style slider for scale questions. The fill bar and thumb are
@@ -981,17 +984,28 @@ export default function Quiz() {
                     return (
                       <div key="contact" id="q-contact" className="py-4">
                         <motion.p initial="hidden" animate="visible" variants={fadeUpVariant} className="font-sans text-cream text-[15px] mb-3">{q.title}</motion.p>
-                        <input
-                          type="tel"
-                          inputMode="numeric"
-                          placeholder="Phone number"
-                          value={answers.phone || ''}
-                          onChange={e => setValue('phone', e.target.value.replace(/\D/g, '').slice(0, 10))}
-                          maxLength={10}
-                          className={`quiz-input ${errors.phone ? 'border-red-400/60' : ''}`}
-                        />
+                        <div className="flex gap-2">
+                          <select
+                            value={answers.phoneCountryCode || '+64'}
+                            onChange={e => setValue('phoneCountryCode', e.target.value)}
+                            className="quiz-input w-24 flex-shrink-0 px-2"
+                          >
+                            {DIAL_CODES.map(([name, code]) => (
+                              <option key={name} value={code} className="bg-navy text-cream">{code}</option>
+                            ))}
+                          </select>
+                          <input
+                            type="tel"
+                            inputMode="numeric"
+                            placeholder="Phone number"
+                            value={answers.phone || ''}
+                            onChange={e => setValue('phone', e.target.value.replace(/\D/g, '').slice(0, 15))}
+                            maxLength={15}
+                            className={`quiz-input flex-1 ${errors.phone ? 'border-red-400/60' : ''}`}
+                          />
+                        </div>
                         {errors.phone && (
-                          <p className="font-sans text-red-400/80 text-xs mt-1.5">Enter a 10-digit phone number.</p>
+                          <p className="font-sans text-red-400/80 text-xs mt-1.5">Enter a valid phone number.</p>
                         )}
                       </div>
                     );
