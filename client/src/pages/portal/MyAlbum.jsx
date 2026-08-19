@@ -16,9 +16,12 @@ function formatDinnerDate(iso) {
 // A single printed-photo card — the date is burned in at the bottom in a
 // handwritten style so, months later, someone can tell at a glance which
 // Tuesday a picture is from without reading anything else on the page.
-function PolaroidCard({ photo, dateLabel }) {
+function PolaroidCard({ photo, dateLabel, onClick }) {
   return (
-    <div className="bg-[#f5edd8] rounded-sm p-2 shadow-[0_10px_28px_rgba(0,0,0,0.5)] select-none">
+    <div
+      onClick={onClick}
+      className={`bg-[#f5edd8] rounded-sm p-2 shadow-[0_10px_28px_rgba(0,0,0,0.5)] select-none ${onClick ? 'cursor-pointer' : ''}`}
+    >
       <div className="w-full aspect-square bg-black/20 overflow-hidden">
         <img src={photo.photo} alt="" className="w-full h-full object-cover" draggable={false} />
       </div>
@@ -68,6 +71,7 @@ export default function MyAlbum() {
   const [loading, setLoading] = useState(true);
   const [uploadingFor, setUploadingFor] = useState(null);
   const [openDinnerId, setOpenDinnerId] = useState(null);
+  const [openPhotoIndex, setOpenPhotoIndex] = useState(null);
 
   useEffect(() => {
     Promise.all([
@@ -107,6 +111,7 @@ export default function MyAlbum() {
 
   const openDinner = dinners.find(d => d.table_id === openDinnerId);
   const openDinnerDateLabel = openDinner ? formatDinnerDate(openDinner.date) : '';
+  const openPhoto = openDinner && openPhotoIndex !== null ? openDinner.photos[openPhotoIndex] : null;
 
   return (
     <div className="quiz-bg min-h-screen relative overflow-hidden pb-24">
@@ -185,7 +190,7 @@ export default function MyAlbum() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 flex items-end justify-center bg-black/70"
-            onClick={() => setOpenDinnerId(null)}
+            onClick={() => { setOpenDinnerId(null); setOpenPhotoIndex(null); }}
           >
             <motion.div
               initial={{ y: 40, opacity: 0 }}
@@ -201,7 +206,7 @@ export default function MyAlbum() {
                   <p className="font-sans text-cream/35 text-xs">{openDinner.city}</p>
                 </div>
                 <button
-                  onClick={() => setOpenDinnerId(null)}
+                  onClick={() => { setOpenDinnerId(null); setOpenPhotoIndex(null); }}
                   className="font-sans text-cream/40 hover:text-cream text-xs transition-colors"
                 >
                   Close
@@ -221,7 +226,7 @@ export default function MyAlbum() {
                     animate={{ opacity: 1, scale: 1, rotate: 0, x: 0, y: 0 }}
                     transition={{ type: 'spring', stiffness: 260, damping: 20, delay: i * 0.06 }}
                   >
-                    <PolaroidCard photo={p} dateLabel={openDinnerDateLabel} />
+                    <PolaroidCard photo={p} dateLabel={openDinnerDateLabel} onClick={() => setOpenPhotoIndex(i)} />
                     {p.uploaderName && (
                       <p className="font-sans text-cream/25 text-[10px] text-center mt-1">by {p.uploaderName}</p>
                     )}
@@ -229,6 +234,56 @@ export default function MyAlbum() {
                 ))}
               </div>
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Individual photo view — tapping a polaroid in the expanded stack
+          opens it full-size, with left/right through the rest of that
+          dinner's photos. */}
+      <AnimatePresence>
+        {openPhoto && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-black/90 px-4"
+            onClick={() => setOpenPhotoIndex(null)}
+          >
+            <button
+              onClick={() => setOpenPhotoIndex(null)}
+              className="absolute top-5 right-5 font-sans text-cream/60 hover:text-cream text-sm"
+            >
+              Close ✕
+            </button>
+
+            {openDinner.photos.length > 1 && (
+              <>
+                <button
+                  onClick={e => { e.stopPropagation(); setOpenPhotoIndex(i => (i - 1 + openDinner.photos.length) % openDinner.photos.length); }}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-cream/50 hover:text-cream text-3xl font-serif px-2"
+                >
+                  ‹
+                </button>
+                <button
+                  onClick={e => { e.stopPropagation(); setOpenPhotoIndex(i => (i + 1) % openDinner.photos.length); }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-cream/50 hover:text-cream text-3xl font-serif px-2"
+                >
+                  ›
+                </button>
+              </>
+            )}
+
+            <img
+              src={openPhoto.photo}
+              alt=""
+              className="max-w-full max-h-[75vh] object-contain rounded"
+              onClick={e => e.stopPropagation()}
+              draggable={false}
+            />
+            {openPhoto.uploaderName && (
+              <p className="font-sans text-cream/40 text-xs mt-3">by {openPhoto.uploaderName}</p>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
