@@ -10,6 +10,7 @@ const AVATAR_FALLBACK = 'https://heyder.nz/wp-content/uploads/2026/06/account-2.
 // One compact row per person — small enough that a table full of
 // tablemates doesn't turn into a wall of oversized cards.
 function PersonRow({ person, onOpen, onConnect, onDismiss, onAccept, onDecline, busy }) {
+  const isNone = person.status === 'none';
   return (
     <div
       onClick={person.status === 'connected' ? onOpen : undefined}
@@ -18,21 +19,36 @@ function PersonRow({ person, onOpen, onConnect, onDismiss, onAccept, onDecline, 
       }`}
     >
       <img src={person.photo || AVATAR_FALLBACK} alt="" className="w-9 h-9 rounded-full object-cover border border-white/10 flex-shrink-0" />
-      <p className="font-sans text-cream text-sm font-medium flex items-center gap-1.5 truncate flex-1 min-w-0">
+      <p className={`font-sans text-cream text-sm font-medium flex items-center gap-1.5 truncate min-w-0 ${isNone ? 'flex-shrink' : 'flex-1'}`}>
         {person.first_name || 'Guest'}
         {person.country && flagUrl(person.country) && (
           <img src={flagUrl(person.country)} alt={person.country} className="h-2.5 rounded-[1px] flex-shrink-0" />
         )}
       </p>
 
-      {person.status === 'connected' && <span className="text-cream/20 flex-shrink-0">→</span>}
+      {/* Connect sits right next to the name; ✕ (not interested) is pushed
+          to the far right by the spacer below — kept apart on purpose so
+          the two aren't adjacent and easy to fat-finger by mistake. */}
+      {isNone && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onConnect(person); }}
+          disabled={busy}
+          className="quiz-cta text-[10px] py-1 px-2.5 flex-shrink-0"
+        >
+          Connect
+        </button>
+      )}
+
+      {isNone && <div className="flex-1" />}
+
+      {person.status === 'connected' && <span className="text-cream/20 flex-shrink-0 ml-auto">→</span>}
 
       {person.status === 'pending_outgoing' && (
-        <span className="font-sans text-cream/30 text-[11px] flex-shrink-0">Pending</span>
+        <span className="font-sans text-cream/30 text-[11px] flex-shrink-0 ml-auto">Pending</span>
       )}
 
       {person.status === 'pending_incoming' && (
-        <div className="flex items-center gap-1.5 flex-shrink-0">
+        <div className="flex items-center gap-1.5 flex-shrink-0 ml-auto">
           <button
             onClick={(e) => { e.stopPropagation(); onAccept(person); }}
             disabled={busy}
@@ -50,24 +66,15 @@ function PersonRow({ person, onOpen, onConnect, onDismiss, onAccept, onDecline, 
         </div>
       )}
 
-      {person.status === 'none' && (
-        <div className="flex items-center gap-1.5 flex-shrink-0">
-          <button
-            onClick={(e) => { e.stopPropagation(); onConnect(person); }}
-            disabled={busy}
-            className="quiz-cta text-[10px] py-1 px-2.5 disabled:opacity-50"
-          >
-            Connect
-          </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); onDismiss(person); }}
-            disabled={busy}
-            className="w-6 h-6 rounded-full border border-white/10 text-cream/30 hover:text-cream/70 hover:border-white/25 flex items-center justify-center text-xs transition-colors disabled:opacity-50"
-            title="Not interested"
-          >
-            ✕
-          </button>
-        </div>
+      {isNone && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onDismiss(person); }}
+          disabled={busy}
+          className="w-6 h-6 rounded-full border border-white/10 text-cream/30 hover:text-cream/70 hover:border-white/25 flex items-center justify-center text-xs transition-colors disabled:opacity-50 flex-shrink-0"
+          title="Not interested"
+        >
+          ✕
+        </button>
       )}
     </div>
   );

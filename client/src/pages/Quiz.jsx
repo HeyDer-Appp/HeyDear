@@ -426,6 +426,17 @@ function ScaleSlider({ q, value, onChange }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, q.min]);
 
+  // The track always visually shows q.min (0 for every scale question here)
+  // until touched, but onChange only ever fired on release — so leaving it
+  // untouched at that displayed value never actually recorded an answer,
+  // and "Next" blocked as if the question were skipped. Recording q.min as
+  // the real answer on mount keeps what's shown and what's stored in sync
+  // from the first render.
+  useEffect(() => {
+    if (value === undefined) onChange(q.min);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <div>
       <div className="flex justify-between mb-3">
@@ -945,7 +956,15 @@ export default function Quiz() {
         />
       </div>
 
-      <div className="relative z-10 max-w-xl mx-auto px-6 py-10 space-y-8">
+      <AnimatePresence mode="wait">
+      <motion.div
+        key={stepIndex}
+        initial={{ opacity: 0, x: 16 }}
+        animate={{ opacity: 1, x: 0 }}
+        exit={{ opacity: 0, x: -16 }}
+        transition={{ duration: 0.22, ease: 'easeOut' }}
+        className="relative z-10 max-w-xl mx-auto px-6 py-10 space-y-8"
+      >
         {/* Chapter marker — chapter 1 gets its own line, others get a generic "Chapter N" */}
         {step.type === 'chapter' && (
           <div className="text-center">
@@ -1012,30 +1031,37 @@ export default function Quiz() {
                   }
                   if (q.type === 'personal') {
                     return (
-                      <div key="personal" id="q-personal" className={`py-4 ${(errors.dob || errors.gender || errors.country) ? 'rounded-xl -mx-3 px-3 bg-red-500/5' : ''}`}>
-                        <motion.p initial="hidden" animate="visible" variants={fadeUpVariant} className="font-sans text-cream text-[15px] mb-3">{q.title}<span className="text-gold/60"> *</span></motion.p>
+                      // Each sub-field gets its own red border + asterisk instead
+                      // of tinting the whole card red on any single error — an
+                      // invalid DOB was visually flagging gender/country too even
+                      // though they were filled in correctly.
+                      <div key="personal" id="q-personal" className="py-4">
+                        <motion.p initial="hidden" animate="visible" variants={fadeUpVariant} className="font-sans text-cream text-[15px] mb-3">{q.title}</motion.p>
                         <div className="space-y-3">
                           <div>
-                            <label className="font-sans text-cream/40 text-xs tracking-[0.1em] uppercase mb-1.5 block">Date of birth</label>
+                            <label className="font-sans text-cream/40 text-xs tracking-[0.1em] uppercase mb-1.5 block">Date of birth <span className="text-gold/60">*</span></label>
                             <input
                               type="date"
                               value={answers.dob || ''}
                               onChange={e => setValue('dob', e.target.value)}
                               min={MIN_DOB}
                               max={MAX_DOB}
-                              className="quiz-input"
+                              className={`quiz-input ${errors.dob ? 'border-red-400/60' : ''}`}
                             />
+                            {errors.dob && answers.dob && (
+                              <p className="font-sans text-red-400/80 text-xs mt-1.5">You must be 18 or older to join HeyDer.</p>
+                            )}
                           </div>
                           <div>
-                            <label className="font-sans text-cream/40 text-xs tracking-[0.1em] uppercase mb-1.5 block">Gender</label>
-                            <select value={answers.gender || ''} onChange={e => setValue('gender', e.target.value)} className="quiz-input">
+                            <label className="font-sans text-cream/40 text-xs tracking-[0.1em] uppercase mb-1.5 block">Gender <span className="text-gold/60">*</span></label>
+                            <select value={answers.gender || ''} onChange={e => setValue('gender', e.target.value)} className={`quiz-input ${errors.gender ? 'border-red-400/60' : ''}`}>
                               <option value="">Select gender</option>
                               {['Female', 'Male', 'Non-binary', 'Other', 'Prefer not to say'].map(g => <option key={g} value={g}>{g}</option>)}
                             </select>
                           </div>
                           <div>
-                            <label className="font-sans text-cream/40 text-xs tracking-[0.1em] uppercase mb-1.5 block">Country of origin</label>
-                            <select value={answers.country || ''} onChange={e => setValue('country', e.target.value)} className="quiz-input">
+                            <label className="font-sans text-cream/40 text-xs tracking-[0.1em] uppercase mb-1.5 block">Country of origin <span className="text-gold/60">*</span></label>
+                            <select value={answers.country || ''} onChange={e => setValue('country', e.target.value)} className={`quiz-input ${errors.country ? 'border-red-400/60' : ''}`}>
                               <option value="">Select country</option>
                               {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
                             </select>
@@ -1177,7 +1203,8 @@ export default function Quiz() {
             </button>
           )}
         </div>
-      </div>
+      </motion.div>
+      </AnimatePresence>
     </div>
   );
 }

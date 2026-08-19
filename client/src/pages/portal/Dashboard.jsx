@@ -34,7 +34,7 @@ const STATUS_CONFIG = {
     description: "Here's a sneak peek at your dinner companions. Restaurant revealed in 24 hours.",
   },
   venue: {
-    label: 'Venue revealed',
+    label: 'Venue',
     color: 'text-emerald-400',
     bg: 'bg-emerald-400/10',
     border: 'border-emerald-400/20',
@@ -332,6 +332,7 @@ export default function PortalDashboard() {
   const { attendeeUser, logout } = useAuth();
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
+  const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
   const [dinners, setDinners] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -344,6 +345,7 @@ export default function PortalDashboard() {
       api.get('/portal/dinners'),
     ]).then(([p, d]) => {
       setProfile(p.data.user);
+      setHasActiveSubscription(!!p.data.hasActiveSubscription);
       setDinners(d.data.dinners || []);
     }).catch((err) => {
       // A brand-new account (or one that hasn't finished onboarding) has no
@@ -482,9 +484,16 @@ export default function PortalDashboard() {
             alt=""
             className="w-14 h-14 rounded-full border-2 border-gold/40 object-cover flex-shrink-0"
           />
-          <h1 className="font-serif text-xl text-cream flex-1">
-            {profile?.first_name}
-          </h1>
+          <div className="flex-1 min-w-0">
+            <h1 className="font-serif text-xl text-cream truncate">
+              {profile?.first_name}
+            </h1>
+            {hasActiveSubscription && (
+              <span className="inline-block mt-1 font-sans text-[10px] tracking-widest uppercase text-gold bg-gold/10 border border-gold/20 rounded-full px-2.5 py-0.5">
+                ✦ Subscription active
+              </span>
+            )}
+          </div>
           <Link
             to="/portal/profile"
             className="font-sans text-gold text-xs hover:text-yellow transition-colors whitespace-nowrap"

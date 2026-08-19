@@ -42,7 +42,11 @@ function PolaroidCard({ photo, dateLabel, onClick }) {
 function PhotoStack({ photos, dateLabel, onOpen }) {
   const stacked = photos.slice(-MAX_STACK);
   return (
-    <button type="button" onClick={onOpen} className="relative block w-full max-w-[128px] aspect-square mx-auto">
+    // aspect-[4/5], not aspect-square: the polaroid card itself (padding +
+    // square image + date line) is taller than it is wide, so a plain
+    // square box was too short — the card's bottom (including the date
+    // text) spilled out past it and sat on top of the buttons below.
+    <button type="button" onClick={onOpen} className="relative block w-full max-w-[128px] aspect-[4/5] mx-auto">
       {stacked.map((p, i) => {
         const rotate = (i - (stacked.length - 1) / 2) * 6;
         const y = (stacked.length - 1 - i) * 2;
@@ -278,13 +282,24 @@ export default function MyAlbum() {
               </>
             )}
 
-            <img
-              src={openPhoto.photo}
-              alt=""
-              className="max-w-full max-h-[75vh] object-contain rounded"
+            <div
+              className="bg-[#f5edd8] rounded-sm p-3 shadow-[0_20px_50px_rgba(0,0,0,0.6)] max-w-full select-none"
               onClick={e => e.stopPropagation()}
-              draggable={false}
-            />
+            >
+              <img
+                src={openPhoto.photo}
+                alt=""
+                className="max-w-full object-contain rounded-[1px]"
+                style={{ maxHeight: '65vh' }}
+                draggable={false}
+              />
+              <p
+                className="text-center text-[#2a2a2a] text-lg leading-none mt-2.5 mb-0.5"
+                style={{ fontFamily: "'Permanent Marker', cursive" }}
+              >
+                {openDinnerDateLabel}
+              </p>
+            </div>
             {openPhoto.uploaderName && (
               <p className="font-sans text-cream/40 text-xs mt-3">by {openPhoto.uploaderName}</p>
             )}

@@ -38,6 +38,14 @@ router.get('/profile', attendeeAuth, async (req, res) => {
     const snap = await db.collection('users').doc(req.user.id).get();
     if (!snap.exists) return res.status(404).json({ error: 'User not found' });
     const user = { id: snap.id, ...snap.data() };
+
+    const subSnap = await db.collection('subscriptions')
+      .where('userId', '==', req.user.id)
+      .where('status', 'in', ['active', 'trialing'])
+      .get();
+    const now = new Date();
+    const activeSub = subSnap.docs.find(d => toDate(d.data().currentPeriodEnd) > now);
+
     res.json({
       user: {
         ...user,
@@ -46,6 +54,8 @@ router.get('/profile', attendeeAuth, async (req, res) => {
         dietary: user.field_OVB7lzEjSl7C || [],
         budget: user.field_Ar4xQbXT6CLh || null,
       },
+      hasActiveSubscription: !!activeSub,
+      subscriptionRenewsAt: activeSub ? toDate(activeSub.data().currentPeriodEnd)?.toISOString() || null : null,
     });
   } catch (err) {
     console.error(err);
