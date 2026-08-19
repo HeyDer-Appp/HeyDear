@@ -248,6 +248,7 @@ router.get('/dinners', attendeeAuth, async (req, res) => {
         const booking = latestDoc.data();
         pendingDinners = [{
           table_id: null,
+          booking_id: latestDoc.id,
           // tuesdayDate is the normalized 'YYYY-MM-DD' chosen at signup — the
           // dinners collection doc (and its `date` field) only gets created
           // once matching happens, but the dashboard's reveal countdowns are
@@ -355,6 +356,35 @@ router.patch('/dietary', attendeeAuth, async (req, res) => {
   }
 });
 
+// Refund the attendee's one-time booking fee, if there's an unrefunded
+// payment on file. Active subscriptions aren't touched here — cancelling
+// one dinner doesn't cancel the membership. Shared between cancelling a
+// matched booking and cancelling a still-pending one — a pending booking
+// already has a payment attached (paid at signup, before matching), so
+// the same refund needs to happen either way.
+async function refundLatestPayment(uid) {
+  // where() + orderBy() on different fields needs a composite index, so
+  // filter here and sort in memory instead.
+  const paymentSnap = await db.collection('payments')
+    .where('userId', '==', uid)
+    .where('status', '==', 'completed')
+    .get();
+  if (paymentSnap.empty) return false;
+
+  const paymentDoc = paymentSnap.docs.slice().sort((a, b) => (b.data().createdAt?.toMillis?.() || 0) - (a.data().createdAt?.toMillis?.() || 0))[0];
+  const payment = paymentDoc.data();
+  if (!payment.stripePaymentIntentId) return false;
+
+  try {
+    await stripe.refunds.create({ payment_intent: payment.stripePaymentIntentId });
+    await paymentDoc.ref.set({ status: 'refunded', updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+    return true;
+  } catch (refundErr) {
+    console.error(`Refund failed for user ${uid}, payment ${paymentDoc.id}:`, refundErr.message);
+    return false;
+  }
+}
+
 router.post('/cancel/:tableId', attendeeAuth, async (req, res) => {
   try {
     const { tableId } = req.params;
@@ -380,29 +410,37 @@ router.post('/cancel/:tableId', attendeeAuth, async (req, res) => {
       .get();
     await Promise.all(bookingSnap.docs.map(d => d.ref.set({ matched: false, tableId: null, dinnerId: null }, { merge: true })));
 
-    // Refund the attendee's one-time booking fee, if there's an unrefunded
-    // payment on file. Active subscriptions aren't touched here — cancelling
-    // one dinner doesn't cancel the membership.
-    let refunded = false;
-    // where() + orderBy() on different fields needs a composite index, so
-    // filter here and sort in memory instead.
-    const paymentSnap = await db.collection('payments')
-      .where('userId', '==', req.user.id)
-      .where('status', '==', 'completed')
-      .get();
-    if (!paymentSnap.empty) {
-      const paymentDoc = paymentSnap.docs.slice().sort((a, b) => (b.data().createdAt?.toMillis?.() || 0) - (a.data().createdAt?.toMillis?.() || 0))[0];
-      const payment = paymentDoc.data();
-      if (payment.stripePaymentIntentId) {
-        try {
-          await stripe.refunds.create({ payment_intent: payment.stripePaymentIntentId });
-          await paymentDoc.ref.set({ status: 'refunded', updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
-          refunded = true;
-        } catch (refundErr) {
-          console.error(`Refund failed for user ${req.user.id}, payment ${paymentDoc.id}:`, refundErr.message);
-        }
-      }
-    }
+    const refunded = await refundLatestPayment(req.user.id);
+
+    res.json({
+      success: true,
+      message: refunded
+        ? 'Booking cancelled. Your refund has been issued and should appear in 2-3 working days.'
+        : 'Booking cancelled. If you paid a booking fee, contact info@heyder.nz for your refund.',
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Cancelling before a table's even been assigned — the existing /cancel
+// route above assumes a confirmed table/tableMembers doc exists, which a
+// pending signup doesn't have yet. No 48h cutoff here: nothing's been
+// reserved on the restaurant side yet, so there's nothing time-sensitive
+// to protect against.
+router.post('/cancel-pending/:bookingId', attendeeAuth, async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const ref = db.collection('bookings').doc(bookingId);
+    const snap = await ref.get();
+    if (!snap.exists) return res.status(404).json({ error: 'Not found' });
+    const booking = snap.data();
+    if (booking.userId !== req.user.id) return res.status(403).json({ error: 'Not your booking' });
+    if (booking.matched) return res.status(400).json({ error: 'This booking is already matched — cancel it from the dashboard instead.' });
+
+    await ref.delete();
+    const refunded = await refundLatestPayment(req.user.id);
 
     res.json({
       success: true,

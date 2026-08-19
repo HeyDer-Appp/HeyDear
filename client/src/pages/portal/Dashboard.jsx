@@ -318,7 +318,7 @@ function DinnerCard({ dinner, onCancel }) {
       {/* Cancel */}
       {!isPast && (
         <button
-          onClick={() => onCancel(dinner.table_id)}
+          onClick={() => onCancel(dinner)}
           className="mt-5 text-cream/25 hover:text-red-400 font-sans text-xs transition-colors"
         >
           Cancel booking
@@ -359,12 +359,17 @@ export default function PortalDashboard() {
     }).finally(() => setLoading(false));
   }, []);
 
-  const cancelBooking = async (tableId) => {
+  // A pending (not yet matched) booking has no table_id at all — cancelling
+  // it goes through a different endpoint that just removes the booking
+  // doc directly instead of looking up a table that doesn't exist yet.
+  const cancelBooking = async (dinner) => {
     if (!confirm('Cancel this booking? Refunds take 2-3 working days.')) return;
     try {
-      const res = await api.post(`/portal/cancel/${tableId}`);
+      const res = dinner.is_pending
+        ? await api.post(`/portal/cancel-pending/${dinner.booking_id}`)
+        : await api.post(`/portal/cancel/${dinner.table_id}`);
       toast.success(res.data.message);
-      setDinners(prev => prev.filter(d => d.table_id !== tableId));
+      setDinners(prev => prev.filter(d => dinner.is_pending ? d.booking_id !== dinner.booking_id : d.table_id !== dinner.table_id));
     } catch (err) {
       toast.error(err.response?.data?.error || 'Cancellations must be made 48 hours before dinner.');
     }
