@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../utils/api';
+import { useAuth } from '../context/AuthContext';
 
 function StarRating({ value, onChange, name }) {
   const [hovered, setHovered] = useState(0);
@@ -29,6 +30,7 @@ export default function Feedback() {
   const { dinnerId } = useParams();
   const [searchParams] = useSearchParams();
   const userId = searchParams.get('uid');
+  const { attendeeUser } = useAuth();
 
   const [form, setForm] = useState({
     overall_rating: 0,
@@ -64,7 +66,7 @@ export default function Feedback() {
         </div>
         <h1 className="font-serif text-4xl text-cream mb-4">Thank you.</h1>
         <p className="font-sans text-cream/60 max-w-sm mb-8">Your feedback shapes who we match and how we run every dinner.</p>
-        <Link to="/" className="btn-primary">Back to HeyDer</Link>
+        <Link to={attendeeUser ? '/portal/dashboard' : '/'} className="btn-primary">Back to HeyDer</Link>
       </div>
     );
   }
