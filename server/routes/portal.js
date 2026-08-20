@@ -96,7 +96,7 @@ router.get('/full-profile', attendeeAuth, async (req, res) => {
       .where('status', 'in', ['active', 'trialing'])
       .get();
     const now = new Date();
-    const hasActiveSubscription = subSnap.docs.some(d => toDate(d.data().currentPeriodEnd) > now);
+    const activeSub = subSnap.docs.find(d => toDate(d.data().currentPeriodEnd) > now);
 
     res.json({
       locked: {
@@ -110,10 +110,38 @@ router.get('/full-profile', attendeeAuth, async (req, res) => {
         country: user.country,
       },
       profileComplete: !!user.profileComplete,
-      hasActiveSubscription,
+      hasActiveSubscription: !!activeSub,
+      subscriptionRenewsAt: activeSub ? toDate(activeSub.data().currentPeriodEnd)?.toISOString() || null : null,
       photo: user.photo || null,
       answers,
     });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Manual renew — stands in for Stripe's own auto-renewal until real billing
+// is wired up. Extends from the current expiry (not from "now") so
+// renewing a few days early, before it's actually lapsed, doesn't throw
+// away the days still remaining.
+router.post('/subscription/renew', attendeeAuth, async (req, res) => {
+  try {
+    const subSnap = await db.collection('subscriptions').where('userId', '==', req.user.id).get();
+    if (subSnap.empty) return res.status(400).json({ error: 'No subscription on file to renew.' });
+
+    const latest = subSnap.docs.sort((a, b) => (b.data().updatedAt?.toMillis?.() || 0) - (a.data().updatedAt?.toMillis?.() || 0))[0];
+    const currentEnd = toDate(latest.data().currentPeriodEnd) || new Date();
+    const base = currentEnd > new Date() ? currentEnd : new Date();
+    const newEnd = new Date(base.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+    await latest.ref.set({
+      status: 'active',
+      currentPeriodEnd: admin.firestore.Timestamp.fromDate(newEnd),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    res.json({ success: true, renewsAt: newEnd.toISOString() });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });

@@ -17,6 +17,47 @@ function getAge(dob) {
   return Math.floor((Date.now() - new Date(dob)) / (365.25 * 24 * 60 * 60 * 1000));
 }
 
+const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
+
+// Badge + live countdown to renewal, with a Renew button that only shows up
+// once there are 3 days or fewer left — otherwise it'd just be a button
+// sitting there for weeks with nothing to actually do yet.
+function SubscriptionCard({ renewsAt, onRenew, renewing }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const tick = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(tick);
+  }, []);
+
+  const msLeft = Math.max(0, new Date(renewsAt).getTime() - now);
+  const days = Math.floor(msLeft / (24 * 60 * 60 * 1000));
+  const hours = Math.floor((msLeft % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+  const minutes = Math.floor((msLeft % (60 * 60 * 1000)) / 60000);
+  const showRenew = msLeft <= THREE_DAYS_MS;
+
+  return (
+    <div className="quiz-card">
+      <div className="flex items-center justify-between mb-3">
+        <span className="inline-flex items-center gap-1.5 font-sans text-[10px] tracking-widest uppercase text-gold bg-gold/10 border border-gold/20 rounded-full px-2.5 py-0.5">
+          ✦ Subscription active
+        </span>
+      </div>
+      <p className="font-sans text-cream/40 text-xs uppercase tracking-widest mb-1">Renews in</p>
+      <p className="font-serif text-2xl text-cream mb-3">
+        {days > 0 ? `${days}d ${hours}h ${minutes}m` : `${hours}h ${minutes}m`}
+      </p>
+      {showRenew && (
+        <>
+          <p className="font-sans text-cream/40 text-xs mb-3">Your membership is about to expire — renew now so your next dinner stays free.</p>
+          <button onClick={onRenew} disabled={renewing} className="quiz-cta w-full disabled:opacity-60">
+            {renewing ? 'Renewing...' : 'Renew for 1 more month'}
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
 // 'personal' (dob/gender/country) and 'contact' (phone) each have their own
 // dedicated card above instead of going through this generic loop, which
 // only knows how to render yes_no/choice/multi_choice/scale/text — leaving
@@ -53,23 +94,40 @@ export default function EditProfile() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [photoUploading, setPhotoUploading] = useState(false);
+  const [subscription, setSubscription] = useState({ active: false, renewsAt: null });
+  const [renewing, setRenewing] = useState(false);
+
+  const loadProfile = () => api.get('/portal/full-profile')
+    .then(res => {
+      setLocked(res.data.locked);
+      const loaded = {
+        ...(res.data.answers || {}),
+        phone: res.data.locked?.phone || '',
+        phoneCountryCode: res.data.locked?.phoneCountryCode || '+64',
+        photo: res.data.photo || null,
+      };
+      setAnswers(loaded);
+      setInitialAnswers(loaded);
+      setSubscription({ active: !!res.data.hasActiveSubscription, renewsAt: res.data.subscriptionRenewsAt || null });
+    })
+    .catch(() => toast.error('Failed to load your profile'));
 
   useEffect(() => {
-    api.get('/portal/full-profile')
-      .then(res => {
-        setLocked(res.data.locked);
-        const loaded = {
-          ...(res.data.answers || {}),
-          phone: res.data.locked?.phone || '',
-          phoneCountryCode: res.data.locked?.phoneCountryCode || '+64',
-          photo: res.data.photo || null,
-        };
-        setAnswers(loaded);
-        setInitialAnswers(loaded);
-      })
-      .catch(() => toast.error('Failed to load your profile'))
-      .finally(() => setLoading(false));
+    loadProfile().finally(() => setLoading(false));
   }, []);
+
+  const handleRenew = async () => {
+    setRenewing(true);
+    try {
+      await api.post('/portal/subscription/renew');
+      toast.success('Subscription renewed for another month!');
+      loadProfile();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Could not renew right now.');
+    } finally {
+      setRenewing(false);
+    }
+  };
 
   // The save button only shows up once something's actually been touched —
   // compares against a snapshot taken right after load (and refreshed after
@@ -143,6 +201,10 @@ export default function EditProfile() {
             Change anything you like — we'll use your latest answers for future matching.
           </p>
         </div>
+
+        {subscription.active && subscription.renewsAt && (
+          <SubscriptionCard renewsAt={subscription.renewsAt} onRenew={handleRenew} renewing={renewing} />
+        )}
 
         {/* Profile photo */}
         <div className="quiz-card flex items-center gap-5">
