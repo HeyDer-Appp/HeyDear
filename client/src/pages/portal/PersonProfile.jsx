@@ -101,16 +101,18 @@ export default function PersonProfile() {
               <img src={flagUrl(data.country)} alt={data.country} className="h-4 rounded-[2px]" />
             )}
           </h1>
-          <div className="flex items-center gap-6 mt-4">
-            <div className="text-center">
-              <p className="font-serif text-2xl text-gold">{data.dinners_attended}</p>
-              <p className="font-sans text-cream/40 text-[11px] uppercase tracking-widest">Dinners</p>
+          {data.full_profile && (
+            <div className="flex items-center gap-6 mt-4">
+              <div className="text-center">
+                <p className="font-serif text-2xl text-gold">{data.dinners_attended}</p>
+                <p className="font-sans text-cream/40 text-[11px] uppercase tracking-widest">Dinners</p>
+              </div>
+              <div className="text-center">
+                <p className="font-serif text-2xl text-gold">{data.connections_count}</p>
+                <p className="font-sans text-cream/40 text-[11px] uppercase tracking-widest">Connections</p>
+              </div>
             </div>
-            <div className="text-center">
-              <p className="font-serif text-2xl text-gold">{data.connections_count}</p>
-              <p className="font-sans text-cream/40 text-[11px] uppercase tracking-widest">Connections</p>
-            </div>
-          </div>
+          )}
 
           <div className="mt-6 w-full max-w-[240px]">
             {data.connection_status === 'connected' && (
@@ -136,16 +138,24 @@ export default function PersonProfile() {
           </div>
         </div>
 
-        <div>
-          <p className="font-sans font-semibold text-cream/50 text-xs uppercase tracking-widest mb-3">Photos</p>
-          {data.photos.length === 0 ? (
-            <p className="font-sans text-cream/30 text-sm italic">No photos shared yet.</p>
-          ) : (
-            <div className="grid grid-cols-3 gap-3">
-              {data.photos.map(p => <PolaroidCard key={p.id} photo={p} />)}
-            </div>
-          )}
-        </div>
+        {data.full_profile ? (
+          <div>
+            <p className="font-sans font-semibold text-cream/50 text-xs uppercase tracking-widest mb-3">Photos</p>
+            {data.photos.length === 0 ? (
+              <p className="font-sans text-cream/30 text-sm italic">No photos shared yet.</p>
+            ) : (
+              <div className="grid grid-cols-3 gap-3">
+                {data.photos.map(p => <PolaroidCard key={p.id} photo={p} />)}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="quiz-card text-center py-8">
+            <p className="font-sans text-cream/40 text-sm">
+              Connect with {data.first_name || 'them'} to see their dinners, connections, and photos.
+            </p>
+          </div>
+        )}
       </div>
       <BottomNav />
     </div>

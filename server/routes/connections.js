@@ -159,15 +159,31 @@ router.get('/', attendeeAuth, async (req, res) => {
 
 // A lightweight poll target for the bottom-nav notification dot — just a
 // count, not full profile summaries with base64 photos, since this gets
-// hit far more often than the full list above.
+// hit far more often than the full list above. Counts both pending connect
+// requests waiting on me and any DM thread with an unread message.
 router.get('/pending-count', attendeeAuth, async (req, res) => {
   try {
-    const snap = await db.collection('connectionRequests')
-      .where('toUserId', '==', req.user.id)
-      .where('status', '==', 'pending')
-      .get();
-    const count = snap.docs.filter((d) => !isExpired(d.data())).length;
-    res.json({ count });
+    const uid = req.user.id;
+    const [reqSnap, asA, asB] = await Promise.all([
+      db.collection('connectionRequests').where('toUserId', '==', uid).where('status', '==', 'pending').get(),
+      db.collection('connections').where('user1Id', '==', uid).get(),
+      db.collection('connections').where('user2Id', '==', uid).get(),
+    ]);
+    const pendingRequests = reqSnap.docs.filter((d) => !isExpired(d.data())).length;
+
+    const connDocs = [...asA.docs, ...asB.docs];
+    const unreadFlags = await Promise.all(connDocs.map(async (d) => {
+      const c = d.data();
+      const lastReadAt = (c.user1Id === uid ? c.user1LastReadAt : c.user2LastReadAt)?.toMillis?.() || 0;
+      const msgSnap = await db.collection('dmMessages').where('connectionId', '==', d.id).get();
+      return msgSnap.docs.some((m) => {
+        const md = m.data();
+        return md.fromUserId !== uid && (md.createdAt?.toMillis?.() || 0) > lastReadAt;
+      });
+    }));
+    const unreadThreads = unreadFlags.filter(Boolean).length;
+
+    res.json({ count: pendingRequests + unreadThreads });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
@@ -187,12 +203,12 @@ router.post('/:userId/dismiss', attendeeAuth, async (req, res) => {
   }
 });
 
-// A person's profile — only viewable once you've actually shared a
-// revealed table with them, or you're already connected. Their connection
-// count and dinners-attended count are always shown to a viewer who's
-// cleared that gate; their photos are every photo they've ever uploaded
-// across any of their dinners, not just the one you shared with them —
-// this is meant to read as their personal album, not a per-table gallery.
+// A person's basic card (name/photo/country + connect status) is visible
+// once you've shared a revealed table with them — same gate the "Group
+// Info" list already uses. Their actual album, dinners-attended count, and
+// connections count only show once you're both actually connected; before
+// that this returns full_profile:false and the client shows a "connect to
+// see more" prompt instead.
 router.get('/profile/:userId', attendeeAuth, async (req, res) => {
   try {
     const { userId } = req.params;
@@ -207,16 +223,7 @@ router.get('/profile/:userId', attendeeAuth, async (req, res) => {
       if (!shared) return res.status(403).json({ error: "You haven't shared a revealed dinner with this person yet." });
     }
 
-    const [summary, dinners, connCount, photosSnap] = await Promise.all([
-      userSummary(userId),
-      attendedTableCount(userId),
-      connectionCount(userId),
-      db.collection('dinnerPhotos').where('userId', '==', userId).get(),
-    ]);
-
-    const photos = photosSnap.docs
-      .map(d => ({ id: d.id, photo: d.data().photo, createdAt: toDate(d.data().createdAt)?.toISOString() || null }))
-      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+    const summary = await userSummary(userId);
 
     let connectionStatus = 'none';
     let connectionId = null;
@@ -235,8 +242,25 @@ router.get('/profile/:userId', attendeeAuth, async (req, res) => {
       else if (inReq) { connectionStatus = 'pending_incoming'; requestId = inReq.id; }
     }
 
+    if (!connected) {
+      return res.json({
+        ...summary, full_profile: false, dinners_attended: null, connections_count: null, photos: [],
+        connection_status: connectionStatus, connection_id: connectionId, request_id: requestId,
+      });
+    }
+
+    const [dinners, connCount, photosSnap] = await Promise.all([
+      attendedTableCount(userId),
+      connectionCount(userId),
+      db.collection('dinnerPhotos').where('userId', '==', userId).get(),
+    ]);
+
+    const photos = photosSnap.docs
+      .map(d => ({ id: d.id, photo: d.data().photo, createdAt: toDate(d.data().createdAt)?.toISOString() || null }))
+      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+
     res.json({
-      ...summary, dinners_attended: dinners, connections_count: connCount, photos,
+      ...summary, full_profile: true, dinners_attended: dinners, connections_count: connCount, photos,
       connection_status: connectionStatus, connection_id: connectionId, request_id: requestId,
     });
   } catch (err) {
@@ -367,6 +391,13 @@ router.get('/:connectionId/messages', attendeeAuth, async (req, res) => {
       .map(d => ({ id: d.id, from_user_id: d.data().fromUserId, text: d.data().text, created_at: toDate(d.data().createdAt)?.toISOString() || null, _sort: d.data().createdAt?.toMillis?.() || 0 }))
       .sort((a, b) => a._sort - b._sort)
       .map(({ _sort, ...m }) => m);
+
+    // Opening the thread is what clears its unread state for the nav dot —
+    // fire-and-forget since it shouldn't hold up the response.
+    const readField = c.user1Id === req.user.id ? 'user1LastReadAt' : 'user2LastReadAt';
+    db.collection('connections').doc(connectionId)
+      .set({ [readField]: admin.firestore.FieldValue.serverTimestamp() }, { merge: true })
+      .catch(() => {});
 
     res.json({ other: otherSummary, messages });
   } catch (err) {

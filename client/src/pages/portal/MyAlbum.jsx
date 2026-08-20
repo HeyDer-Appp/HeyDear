@@ -171,7 +171,7 @@ export default function MyAlbum() {
                         accept="image/*"
                         capture="environment"
                         className="hidden"
-                        onChange={e => handleUpload(dinner.table_id, e.target.files?.[0])}
+                        onChange={e => { handleUpload(dinner.table_id, e.target.files?.[0]); e.target.value = ''; }}
                       />
                     </label>
                     <label className={`flex-1 bg-[#f5edd8] text-[#2a2a2a] rounded-lg text-base py-2 flex items-center justify-center cursor-pointer shadow-[0_2px_8px_rgba(0,0,0,0.3)] hover:bg-white transition-colors ${uploadingFor === dinner.table_id ? 'opacity-60 pointer-events-none' : ''}`}>
@@ -180,7 +180,7 @@ export default function MyAlbum() {
                         type="file"
                         accept="image/*"
                         className="hidden"
-                        onChange={e => handleUpload(dinner.table_id, e.target.files?.[0])}
+                        onChange={e => { handleUpload(dinner.table_id, e.target.files?.[0]); e.target.value = ''; }}
                       />
                     </label>
                   </div>

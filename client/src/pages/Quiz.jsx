@@ -829,7 +829,7 @@ export default function Quiz() {
     try {
       const stripeKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
       if (!stripeKey) {
-        await submitQuizWithoutPayment();
+        await submitQuizWithoutPayment(plan);
         return;
       }
       const stripe = await loadStripe(stripeKey);
@@ -846,13 +846,19 @@ export default function Quiz() {
     }
   };
 
-  const submitQuizWithoutPayment = async () => {
+  // plan is only relevant in test mode (no Stripe key) — a real Stripe
+  // session already tells the server which plan was bought via
+  // reconcileStripeSession, but a simulated booking has no session to read
+  // that from, so it has to be passed through explicitly or "subscription"
+  // silently produces zero subscription record at all.
+  const submitQuizWithoutPayment = async (plan) => {
     if (!validate()) return;
     setSubmitting(true);
     try {
       await api.post('/profile/submit', {
         ...answers,
         field_OVB7lzEjSl7C: answers.field_OVB7lzEjSl7C || [],
+        plan,
       });
       navigate('/profile/success');
     } catch (err) {

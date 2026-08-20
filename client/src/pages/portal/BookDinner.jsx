@@ -66,11 +66,17 @@ export default function BookDinner() {
     }).catch(() => setLoadError(true)).finally(() => setLoading(false));
   }, [navigate]);
 
-  const submitBooking = async (fullAnswers) => {
+  // plan is only relevant in test mode (no Stripe key) — a real Stripe
+  // session already tells the server which plan was bought via
+  // reconcileStripeSession, but a simulated booking has no session to read
+  // that from, so it has to be passed through explicitly or "subscription"
+  // silently produces zero subscription record at all.
+  const submitBooking = async (fullAnswers, plan) => {
     try {
       await api.post('/profile/submit', {
         ...fullAnswers,
         field_OVB7lzEjSl7C: fullAnswers.field_OVB7lzEjSl7C || [],
+        plan,
       });
       navigate('/profile/success');
     } catch (err) {
@@ -91,7 +97,7 @@ export default function BookDinner() {
     const fullAnswers = { ...answers, field_CdZldwp5q09o: selectedDate };
     try {
       if (!stripeConfigured) {
-        await submitBooking(fullAnswers);
+        await submitBooking(fullAnswers, plan);
         return;
       }
       const stripe = await loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);

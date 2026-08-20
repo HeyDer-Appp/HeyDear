@@ -100,7 +100,7 @@ router.post('/submit', attendeeAuth, quizLimiter, async (req, res) => {
     const {
       field_CdZldwp5q09o,
       first_name, last_name, phone, dob, gender, country, photo,
-      referral_code, stripe_session_id,
+      referral_code, stripe_session_id, plan,
     } = req.body;
 
     if (photo !== undefined && photo !== null) {
@@ -230,6 +230,22 @@ router.post('/submit', attendeeAuth, quizLimiter, async (req, res) => {
 
     if (stripe_session_id) {
       await reconcileStripeSession(req.user.id, stripe_session_id, result.bookingRef);
+    } else if (plan === 'subscription') {
+      // Test-mode booking (no Stripe key configured) — there's no real
+      // checkout session to reconcile a subscription from, so choosing
+      // "Monthly membership" here previously just vanished: the booking
+      // went through as if it were a one-time reservation and no
+      // subscription record was ever created, so the very next booking
+      // asked for payment again. Simulate what a real Stripe subscription
+      // would have produced instead.
+      await db.collection('subscriptions').doc(`sim_${req.user.id}`).set({
+        userId: req.user.id,
+        plan: 'monthly',
+        status: 'active',
+        simulated: true,
+        currentPeriodEnd: admin.firestore.Timestamp.fromMillis(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      }, { merge: true });
     }
 
     res.json({
