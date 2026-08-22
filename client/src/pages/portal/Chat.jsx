@@ -18,11 +18,19 @@ function PersonRow({ person, onOpen, onConnect, onDismiss, onAccept, onDecline, 
         person.status === 'connected' ? 'cursor-pointer hover:border-gold/30' : ''
       }`}
     >
-      <img src={person.photo || AVATAR_FALLBACK} alt="" className="w-9 h-9 rounded-full object-cover border border-white/10 flex-shrink-0" />
-      <p className={`font-sans text-cream text-sm font-medium flex items-center gap-1.5 truncate min-w-0 ${isNone ? 'flex-shrink' : 'flex-1'}`}>
+      <div className="relative flex-shrink-0">
+        <img src={person.photo || AVATAR_FALLBACK} alt="" className="w-9 h-9 rounded-full object-cover border border-white/10" />
+        {person.has_unread && (
+          <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-[#16181d]" />
+        )}
+      </div>
+      <p className={`font-sans text-cream text-sm font-medium flex items-center gap-1.5 truncate min-w-0 ${isNone ? 'flex-shrink' : 'flex-1'} ${person.has_unread ? 'font-semibold' : ''}`}>
         {person.first_name || 'Guest'}
         {person.country && flagUrl(person.country) && (
           <img src={flagUrl(person.country)} alt={person.country} className="h-2.5 rounded-[1px] flex-shrink-0" />
+        )}
+        {person.has_unread && (
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0" />
         )}
       </p>
 

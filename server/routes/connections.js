@@ -106,6 +106,18 @@ async function connectionCount(uid) {
   return asA.size + asB.size;
 }
 
+// Shared by the people list (per-row dot) and the nav-badge count below —
+// a thread is unread if the other person sent something after my own
+// last-read marker on it.
+async function connectionHasUnread(connectionId, uid, c) {
+  const lastReadAt = (c.user1Id === uid ? c.user1LastReadAt : c.user2LastReadAt)?.toMillis?.() || 0;
+  const msgSnap = await db.collection('dmMessages').where('connectionId', '==', connectionId).get();
+  return msgSnap.docs.some((m) => {
+    const md = m.data();
+    return md.fromUserId !== uid && (md.createdAt?.toMillis?.() || 0) > lastReadAt;
+  });
+}
+
 // Every person from a shared revealed table, each tagged with where things
 // stand: connected (tap to message), a request either direction, or
 // 'none' (show Connect / X). Someone X'd from 'none' just stops appearing
@@ -125,9 +137,11 @@ router.get('/', attendeeAuth, async (req, res) => {
     ]);
 
     const connectionByOther = new Map();
+    const connectionDataById = new Map();
     [...asA.docs, ...asB.docs].forEach((d) => {
       const c = d.data();
       connectionByOther.set(c.user1Id === uid ? c.user2Id : c.user1Id, d.id);
+      connectionDataById.set(d.id, c);
     });
     const incomingByFrom = new Map();
     incomingSnap.docs.filter((d) => !isExpired(d.data())).forEach((d) => incomingByFrom.set(d.data().fromUserId, d.id));
@@ -141,11 +155,16 @@ router.get('/', attendeeAuth, async (req, res) => {
       let status = 'none';
       let connectionId = null;
       let requestId = null;
-      if (connectionByOther.has(otherId)) { status = 'connected'; connectionId = connectionByOther.get(otherId); }
+      let hasUnread = false;
+      if (connectionByOther.has(otherId)) {
+        status = 'connected';
+        connectionId = connectionByOther.get(otherId);
+        hasUnread = await connectionHasUnread(connectionId, uid, connectionDataById.get(connectionId));
+      }
       else if (incomingByFrom.has(otherId)) { status = 'pending_incoming'; requestId = incomingByFrom.get(otherId); }
       else if (outgoingByTo.has(otherId)) { status = 'pending_outgoing'; }
       else if (dismissedIds.has(otherId)) { return null; }
-      return { ...(await userSummary(otherId)), status, connection_id: connectionId, request_id: requestId };
+      return { ...(await userSummary(otherId)), status, connection_id: connectionId, request_id: requestId, has_unread: hasUnread };
     }))).filter(Boolean);
 
     people.sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status]);
@@ -172,15 +191,7 @@ router.get('/pending-count', attendeeAuth, async (req, res) => {
     const pendingRequests = reqSnap.docs.filter((d) => !isExpired(d.data())).length;
 
     const connDocs = [...asA.docs, ...asB.docs];
-    const unreadFlags = await Promise.all(connDocs.map(async (d) => {
-      const c = d.data();
-      const lastReadAt = (c.user1Id === uid ? c.user1LastReadAt : c.user2LastReadAt)?.toMillis?.() || 0;
-      const msgSnap = await db.collection('dmMessages').where('connectionId', '==', d.id).get();
-      return msgSnap.docs.some((m) => {
-        const md = m.data();
-        return md.fromUserId !== uid && (md.createdAt?.toMillis?.() || 0) > lastReadAt;
-      });
-    }));
+    const unreadFlags = await Promise.all(connDocs.map((d) => connectionHasUnread(d.id, uid, d.data())));
     const unreadThreads = unreadFlags.filter(Boolean).length;
 
     res.json({ count: pendingRequests + unreadThreads });
