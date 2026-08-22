@@ -244,6 +244,17 @@ function DinnerCard({ dinner, onCancel }) {
   }
 
   const config = STATUS_CONFIG[status];
+
+  // The badge stops saying "finding" once matching would normally have
+  // happened — Friday 9pm NZT, 94 hours before the Tuesday 7pm dinner —
+  // even if the admin's manual match hasn't actually run yet, so the card
+  // doesn't look stuck on "finding" for days. Purely cosmetic: isPending
+  // and the real countdown/cancel logic are untouched.
+  const groupFoundAt = dinnerDate ? new Date(dinnerDate.getTime() - 94 * 3600 * 1000) : null;
+  const groupFoundLabelShown = status === 'pending' && groupFoundAt && now >= groupFoundAt;
+  const badgeIcon = groupFoundLabelShown ? '✦' : config.icon;
+  const badgeLabel = groupFoundLabelShown ? 'Group found' : config.label;
+
   const formattedDate = dinnerDate
     ? dinnerDate.toLocaleDateString('en-NZ', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Pacific/Auckland' })
     : dinner.preferred_date || 'Upcoming Tuesday';
@@ -253,7 +264,7 @@ function DinnerCard({ dinner, onCancel }) {
       {/* Status badge */}
       <div className="flex items-center justify-between mb-5">
         <span className={`inline-flex items-center gap-2 text-xs font-sans font-semibold tracking-wider uppercase px-3 py-1.5 rounded-full whitespace-nowrap ${config.bg} ${config.color}`}>
-          <span>{config.icon}</span><span>{config.label}</span>
+          <span>{badgeIcon}</span><span>{badgeLabel}</span>
         </span>
         {!isPast && <span className="font-sans text-cream/30 text-xs">7:00 PM</span>}
       </div>
