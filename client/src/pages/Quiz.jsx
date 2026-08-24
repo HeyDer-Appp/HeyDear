@@ -315,6 +315,9 @@ export const choiceActive =
   'border-gold bg-gold text-navy shadow-[0_4px_16px_rgba(232,168,84,0.2)]';
 
 export const DATE_Q = QUESTIONS.find(q => q.id === 'date');
+// Mirrors payments.js's SIGNUP_INSTANT_PAY_DISCOUNT_PERCENT — display-only
+// here, the server re-applies the real discount independently at checkout.
+export const SIGNUP_DISCOUNT_PERCENT = 10;
 const CHAPTER_QUESTIONS = CHAPTERS.map(chap => ({
   chapter: chap,
   questions: QUESTIONS.filter(q => q.chapter === chap.id),
@@ -580,6 +583,10 @@ export default function Quiz() {
   const [submitting, setSubmitting] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState('one_time');
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
+  const [couponInput, setCouponInput] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [couponError, setCouponError] = useState('');
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
   const [photoUploading, setPhotoUploading] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [dateChoices, setDateChoices] = useState(DATE_Q.choices);
@@ -836,6 +843,8 @@ export default function Quiz() {
       const res = await api.post('/payments/create-checkout', {
         email: attendeeUser?.email,
         plan,
+        couponCode: appliedCoupon?.code,
+        context: 'signup',
         metadata: { quizData: JSON.stringify(answers) },
       });
       sessionStorage.setItem('heyder_quiz_answers', JSON.stringify(answers));
@@ -845,6 +854,24 @@ export default function Quiz() {
       setSubmitting(false);
     }
   };
+
+  const applyCoupon = async () => {
+    if (!couponInput.trim()) return;
+    setValidatingCoupon(true);
+    setCouponError('');
+    try {
+      const res = await api.post('/payments/validate-coupon', { code: couponInput.trim() });
+      setAppliedCoupon({ code: res.data.code, discountPercent: res.data.discountPercent });
+      toast.success(`${res.data.discountPercent}% off applied!`);
+    } catch (err) {
+      setAppliedCoupon(null);
+      setCouponError(err.response?.data?.error || 'That code is invalid or has expired.');
+    } finally {
+      setValidatingCoupon(false);
+    }
+  };
+
+  const removeCoupon = () => { setAppliedCoupon(null); setCouponInput(''); setCouponError(''); };
 
   // plan is only relevant in test mode (no Stripe key) — a real Stripe
   // session already tells the server which plan was bought via
@@ -1151,48 +1178,108 @@ export default function Quiz() {
                   {submitting ? 'Confirming...' : 'Confirm Booking'}
                 </button>
               </div>
-            ) : (
-              <div>
-                <motion.div initial="hidden" animate="visible" variants={staggerContainerVariant} className="space-y-3 mb-5">
-                  <motion.button
-                    variants={fadeLeftVariant}
-                    type="button"
-                    onClick={() => setSelectedPlan('one_time')}
-                    className={`w-full text-left rounded-2xl border p-4 transition-colors duration-200 ${selectedPlan === 'one_time' ? choiceActive : choiceIdle}`}
+            ) : (() => {
+              const discountPercent = appliedCoupon ? appliedCoupon.discountPercent : SIGNUP_DISCOUNT_PERCENT;
+              const oneTimePrice = (10 * (1 - discountPercent / 100)).toFixed(2).replace(/\.00$/, '');
+              const subPrice = (15 * (1 - discountPercent / 100)).toFixed(2).replace(/\.00$/, '');
+              return (
+                <div>
+                  <motion.div initial="hidden" animate="visible" variants={staggerContainerVariant} className="space-y-3 mb-4">
+                    <motion.button
+                      variants={fadeLeftVariant}
+                      type="button"
+                      onClick={() => setSelectedPlan('one_time')}
+                      className={`w-full text-left rounded-2xl border p-4 transition-colors duration-200 ${selectedPlan === 'one_time' ? choiceActive : choiceIdle}`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-sans font-semibold text-base">One-time reservation</span>
+                        <span className="flex items-baseline gap-1.5">
+                          <span className={`font-sans text-xs line-through ${selectedPlan === 'one_time' ? 'text-navy/40' : 'text-cream/25'}`}>$10</span>
+                          <span className="font-serif text-2xl">${oneTimePrice}</span>
+                        </span>
+                      </div>
+                      <p className={`font-sans text-sm ${selectedPlan === 'one_time' ? 'text-navy/60' : 'text-cream/40'}`}>Reserve just this Tuesday's dinner. Refundable up to 48hrs before.</p>
+                    </motion.button>
+                    <motion.button
+                      variants={fadeLeftVariant}
+                      type="button"
+                      onClick={() => setSelectedPlan('subscription')}
+                      className={`w-full text-left rounded-2xl border p-4 transition-colors duration-200 relative ${selectedPlan === 'subscription' ? choiceActive : choiceIdle}`}
+                    >
+                      <span className="absolute -top-2.5 right-5 bg-yellow text-navy text-[10px] font-sans font-bold uppercase tracking-widest px-2.5 py-1 rounded-full">Best value</span>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-sans font-semibold text-base">Monthly membership</span>
+                        <span className="flex items-baseline gap-1.5">
+                          <span className={`font-sans text-xs line-through ${selectedPlan === 'subscription' ? 'text-navy/40' : 'text-cream/25'}`}>$15</span>
+                          <span className="font-serif text-2xl">${subPrice}<span className="text-sm">/mo</span></span>
+                        </span>
+                      </div>
+                      <p className={`font-sans text-sm ${selectedPlan === 'subscription' ? 'text-navy/60' : 'text-cream/40'}`}>Unlimited HeyDer dinners this month.</p>
+                    </motion.button>
+                  </motion.div>
+
+                  {/* Coupon entry — an ambassador's code replaces the automatic
+                      pay-now discount above rather than stacking with it. */}
+                  <div className="mb-4">
+                    {appliedCoupon ? (
+                      <div className="flex items-center justify-between rounded-xl border border-emerald-400/25 bg-emerald-400/[0.06] px-3 py-2.5">
+                        <span className="font-sans text-emerald-400 text-xs">
+                          ✓ Code <span className="font-mono">{appliedCoupon.code}</span> applied — {appliedCoupon.discountPercent}% off
+                        </span>
+                        <button type="button" onClick={removeCoupon} className="font-sans text-cream/40 hover:text-cream text-xs transition-colors">Remove</button>
+                      </div>
+                    ) : (
+                      <div>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={couponInput}
+                            onChange={e => { setCouponInput(e.target.value.toUpperCase()); setCouponError(''); }}
+                            placeholder="Have a coupon code?"
+                            className="quiz-input flex-1 uppercase"
+                          />
+                          <button
+                            type="button"
+                            onClick={applyCoupon}
+                            disabled={validatingCoupon || !couponInput.trim()}
+                            className="btn-outline text-xs px-4 disabled:opacity-50"
+                          >
+                            {validatingCoupon ? '...' : 'Apply'}
+                          </button>
+                        </div>
+                        {couponError && <p className="font-sans text-red-400/80 text-xs mt-1.5">{couponError}</p>}
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={() => handlePayment(selectedPlan)}
+                    disabled={submitting}
+                    className="quiz-cta w-full flex items-center justify-center gap-2 disabled:opacity-60"
                   >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-sans font-semibold text-base">One-time reservation</span>
-                      <span className="font-serif text-2xl">$10</span>
-                    </div>
-                    <p className={`font-sans text-sm ${selectedPlan === 'one_time' ? 'text-navy/60' : 'text-cream/40'}`}>Reserve just this Tuesday's dinner. Refundable up to 48hrs before.</p>
-                  </motion.button>
-                  <motion.button
-                    variants={fadeLeftVariant}
-                    type="button"
-                    onClick={() => setSelectedPlan('subscription')}
-                    className={`w-full text-left rounded-2xl border p-4 transition-colors duration-200 relative ${selectedPlan === 'subscription' ? choiceActive : choiceIdle}`}
-                  >
-                    <span className="absolute -top-2.5 right-5 bg-yellow text-navy text-[10px] font-sans font-bold uppercase tracking-widest px-2.5 py-1 rounded-full">Best value</span>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-sans font-semibold text-base">Monthly membership</span>
-                      <span className="font-serif text-2xl">$15<span className="text-sm">/mo</span></span>
-                    </div>
-                    <p className={`font-sans text-sm ${selectedPlan === 'subscription' ? 'text-navy/60' : 'text-cream/40'}`}>Unlimited HeyDer dinners this month.</p>
-                  </motion.button>
-                </motion.div>
-                <button
-                  onClick={() => handlePayment(selectedPlan)}
-                  disabled={submitting}
-                  className="quiz-cta w-full flex items-center justify-center gap-2 disabled:opacity-60"
-                >
-                  {submitting
-                    ? 'Processing...'
-                    : !stripeConfigured
-                      ? 'Complete Booking (Test Mode)'
-                      : selectedPlan === 'subscription' ? 'Subscribe $15/mo' : 'Pay $10 & Complete Booking'}
-                </button>
-              </div>
-            )}
+                    {submitting
+                      ? 'Processing...'
+                      : !stripeConfigured
+                        ? 'Complete Booking (Test Mode)'
+                        : selectedPlan === 'subscription' ? `Subscribe $${subPrice}/mo` : `Pay $${oneTimePrice} & Complete Booking`}
+                  </button>
+
+                  <div className="text-center mt-4">
+                    <button
+                      type="button"
+                      onClick={() => submitQuizWithoutPayment()}
+                      disabled={submitting}
+                      className="font-sans text-cream/40 hover:text-cream text-xs transition-colors disabled:opacity-50"
+                    >
+                      Skip for now — pay later
+                    </button>
+                    <p className="font-sans text-cream/25 text-[11px] mt-1">
+                      You can still see your dashboard and finish your profile. Pay now and save {discountPercent}%.
+                    </p>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         )}
 

@@ -5,6 +5,139 @@ import api from '../../utils/api';
 
 const TIERS = ['Trial', 'Active', 'Founding'];
 
+const EMPTY_COUPON_FORM = { code: '', discountPercent: '10', expiresAt: '' };
+
+function CouponsSection() {
+  const [coupons, setCoupons] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState(EMPTY_COUPON_FORM);
+  const [saving, setSaving] = useState(false);
+
+  const load = () => api.get('/admin/coupons')
+    .then(r => setCoupons(r.data.coupons || []))
+    .catch(console.error)
+    .finally(() => setLoading(false));
+
+  useEffect(() => { load(); }, []);
+
+  const createCoupon = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await api.post('/admin/coupons', {
+        code: form.code,
+        discountPercent: Number(form.discountPercent),
+        expiresAt: form.expiresAt || null,
+      });
+      toast.success('Coupon created!');
+      setShowAdd(false);
+      setForm(EMPTY_COUPON_FORM);
+      load();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to create coupon');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const toggleActive = async (coupon) => {
+    try {
+      await api.put(`/admin/coupons/${coupon.code}`, { active: !coupon.active });
+      setCoupons(prev => prev.map(c => c.code === coupon.code ? { ...c, active: !c.active } : c));
+    } catch { toast.error('Failed to update coupon'); }
+  };
+
+  const removeCoupon = async (coupon) => {
+    if (!confirm(`Delete coupon ${coupon.code}? This can't be undone.`)) return;
+    try {
+      await api.delete(`/admin/coupons/${coupon.code}`);
+      setCoupons(prev => prev.filter(c => c.code !== coupon.code));
+      toast.success('Coupon deleted');
+    } catch { toast.error('Failed to delete coupon'); }
+  };
+
+  return (
+    <div className="space-y-4 pt-2">
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="font-serif text-xl text-cream">Discount Coupons</h2>
+          <p className="font-sans text-cream/40 text-xs mt-1">Hand these out to ambassadors — attendees can apply one at checkout.</p>
+        </div>
+        <button onClick={() => setShowAdd(true)} className="btn-primary text-xs py-2 px-5">+ Create Coupon</button>
+      </div>
+
+      {showAdd && (
+        <div className="card">
+          <h3 className="font-sans font-semibold text-cream text-sm mb-4">New Coupon</h3>
+          <form onSubmit={createCoupon} className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <input
+              className="input-field uppercase"
+              placeholder="Code (e.g. SARAH10)"
+              required
+              value={form.code}
+              onChange={e => setForm(f => ({ ...f, code: e.target.value.toUpperCase() }))}
+            />
+            <input
+              className="input-field"
+              type="number"
+              min="1"
+              max="100"
+              placeholder="Discount %"
+              required
+              value={form.discountPercent}
+              onChange={e => setForm(f => ({ ...f, discountPercent: e.target.value }))}
+            />
+            <input
+              className="input-field"
+              type="date"
+              value={form.expiresAt}
+              onChange={e => setForm(f => ({ ...f, expiresAt: e.target.value }))}
+            />
+            <p className="font-sans text-cream/30 text-xs md:col-span-3 -mt-2">Leave the date blank for a coupon that never expires.</p>
+            <div className="md:col-span-3 flex gap-3">
+              <button type="submit" disabled={saving} className="btn-primary text-xs py-2 px-6 disabled:opacity-60">
+                {saving ? 'Creating...' : 'Create'}
+              </button>
+              <button type="button" onClick={() => { setShowAdd(false); setForm(EMPTY_COUPON_FORM); }} className="btn-outline text-xs py-2 px-6">Cancel</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {!loading && coupons.length === 0 && !showAdd && (
+        <p className="font-sans text-cream/30 text-sm">No coupons yet.</p>
+      )}
+
+      {coupons.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {coupons.map(c => (
+            <div key={c.code} className={`card ${!c.active || c.expired ? 'opacity-50' : ''}`}>
+              <div className="flex items-start justify-between mb-2">
+                <span className="font-mono text-gold text-sm">{c.code}</span>
+                <span className="font-serif text-lg text-cream">{c.discountPercent}% off</span>
+              </div>
+              <p className="font-sans text-cream/40 text-xs mb-3">
+                {c.expiresAt
+                  ? `Expires ${new Date(c.expiresAt).toLocaleDateString('en-NZ', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Pacific/Auckland' })}${c.expired ? ' (expired)' : ''}`
+                  : 'Never expires'}
+              </p>
+              <div className="flex gap-3">
+                <button onClick={() => toggleActive(c)} className="font-sans text-cream/50 hover:text-cream text-xs transition-colors">
+                  {c.active ? 'Deactivate' : 'Activate'}
+                </button>
+                <button onClick={() => removeCoupon(c)} className="font-sans text-cream/30 hover:text-red-400 text-xs transition-colors">
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminAmbassadors() {
   const [ambassadors, setAmbassadors] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -106,6 +239,10 @@ export default function AdminAmbassadors() {
               {amb.notes && <p className="font-sans text-cream/40 text-xs italic">{amb.notes}</p>}
             </div>
           ))}
+        </div>
+
+        <div className="border-t border-white/[0.06] pt-2">
+          <CouponsSection />
         </div>
       </div>
     </AdminLayout>

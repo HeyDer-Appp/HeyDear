@@ -5,7 +5,18 @@ const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 const ONE_TIME_AMOUNT = parseInt(process.env.STRIPE_ONE_TIME_AMOUNT) || 1000; // $10 NZD
 const SUBSCRIPTION_AMOUNT = parseInt(process.env.STRIPE_SUBSCRIPTION_AMOUNT) || 1500; // $15 NZD/month
 
-async function createCheckoutSession({ plan, userId, email, successUrl, cancelUrl, metadata = {} }) {
+// A flat % off the listed price — same knock-down applied whether it comes
+// from an ambassador coupon or the automatic "pay now" signup incentive, the
+// caller decides which (if either) applies and passes the resulting number
+// in. For a subscription this discounts every renewal, not just the first
+// month — there's no Stripe Coupon/PromotionCode object involved, just a
+// smaller unit_amount baked into the price_data up front.
+function discountedAmount(amount, discountPercent) {
+  if (!discountPercent) return amount;
+  return Math.max(0, Math.round(amount * (1 - discountPercent / 100)));
+}
+
+async function createCheckoutSession({ plan, userId, email, successUrl, cancelUrl, metadata = {}, discountPercent = 0 }) {
   const currency = process.env.STRIPE_CURRENCY || 'nzd';
 
   if (plan === 'subscription') {
@@ -23,7 +34,7 @@ async function createCheckoutSession({ plan, userId, email, successUrl, cancelUr
               description: 'Unlimited HeyDer Tuesday dinners — renews monthly, cancel anytime.',
               images: ['https://heyder.nz/wp-content/uploads/2026/04/logo1.png'],
             },
-            unit_amount: SUBSCRIPTION_AMOUNT,
+            unit_amount: discountedAmount(SUBSCRIPTION_AMOUNT, discountPercent),
           },
           quantity: 1,
         },
@@ -48,7 +59,7 @@ async function createCheckoutSession({ plan, userId, email, successUrl, cancelUr
             description: 'One-time reservation for a HeyDer Tuesday dinner.',
             images: ['https://heyder.nz/wp-content/uploads/2026/04/logo1.png'],
           },
-          unit_amount: ONE_TIME_AMOUNT,
+          unit_amount: discountedAmount(ONE_TIME_AMOUNT, discountPercent),
         },
         quantity: 1,
       },

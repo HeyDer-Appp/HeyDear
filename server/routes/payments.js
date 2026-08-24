@@ -3,21 +3,64 @@ const router = express.Router();
 const { admin, db } = require('../firebase');
 const { createCheckoutSession, constructWebhookEvent } = require('../services/stripe');
 
+// The incentive for paying immediately at signup instead of hitting "Skip
+// for now" — applied automatically when nobody typed a coupon code, only in
+// the signup context (not on later per-dinner bookings via BookDinner.jsx).
+const SIGNUP_INSTANT_PAY_DISCOUNT_PERCENT = 10;
+
+async function lookupCoupon(code) {
+  if (!code) return null;
+  const snap = await db.collection('coupons').doc(String(code).trim().toUpperCase()).get();
+  if (!snap.exists) return null;
+  const c = snap.data();
+  if (c.active === false) return null;
+  if (c.expiresAt && c.expiresAt.toDate() < new Date()) return null;
+  return { code: snap.id, discountPercent: c.discountPercent };
+}
+
+// Lets the payment screen validate/preview a code (and show the discounted
+// price) before the attendee actually commits to checkout.
+router.post('/validate-coupon', async (req, res) => {
+  try {
+    const coupon = await lookupCoupon(req.body.code);
+    if (!coupon) return res.status(404).json({ valid: false, error: 'That code is invalid or has expired.' });
+    res.json({ valid: true, code: coupon.code, discountPercent: coupon.discountPercent });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 router.post('/create-checkout', async (req, res) => {
   try {
-    const { email, tempUserId, plan } = req.body;
+    const { email, tempUserId, plan, couponCode, context } = req.body;
     const baseUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+
+    // A coupon always wins over the automatic signup incentive rather than
+    // stacking with it — keeps "what discount did I actually get" simple to
+    // reason about both for attendees and for us reading payment records.
+    let discountPercent = 0;
+    let appliedCoupon = null;
+    if (couponCode) {
+      const coupon = await lookupCoupon(couponCode);
+      if (!coupon) return res.status(400).json({ error: 'That coupon code is invalid or has expired.' });
+      discountPercent = coupon.discountPercent;
+      appliedCoupon = coupon.code;
+    } else if (context === 'signup') {
+      discountPercent = SIGNUP_INSTANT_PAY_DISCOUNT_PERCENT;
+    }
 
     const session = await createCheckoutSession({
       plan: plan === 'subscription' ? 'subscription' : 'one_time',
       userId: tempUserId || 'pending',
       email,
+      discountPercent,
       successUrl: `${baseUrl}/profile/success?session_id={CHECKOUT_SESSION_ID}`,
       cancelUrl: `${baseUrl}/profile?step=payment&cancelled=true`,
-      metadata: { email },
+      metadata: { email, ...(appliedCoupon ? { couponCode: appliedCoupon } : {}) },
     });
 
-    res.json({ sessionId: session.id, url: session.url });
+    res.json({ sessionId: session.id, url: session.url, discountPercent });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to create checkout session' });

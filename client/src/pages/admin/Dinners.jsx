@@ -118,7 +118,7 @@ function DinnerGroup({ dinner, tables, onUnconfirm, onSendEmail, onUpdateStatus,
       <div className="flex items-center justify-between pt-2">
         <div>
           <h3 className="font-sans font-semibold text-cream text-sm">
-            {new Date(dinner.date).toLocaleDateString('en-NZ', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+            {new Date(dinner.date).toLocaleDateString('en-NZ', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Pacific/Auckland' })}
           </h3>
           <p className="font-sans text-cream/40 text-xs">{dinner.city} · {tables.length} confirmed {tables.length === 1 ? 'table' : 'tables'}</p>
         </div>
@@ -270,7 +270,7 @@ export default function AdminDinners() {
               {dateOptions.length === 0 && <option value="">No upcoming dinners</option>}
               {dateOptions.map(dk => (
                 <option key={dk} value={dk}>
-                  {new Date(dk).toLocaleDateString('en-NZ', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+                  {new Date(dk).toLocaleDateString('en-NZ', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Pacific/Auckland' })}
                 </option>
               ))}
             </select>

@@ -570,7 +570,7 @@ export default function AdminMatching() {
               <option value="">Choose a dinner...</option>
               {dinners.map(d => (
                 <option key={d.id} value={d.id}>
-                  {new Date(d.date).toLocaleDateString('en-NZ', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+                  {new Date(d.date).toLocaleDateString('en-NZ', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Pacific/Auckland' })}
                   {' '}{d.city} ({d.attendee_count || 0} signups)
                 </option>
               ))}
