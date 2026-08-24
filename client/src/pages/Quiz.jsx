@@ -894,6 +894,26 @@ export default function Quiz() {
     }
   };
 
+  // "Skip for now" builds the account only — no dinner gets reserved, since
+  // booking one is only ever allowed alongside real payment (or an active
+  // subscription), never for free. They land on the dashboard and can book
+  // — and pay — whenever they're ready.
+  const skipPayment = async () => {
+    if (!validate()) return;
+    setSubmitting(true);
+    try {
+      await api.post('/profile/submit', {
+        ...answers,
+        field_OVB7lzEjSl7C: answers.field_OVB7lzEjSl7C || [],
+        skip_booking: true,
+      });
+      navigate('/profile/success');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Submission failed. Please try again.');
+      setSubmitting(false);
+    }
+  };
+
   if (loadingProfile) {
     return (
       <div className="quiz-bg min-h-screen flex items-center justify-center">
@@ -1267,14 +1287,14 @@ export default function Quiz() {
                   <div className="text-center mt-4">
                     <button
                       type="button"
-                      onClick={() => submitQuizWithoutPayment()}
+                      onClick={skipPayment}
                       disabled={submitting}
                       className="font-sans text-cream/40 hover:text-cream text-xs transition-colors disabled:opacity-50"
                     >
-                      Skip for now — pay later
+                      Skip for now — set up my account
                     </button>
                     <p className="font-sans text-cream/25 text-[11px] mt-1">
-                      You can still see your dashboard and finish your profile. Pay now and save {discountPercent}%.
+                      No dinner gets booked — you'll pay when you actually reserve one. Pay now instead and save {discountPercent}%.
                     </p>
                   </div>
                 </div>

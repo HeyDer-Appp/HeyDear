@@ -100,7 +100,7 @@ router.post('/submit', attendeeAuth, quizLimiter, async (req, res) => {
     const {
       field_CdZldwp5q09o,
       first_name, last_name, phone, dob, gender, country, photo,
-      referral_code, stripe_session_id, plan,
+      referral_code, stripe_session_id, plan, skip_booking,
     } = req.body;
 
     if (photo !== undefined && photo !== null) {
@@ -110,24 +110,29 @@ router.post('/submit', attendeeAuth, quizLimiter, async (req, res) => {
     }
 
     const userRef = db.collection('users').doc(req.user.id);
-    const parsedDate = parseTuesdayDate(field_CdZldwp5q09o);
+    // "Skip for now" builds the profile without reserving a seat at any
+    // dinner — a real booking (and the payment it requires) only happens
+    // later through BookDinner.jsx, never for free via this shortcut.
+    const parsedDate = skip_booking ? null : parseTuesdayDate(field_CdZldwp5q09o);
 
     // One dinner at a time — re-submitting the same date (e.g. editing an
     // answer mid-flow) is fine, but a different date while an unresolved
     // (still-pending) or upcoming (already-matched) booking exists just
     // creates confusing duplicate bookings on the dashboard.
-    const existingBookingsSnap = await db.collection('bookings').where('userId', '==', req.user.id).get();
-    for (const doc of existingBookingsSnap.docs) {
-      const b = doc.data();
-      if (b.tuesdayDate === parsedDate) continue;
-      if (b.matched === false) {
-        return res.status(409).json({ error: "You already have a dinner booked. Cancel it first if you'd like to book a different Tuesday." });
-      }
-      if (b.matched === true && b.dinnerId) {
-        const dinnerSnap = await db.collection('dinners').doc(b.dinnerId).get();
-        const dinnerDate = dinnerSnap.exists ? toDate(dinnerSnap.data().date) : null;
-        if (dinnerDate && dinnerDate >= new Date()) {
-          return res.status(409).json({ error: "You already have an upcoming dinner booked. Cancel it first if you'd like to book a different Tuesday." });
+    if (!skip_booking) {
+      const existingBookingsSnap = await db.collection('bookings').where('userId', '==', req.user.id).get();
+      for (const doc of existingBookingsSnap.docs) {
+        const b = doc.data();
+        if (b.tuesdayDate === parsedDate) continue;
+        if (b.matched === false) {
+          return res.status(409).json({ error: "You already have a dinner booked. Cancel it first if you'd like to book a different Tuesday." });
+        }
+        if (b.matched === true && b.dinnerId) {
+          const dinnerSnap = await db.collection('dinners').doc(b.dinnerId).get();
+          const dinnerDate = dinnerSnap.exists ? toDate(dinnerSnap.data().date) : null;
+          if (dinnerDate && dinnerDate >= new Date()) {
+            return res.status(409).json({ error: "You already have an upcoming dinner booked. Cancel it first if you'd like to book a different Tuesday." });
+          }
         }
       }
     }
@@ -150,7 +155,7 @@ router.post('/submit', attendeeAuth, quizLimiter, async (req, res) => {
       const ambRef = referral_code ? db.collection('ambassadors').doc(referral_code) : null;
       const ambSnap = ambRef ? await tx.get(ambRef) : null;
 
-      const existingBookingSnap = parsedDate
+      const existingBookingSnap = (parsedDate && !skip_booking)
         ? await tx.get(
             db.collection('bookings')
               .where('userId', '==', req.user.id)
@@ -198,6 +203,10 @@ router.post('/submit', attendeeAuth, quizLimiter, async (req, res) => {
         }, { merge: true });
       }
 
+      if (skip_booking) {
+        return { bookingRef: null, mergedUser: { ...existingUser, ...userUpdate, id: req.user.id } };
+      }
+
       const isNewBooking = !existingBookingSnap || existingBookingSnap.empty;
       const bookingRef = isNewBooking ? db.collection('bookings').doc() : existingBookingSnap.docs[0].ref;
 
@@ -227,6 +236,14 @@ router.post('/submit', attendeeAuth, quizLimiter, async (req, res) => {
 
       return { bookingRef, mergedUser: { ...existingUser, ...userUpdate, id: req.user.id } };
     });
+
+    if (skip_booking) {
+      return res.json({
+        success: true,
+        userId: req.user.id,
+        message: "You're in. Book a dinner whenever you're ready.",
+      });
+    }
 
     if (stripe_session_id) {
       await reconcileStripeSession(req.user.id, stripe_session_id, result.bookingRef);
