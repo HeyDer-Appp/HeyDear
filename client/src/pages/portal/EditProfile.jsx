@@ -301,8 +301,8 @@ export default function EditProfile() {
               inputMode="numeric"
               placeholder="Phone number"
               value={answers.phone || ''}
-              onChange={e => setValue('phone', e.target.value.replace(/\D/g, '').slice(0, 15))}
-              maxLength={15}
+              onChange={e => setValue('phone', e.target.value.replace(/\D/g, '').slice(0, 10))}
+              maxLength={10}
               className={`quiz-input flex-1 ${phoneError && answers.phone ? 'border-red-400/60' : ''}`}
             />
           </div>

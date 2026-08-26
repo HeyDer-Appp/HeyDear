@@ -383,14 +383,13 @@ function isDobValid(dob) {
   return dob >= MIN_DOB && dob <= MAX_DOB;
 }
 
-// Contact number is optional, but if someone's typed anything at all it has
-// to be a real 10-digit number — the input itself already strips non-digits
-// and caps at 10 as they type, this is just the submit-time backstop.
+// Contact number can be skipped entirely, but if someone's typed anything
+// at all it has to be 9 or 10 digits (NZ mobiles are 9, most others we see
+// are 10) — the input itself already strips non-digits and caps at 10 as
+// they type, this is just the submit-time backstop.
 export function isPhoneValid(phone) {
   if (!phone) return true;
-  // Length varies by country (NZ mobiles are commonly 9 digits) — this is
-  // just a sanity range, not a strict per-country format check.
-  return /^\d{6,15}$/.test(phone);
+  return /^\d{9,10}$/.test(phone);
 }
 
 // A volume-style slider for scale questions. The fill bar and thumb are
@@ -1125,8 +1124,8 @@ export default function Quiz() {
                                 inputMode="numeric"
                                 placeholder="Phone number"
                                 value={answers.phone || ''}
-                                onChange={e => setValue('phone', e.target.value.replace(/\D/g, '').slice(0, 15))}
-                                maxLength={15}
+                                onChange={e => setValue('phone', e.target.value.replace(/\D/g, '').slice(0, 10))}
+                                maxLength={10}
                                 className={`quiz-input flex-1 ${errors.phone ? 'border-red-400/60' : ''}`}
                               />
                             </div>

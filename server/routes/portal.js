@@ -158,9 +158,8 @@ async function syncPendingBooking(uid, updates) {
 
 router.patch('/profile', attendeeAuth, async (req, res) => {
   try {
-    // Length varies by country (NZ mobiles are commonly 9 digits) — this is
-    // just a sanity range, not a strict per-country format check.
-    if ('phone' in req.body && req.body.phone && !/^\d{6,15}$/.test(req.body.phone)) {
+    // 9 or 10 digits — NZ mobiles are 9, most other countries we see are 10.
+    if ('phone' in req.body && req.body.phone && !/^\d{9,10}$/.test(req.body.phone)) {
       return res.status(400).json({ error: 'Enter a valid phone number.' });
     }
 
