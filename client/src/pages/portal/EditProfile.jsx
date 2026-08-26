@@ -96,6 +96,7 @@ export default function EditProfile() {
   const [photoUploading, setPhotoUploading] = useState(false);
   const [subscription, setSubscription] = useState({ active: false, renewsAt: null });
   const [renewing, setRenewing] = useState(false);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
 
   const loadProfile = () => api.get('/portal/full-profile')
     .then(res => {
@@ -150,22 +151,41 @@ export default function EditProfile() {
     }
   };
 
+  // Returns whether it actually saved — callers that navigate away
+  // afterward (like applyAndLeave below) need to know not to leave on a
+  // failed save, or the still-unsaved changes just get discarded anyway.
   const save = async () => {
     if (phoneError) {
       toast.error('Enter a valid phone number.');
-      return;
+      return false;
     }
     setSaving(true);
     try {
       await api.patch('/portal/profile', answers);
       setInitialAnswers(answers);
       toast.success('Profile updated!');
+      return true;
     } catch {
       toast.error('Failed to save changes');
+      return false;
     } finally {
       setSaving(false);
     }
   };
+
+  // Leaving with unsaved changes asks first instead of silently discarding
+  // them — "Apply" saves then leaves, "Do not apply" leaves without saving.
+  const handleBackClick = (e) => {
+    if (isDirty) {
+      e.preventDefault();
+      setShowExitConfirm(true);
+    }
+  };
+  const applyAndLeave = async () => {
+    const saved = await save();
+    if (saved) navigate('/portal');
+  };
+  const leaveWithoutApplying = () => navigate('/portal');
 
   if (loading) return (
     <div className="quiz-bg min-h-screen flex items-center justify-center">
@@ -184,9 +204,9 @@ export default function EditProfile() {
 
   return (
     <div className="quiz-bg min-h-screen relative overflow-hidden pb-24">
-      <nav className="relative z-10 flex items-center justify-between px-6 py-5 border-b border-white/[0.06] backdrop-blur">
+      <nav className="sticky top-0 z-20 flex items-center justify-between px-6 py-5 border-b border-white/[0.06] backdrop-blur bg-[#16181d]/90">
         <div className="flex items-center gap-3">
-          <Link to="/portal" className="font-sans text-cream/50 text-sm hover:text-cream transition-colors">← Back</Link>
+          <Link to="/portal" onClick={handleBackClick} className="font-sans text-cream/50 text-sm hover:text-cream transition-colors">← Back</Link>
           {isDirty && <SaveButton onClick={save} saving={saving} compact />}
         </div>
         <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-7" />
@@ -403,6 +423,31 @@ export default function EditProfile() {
 
         {isDirty && <SaveButton onClick={save} saving={saving} />}
       </div>
+
+      {showExitConfirm && (
+        <div className="fixed inset-0 z-50 bg-navy/80 backdrop-blur flex items-center justify-center p-6" onClick={() => setShowExitConfirm(false)}>
+          <div className="quiz-card max-w-sm w-full text-center" onClick={e => e.stopPropagation()}>
+            <p className="font-serif text-xl text-cream mb-2">Unsaved changes</p>
+            <p className="font-sans text-cream/50 text-sm mb-6">
+              Do you want to proceed without applying these changes?
+            </p>
+            <button
+              onClick={() => { setShowExitConfirm(false); applyAndLeave(); }}
+              disabled={saving}
+              className="quiz-cta w-full mb-3 disabled:opacity-60"
+            >
+              {saving ? 'Saving...' : 'Apply'}
+            </button>
+            <button
+              onClick={() => { setShowExitConfirm(false); leaveWithoutApplying(); }}
+              disabled={saving}
+              className="font-sans text-cream/40 hover:text-cream text-xs transition-colors disabled:opacity-50"
+            >
+              Do not apply
+            </button>
+          </div>
+        </div>
+      )}
 
       <BottomNav />
     </div>

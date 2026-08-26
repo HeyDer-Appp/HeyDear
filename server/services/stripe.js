@@ -1,9 +1,7 @@
 const Stripe = require('stripe');
+const { DEFAULTS: PRICING_DEFAULTS } = require('./pricing');
 
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
-
-const ONE_TIME_AMOUNT = parseInt(process.env.STRIPE_ONE_TIME_AMOUNT) || 1000; // $10 NZD
-const SUBSCRIPTION_AMOUNT = parseInt(process.env.STRIPE_SUBSCRIPTION_AMOUNT) || 1500; // $15 NZD/month
 
 // A flat % off the listed price — same knock-down applied whether it comes
 // from an ambassador coupon or the automatic "pay now" signup incentive, the
@@ -16,7 +14,14 @@ function discountedAmount(amount, discountPercent) {
   return Math.max(0, Math.round(amount * (1 - discountPercent / 100)));
 }
 
-async function createCheckoutSession({ plan, userId, email, successUrl, cancelUrl, metadata = {}, discountPercent = 0 }) {
+// oneTimeAmount/subscriptionAmount are the live, admin-editable prices
+// (server/services/pricing.js) — callers fetch those and pass them in
+// rather than this module reading a value fixed at process start, so a
+// price change from the admin panel takes effect on the very next checkout.
+async function createCheckoutSession({
+  plan, userId, email, successUrl, cancelUrl, metadata = {}, discountPercent = 0,
+  oneTimeAmount = PRICING_DEFAULTS.oneTimeAmount, subscriptionAmount = PRICING_DEFAULTS.subscriptionAmount,
+}) {
   const currency = process.env.STRIPE_CURRENCY || 'nzd';
 
   if (plan === 'subscription') {
@@ -34,7 +39,7 @@ async function createCheckoutSession({ plan, userId, email, successUrl, cancelUr
               description: 'Unlimited HeyDer Tuesday dinners — renews monthly, cancel anytime.',
               images: ['https://heyder.nz/wp-content/uploads/2026/04/logo1.png'],
             },
-            unit_amount: discountedAmount(SUBSCRIPTION_AMOUNT, discountPercent),
+            unit_amount: discountedAmount(subscriptionAmount, discountPercent),
           },
           quantity: 1,
         },
@@ -59,7 +64,7 @@ async function createCheckoutSession({ plan, userId, email, successUrl, cancelUr
             description: 'One-time reservation for a HeyDer Tuesday dinner.',
             images: ['https://heyder.nz/wp-content/uploads/2026/04/logo1.png'],
           },
-          unit_amount: discountedAmount(ONE_TIME_AMOUNT, discountPercent),
+          unit_amount: discountedAmount(oneTimeAmount, discountPercent),
         },
         quantity: 1,
       },
@@ -92,6 +97,4 @@ module.exports = {
   constructWebhookEvent,
   getPaymentIntent,
   getCheckoutSession,
-  ONE_TIME_AMOUNT,
-  SUBSCRIPTION_AMOUNT,
 };

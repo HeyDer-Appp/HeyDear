@@ -590,8 +590,15 @@ export default function Quiz() {
   const [savedAt, setSavedAt] = useState(null);
   const [stepIndex, setStepIndex] = useState(0);
   const [showPhotoBubble, setShowPhotoBubble] = useState(true);
+  // Falls back to the same $10/$15 defaults the server uses until the real
+  // (admin-editable) price loads — never a placeholder like $0.
+  const [pricing, setPricing] = useState({ oneTimeAmount: 1000, subscriptionAmount: 1500 });
   const hasLoadedRef = useRef(false);
   const autosaveTimer = useRef(null);
+
+  useEffect(() => {
+    api.get('/payments/pricing').then(res => setPricing(res.data)).catch(() => {});
+  }, []);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1215,20 +1222,21 @@ export default function Quiz() {
                     {choice}
                   </motion.button>
                 ))}
-              </motion.div>
-              <div className="text-center mt-4">
-                <button
+                {/* Same box styling as the real dates, but dashed to read as
+                    "not a date" rather than a fifth Tuesday option. */}
+                <motion.button
+                  variants={fadeLeftVariant}
                   type="button"
                   onClick={() => skipPayment(true)}
                   disabled={submitting}
-                  className="font-sans text-cream/40 hover:text-cream text-xs transition-colors disabled:opacity-50"
+                  className="text-left px-4 py-2.5 rounded-xl border border-dashed border-[#e7dcbd]/25 bg-transparent text-[#e7dcbd]/45 font-sans text-base text-center transition-colors duration-150 hover:border-[#e7dcbd]/50 hover:text-[#e7dcbd]/80 disabled:opacity-50"
                 >
                   Not sure yet — I'll choose later
-                </button>
-                <p className="font-sans text-cream/25 text-[11px] mt-1">
-                  Your profile is saved — book a Tuesday whenever you're ready.
-                </p>
-              </div>
+                </motion.button>
+              </motion.div>
+              <p className="font-sans text-cream/25 text-[11px] text-center mt-3">
+                Your profile is saved — book a Tuesday whenever you're ready.
+              </p>
             </div>
           </>
         )}
@@ -1268,8 +1276,10 @@ export default function Quiz() {
               // automatic 10% is a retention offer that only appears in the
               // "Skip for now" popup below, never before that.
               const discountPercent = appliedCoupon ? appliedCoupon.discountPercent : 0;
-              const oneTimePrice = (10 * (1 - discountPercent / 100)).toFixed(2).replace(/\.00$/, '');
-              const subPrice = (15 * (1 - discountPercent / 100)).toFixed(2).replace(/\.00$/, '');
+              const baseOneTime = pricing.oneTimeAmount / 100;
+              const baseSub = pricing.subscriptionAmount / 100;
+              const oneTimePrice = (baseOneTime * (1 - discountPercent / 100)).toFixed(2).replace(/\.00$/, '');
+              const subPrice = (baseSub * (1 - discountPercent / 100)).toFixed(2).replace(/\.00$/, '');
               return (
                 <div>
                   <motion.div initial="hidden" animate="visible" variants={staggerContainerVariant} className="space-y-3 mb-4">
@@ -1283,7 +1293,7 @@ export default function Quiz() {
                         <span className="font-sans font-semibold text-base">One-time reservation</span>
                         <span className="flex items-baseline gap-1.5">
                           {discountPercent > 0 && (
-                            <span className={`font-sans text-xs line-through ${selectedPlan === 'one_time' ? 'text-navy/40' : 'text-cream/25'}`}>$10</span>
+                            <span className={`font-sans text-xs line-through ${selectedPlan === 'one_time' ? 'text-navy/40' : 'text-cream/25'}`}>${baseOneTime.toFixed(2).replace(/\.00$/, '')}</span>
                           )}
                           <span className="font-serif text-2xl">${oneTimePrice}</span>
                         </span>
@@ -1301,7 +1311,7 @@ export default function Quiz() {
                         <span className="font-sans font-semibold text-base">Monthly membership</span>
                         <span className="flex items-baseline gap-1.5">
                           {discountPercent > 0 && (
-                            <span className={`font-sans text-xs line-through ${selectedPlan === 'subscription' ? 'text-navy/40' : 'text-cream/25'}`}>$15</span>
+                            <span className={`font-sans text-xs line-through ${selectedPlan === 'subscription' ? 'text-navy/40' : 'text-cream/25'}`}>${baseSub.toFixed(2).replace(/\.00$/, '')}</span>
                           )}
                           <span className="font-serif text-2xl">${subPrice}<span className="text-sm">/mo</span></span>
                         </span>
@@ -1373,6 +1383,13 @@ export default function Quiz() {
                 </div>
               );
             })()}
+
+            <p className="font-sans text-cream/25 text-[11px] text-center mt-5">
+              By proceeding you are accepting our{' '}
+              <a href="/terms-conditions" target="_blank" rel="noopener noreferrer" className="text-gold/50 hover:text-gold underline">terms &amp; conditions</a>
+              {' '}/{' '}
+              <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-gold/50 hover:text-gold underline">privacy policy</a>.
+            </p>
           </div>
         )}
 

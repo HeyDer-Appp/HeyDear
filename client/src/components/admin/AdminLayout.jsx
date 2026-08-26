@@ -12,6 +12,7 @@ const navItems = [
   { label: 'Feedback', href: '/admin/feedback', icon: '💬' },
   { label: 'Analytics', href: '/admin/analytics', icon: '◎' },
   { label: 'Ambassadors', href: '/admin/ambassadors', icon: '★' },
+  { label: 'Pricing', href: '/admin/pricing', icon: '$' },
 ];
 
 export default function AdminLayout({ children, title }) {

@@ -24,8 +24,13 @@ export default function BookDinner() {
   const [selectedPlan, setSelectedPlan] = useState('one_time');
   const [step, setStep] = useState('date');
   const [submitting, setSubmitting] = useState(false);
+  const [pricing, setPricing] = useState({ oneTimeAmount: 1000, subscriptionAmount: 1500 });
 
   const stripeConfigured = !!import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+
+  useEffect(() => {
+    api.get('/payments/pricing').then(res => setPricing(res.data)).catch(() => {});
+  }, []);
 
   useEffect(() => {
     Promise.all([
@@ -231,7 +236,10 @@ export default function BookDinner() {
                     {submitting ? 'Confirming...' : 'Confirm Booking'}
                   </button>
                 </div>
-              ) : (
+              ) : (() => {
+                const oneTimePrice = (pricing.oneTimeAmount / 100).toFixed(2).replace(/\.00$/, '');
+                const subPrice = (pricing.subscriptionAmount / 100).toFixed(2).replace(/\.00$/, '');
+                return (
                 <div>
                   <motion.div initial="hidden" animate="visible" variants={staggerContainerVariant} className="space-y-3 mb-5">
                     <motion.button
@@ -242,7 +250,7 @@ export default function BookDinner() {
                     >
                       <div className="flex items-center justify-between mb-1">
                         <span className="font-sans font-semibold text-base">One-time reservation</span>
-                        <span className="font-serif text-2xl">$10</span>
+                        <span className="font-serif text-2xl">${oneTimePrice}</span>
                       </div>
                       <p className={`font-sans text-sm ${selectedPlan === 'one_time' ? 'text-navy/60' : 'text-cream/40'}`}>Reserve just this Tuesday's dinner. Refundable up to 48hrs before.</p>
                     </motion.button>
@@ -255,7 +263,7 @@ export default function BookDinner() {
                       <span className="absolute -top-2.5 right-5 bg-yellow text-navy text-[10px] font-sans font-bold uppercase tracking-widest px-2.5 py-1 rounded-full">Best value</span>
                       <div className="flex items-center justify-between mb-1">
                         <span className="font-sans font-semibold text-base">Monthly membership</span>
-                        <span className="font-serif text-2xl">$15<span className="text-sm">/mo</span></span>
+                        <span className="font-serif text-2xl">${subPrice}<span className="text-sm">/mo</span></span>
                       </div>
                       <p className={`font-sans text-sm ${selectedPlan === 'subscription' ? 'text-navy/60' : 'text-cream/40'}`}>Unlimited HeyDer dinners this month.</p>
                     </motion.button>
@@ -269,10 +277,11 @@ export default function BookDinner() {
                       ? 'Processing...'
                       : !stripeConfigured
                         ? 'Complete Booking (Test Mode)'
-                        : selectedPlan === 'subscription' ? 'Subscribe $15/mo' : 'Pay $10 & Complete Booking'}
+                        : selectedPlan === 'subscription' ? `Subscribe $${subPrice}/mo` : `Pay $${oneTimePrice} & Complete Booking`}
                   </button>
                 </div>
-              )}
+                );
+              })()}
             </div>
             <button onClick={() => setStep('date')} className="font-sans text-cream/50 hover:text-cream text-sm px-2 py-3 transition-colors">
               ← Back

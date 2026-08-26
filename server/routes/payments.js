@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { admin, db } = require('../firebase');
 const { createCheckoutSession, constructWebhookEvent } = require('../services/stripe');
+const { getPricing } = require('../services/pricing');
 
 // The incentive for paying immediately at signup instead of hitting "Skip
 // for now" — applied automatically when nobody typed a coupon code, only in
@@ -17,6 +18,17 @@ async function lookupCoupon(code) {
   if (c.expiresAt && c.expiresAt.toDate() < new Date()) return null;
   return { code: snap.id, discountPercent: c.discountPercent };
 }
+
+// Lets the payment screen show the real, current price (set from the admin
+// panel) instead of a number baked into the frontend build.
+router.get('/pricing', async (req, res) => {
+  try {
+    res.json(await getPricing());
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
 
 // Lets the payment screen validate/preview a code (and show the discounted
 // price) before the attendee actually commits to checkout.
@@ -50,11 +62,15 @@ router.post('/create-checkout', async (req, res) => {
       discountPercent = SIGNUP_INSTANT_PAY_DISCOUNT_PERCENT;
     }
 
+    const pricing = await getPricing();
+
     const session = await createCheckoutSession({
       plan: plan === 'subscription' ? 'subscription' : 'one_time',
       userId: tempUserId || 'pending',
       email,
       discountPercent,
+      oneTimeAmount: pricing.oneTimeAmount,
+      subscriptionAmount: pricing.subscriptionAmount,
       successUrl: `${baseUrl}/profile/success?session_id={CHECKOUT_SESSION_ID}`,
       cancelUrl: `${baseUrl}/profile?step=payment&cancelled=true`,
       metadata: { email, ...(appliedCoupon ? { couponCode: appliedCoupon } : {}) },
