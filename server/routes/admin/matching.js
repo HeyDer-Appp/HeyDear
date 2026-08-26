@@ -3,6 +3,7 @@ const router = express.Router();
 const { admin, db } = require('../../firebase');
 const { adminAuth } = require('../../middleware/auth');
 const emailService = require('../../services/email');
+const pushService = require('../../services/push');
 const { bookingToPerson } = require('../../utils/bookingView');
 
 function dinnerDateKey(dinner) {
@@ -325,6 +326,14 @@ router.post('/tables/:tableId/confirm', adminAuth, async (req, res) => {
     const batch = db.batch();
     membersSnap.docs.forEach(d => batch.set(d.ref, { confirmed: true }, { merge: true }));
     await batch.commit();
+
+    const table = tableSnap.data();
+    const dinnerSnap = await db.collection('dinners').doc(table.dinnerId).get();
+    const dinnerDate = dinnerSnap.exists ? dinnerSnap.data().date.toDate() : null;
+    const formattedDate = dinnerDate
+      ? dinnerDate.toLocaleDateString('en-NZ', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Pacific/Auckland' })
+      : 'Tuesday';
+    pushService.sendToTable(tableId, pushService.notifications.groupFound(formattedDate)).catch(() => {});
 
     res.json({ success: true });
   } catch (err) {

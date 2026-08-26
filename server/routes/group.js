@@ -4,6 +4,7 @@ const { admin, db } = require('../firebase');
 const { attendeeAuth } = require('../middleware/auth');
 const { PROMPTS, getPrompt } = require('../data/prompts');
 const { nzTime } = require('../utils/nzTime');
+const pushService = require('../services/push');
 
 function toDate(v) {
   if (!v) return null;
@@ -306,6 +307,12 @@ router.post('/:tableId/messages', attendeeAuth, async (req, res) => {
       text: text.trim(),
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
+
+    pushService.sendToTable(
+      tableId,
+      pushService.notifications.custom(member.firstName || 'New message', text.trim().slice(0, 80), '/portal/group-chat'),
+      { excludeUserId: req.user.id }
+    ).catch(() => {});
 
     res.json({
       success: true,

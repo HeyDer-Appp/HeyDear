@@ -8,6 +8,7 @@ const morgan = require('morgan');
 const { apiLimiter } = require('./middleware/rateLimiter');
 
 const pushService = require('./services/push');
+const scheduler = require('./services/scheduler');
 const pushRoutes = require('./routes/push');
 const authRoutes = require('./routes/auth');
 const profileRoutes = require('./routes/profile');
@@ -119,6 +120,11 @@ function start() {
     console.log(`HeyDer server running on port ${PORT}`);
     console.log(`Admin setup: POST http://localhost:${PORT}/api/auth/admin/setup`);
   });
+
+  // Polls every 5 minutes for confirmed tables whose glimpse/venue reveal
+  // time has just passed, pushing to that table once each — the same
+  // long-running process that serves the API, no separate cron infra.
+  scheduler.start();
 
   const shutdown = (signal) => {
     console.log(`\n${signal} received, shutting down gracefully...`);

@@ -52,10 +52,14 @@ async function sendToUser(userId, payload) {
   return sendToDocs(snap.docs.map(d => d.data()), payload);
 }
 
-// Send to all users in a table
-async function sendToTable(tableId, payload) {
-  const membersSnap = await db.collection('tables').doc(tableId).collection('members').get();
-  const userIds = membersSnap.docs.map(d => d.id);
+// Send to all users seated at a table — tableMembers is a top-level
+// collection filtered by tableId, not a subcollection under the table doc
+// (this previously queried tables/{id}/members, which never existed, so
+// every "table" push silently sent to nobody).
+async function sendToTable(tableId, payload, { excludeUserId } = {}) {
+  const membersSnap = await db.collection('tableMembers').where('tableId', '==', tableId).get();
+  const userIds = [...new Set(membersSnap.docs.map(d => d.data().user_id).filter(Boolean))]
+    .filter(id => id !== excludeUserId);
   if (!userIds.length) return 0;
 
   const snap = await db.collection('pushSubscriptions').where('userId', 'in', userIds.slice(0, 30)).get();
