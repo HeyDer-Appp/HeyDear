@@ -177,14 +177,14 @@ export default function BookDinner() {
             <div className="quiz-card">
               <motion.p initial="hidden" animate="visible" variants={fadeUpVariant} className="font-serif text-xl text-cream mb-1">{DATE_Q.title}</motion.p>
               <p className="font-sans text-cream/35 text-xs mb-3">Your reservation covers one Tuesday dinner.</p>
-              <motion.div initial="hidden" animate="visible" variants={staggerContainerVariant} className="flex flex-wrap gap-2">
+              <motion.div initial="hidden" animate="visible" variants={staggerContainerVariant} className="flex flex-wrap gap-2 justify-center">
                 {dateChoices.map(choice => (
                   <motion.button
                     key={choice}
                     variants={fadeLeftVariant}
                     type="button"
                     onClick={() => setSelectedDate(choice)}
-                    className={`${choiceBase} ${selectedDate === choice ? choiceActive : choiceIdle}`}
+                    className={`${choiceBase} text-center ${selectedDate === choice ? choiceActive : choiceIdle}`}
                   >
                     {choice}
                   </motion.button>

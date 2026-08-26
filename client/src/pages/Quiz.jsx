@@ -802,7 +802,10 @@ export default function Quiz() {
     }
   };
 
-  const validate = () => {
+  // skipDate is true for "choose later" — everything else about the profile
+  // still has to be complete, just not which Tuesday, since no booking gets
+  // made at all in that case.
+  const validate = (skipDate = false) => {
     const newErrors = {};
     const missingIds = [];
 
@@ -818,7 +821,7 @@ export default function Quiz() {
     }
     if (!answers.gender) { newErrors.gender = true; missingIds.push('personal'); }
     if (!answers.country) { newErrors.country = true; missingIds.push('personal'); }
-    if (!isAnswered(answers.field_CdZldwp5q09o)) { newErrors.field_CdZldwp5q09o = true; missingIds.push('date'); }
+    if (!skipDate && !isAnswered(answers.field_CdZldwp5q09o)) { newErrors.field_CdZldwp5q09o = true; missingIds.push('date'); }
     if (!isPhoneValid(answers.phone)) { newErrors.phone = true; missingIds.push('contact'); }
 
     setErrors(newErrors);
@@ -894,16 +897,20 @@ export default function Quiz() {
     }
   };
 
-  // "Skip for now" builds the account only — no dinner gets reserved, since
-  // booking one is only ever allowed alongside real payment (or an active
-  // subscription), never for free. They land on the dashboard and can book
-  // — and pay — whenever they're ready.
-  const skipPayment = async () => {
-    if (!validate()) return;
+  // "Skip for now" / "I'll choose later" both build the account only — no
+  // dinner gets reserved, since booking one is only ever allowed alongside
+  // real payment (or an active subscription), never for free. They land on
+  // the dashboard and can book — and pay — whenever they're ready.
+  // skipDate is true when called from the date step itself, before any
+  // Tuesday has been picked.
+  const skipPayment = async (skipDate = false) => {
+    if (!validate(skipDate)) return;
     setSubmitting(true);
     try {
+      const { field_CdZldwp5q09o, ...rest } = answers;
       await api.post('/profile/submit', {
-        ...answers,
+        ...rest,
+        ...(skipDate ? {} : { field_CdZldwp5q09o }),
         field_OVB7lzEjSl7C: answers.field_OVB7lzEjSl7C || [],
         skip_booking: true,
       });
@@ -1152,19 +1159,32 @@ export default function Quiz() {
             <div id="q-date" className={`quiz-card ${errors.field_CdZldwp5q09o ? 'bg-red-500/5 border-red-400/30' : ''}`}>
               <motion.p initial="hidden" animate="visible" variants={fadeUpVariant} className="font-serif text-xl text-cream mb-1">{DATE_Q.title}</motion.p>
               <p className="font-sans text-cream/35 text-xs mb-3">Your reservation covers one Tuesday dinner.</p>
-              <motion.div initial="hidden" animate="visible" variants={staggerContainerVariant} className="flex flex-wrap gap-2">
+              <motion.div initial="hidden" animate="visible" variants={staggerContainerVariant} className="flex flex-wrap gap-2 justify-center">
                 {dateChoices.map(choice => (
                   <motion.button
                     key={choice}
                     variants={fadeLeftVariant}
                     type="button"
                     onClick={() => setValue('field_CdZldwp5q09o', choice)}
-                    className={`${choiceBase} ${answers.field_CdZldwp5q09o === choice ? choiceActive : choiceIdle}`}
+                    className={`${choiceBase} text-center ${answers.field_CdZldwp5q09o === choice ? choiceActive : choiceIdle}`}
                   >
                     {choice}
                   </motion.button>
                 ))}
               </motion.div>
+              <div className="text-center mt-4">
+                <button
+                  type="button"
+                  onClick={() => skipPayment(true)}
+                  disabled={submitting}
+                  className="font-sans text-cream/40 hover:text-cream text-xs transition-colors disabled:opacity-50"
+                >
+                  Not sure yet — I'll choose later
+                </button>
+                <p className="font-sans text-cream/25 text-[11px] mt-1">
+                  Your profile is saved — book a Tuesday whenever you're ready.
+                </p>
+              </div>
             </div>
           </>
         )}
