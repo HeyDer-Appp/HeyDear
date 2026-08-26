@@ -489,7 +489,10 @@ function QuestionField({ q, value, onChange, error, otherValue, onOtherChange })
       animate="visible"
     >
       <motion.p variants={fadeUpVariant} className="font-sans text-cream text-[15px] mb-3 leading-snug">
-        {q.title}{q.required && <span className="text-gold/60"> *</span>}
+        {q.title}
+        {/* Non-breaking space so the asterisk can't wrap onto its own line,
+            orphaned below the title on narrow screens. */}
+        {q.required && <span className="text-gold/60">{' *'}</span>}
       </motion.p>
 
       {q.type === 'yes_no' && (
