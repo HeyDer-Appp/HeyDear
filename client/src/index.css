@@ -73,6 +73,16 @@
     outline: none;
   }
 
+  /* iOS/Android render a native <input type="date"> with its own internal
+     width for the day/month/year segments + calendar icon, which can exceed
+     the box's CSS width and spill past its container — box-sizing doesn't
+     fix it since the overflow comes from the browser's own control layout,
+     not padding/border. Stripping the native chrome lets our own width win. */
+  input[type='date'] {
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
   /* Volume-style slider for scale questions. The visible track/fill/thumb
      are plain divs (see .quiz-slider-fill / .quiz-slider-thumb-visual)
      updated directly via refs for native-feeling drag speed — this input
