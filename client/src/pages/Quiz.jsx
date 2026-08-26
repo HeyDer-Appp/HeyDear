@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { fileToResizedBase64 } from '../utils/image';
-import { DIAL_CODES } from '../utils/flags';
+import { DIAL_CODES, COUNTRY_LIST } from '../utils/flags';
 
 // A question's title fades up on entry; its options then fade in from the
 // left, one after another, orchestrated by the stagger container below.
@@ -49,7 +49,7 @@ export const QUESTIONS = [
     type: 'contact',
     title: 'Contact Number',
     chapter: 'basics',
-    required: false,
+    required: true,
   },
   {
     id: 'intent',
@@ -293,14 +293,7 @@ const MAX_DOB = new Date(todayForDob.getFullYear() - 18, todayForDob.getMonth(),
 const MIN_DOB = new Date(todayForDob.getFullYear() - 100, todayForDob.getMonth(), todayForDob.getDate())
   .toISOString().split('T')[0];
 
-const COUNTRIES = [
-  'New Zealand', 'Australia', 'India', 'United Kingdom', 'United States',
-  'China', 'Philippines', 'South Africa', 'Canada', 'Fiji', 'Samoa', 'Tonga',
-  'South Korea', 'Japan', 'Singapore', 'Malaysia', 'Sri Lanka', 'Bangladesh',
-  'Pakistan', 'Nepal', 'Germany', 'France', 'Italy', 'Netherlands', 'Ireland',
-  'Brazil', 'Colombia', 'Mexico', 'Zimbabwe', 'Nigeria', 'Ghana', 'Kenya',
-  'Other',
-];
+const COUNTRIES = [...COUNTRY_LIST, 'Other'];
 
 // transition-colors (not transition-all) so this never touches `transform` —
 // Framer Motion owns transform on these buttons during their entrance, and
@@ -590,6 +583,7 @@ export default function Quiz() {
   const [appliedCoupon, setAppliedCoupon] = useState(null);
   const [couponError, setCouponError] = useState('');
   const [validatingCoupon, setValidatingCoupon] = useState(false);
+  const [showSkipDiscountModal, setShowSkipDiscountModal] = useState(false);
   const [photoUploading, setPhotoUploading] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [dateChoices, setDateChoices] = useState(DATE_Q.choices);
@@ -696,11 +690,19 @@ export default function Quiz() {
 
     if (s.type === 'chapter') {
       for (const q of s.questions) {
-        // Phone's format still needs checking even though the field itself
-        // is optional — a half-typed number shouldn't silently save.
-        if (q.type === 'contact' && !isPhoneValid(answers.phone)) {
-          newErrors.phone = true;
-          missingIds.push('contact');
+        if (q.type === 'contact') {
+          // Required by default, but explicitly skippable via the "Skip
+          // this" link — phoneSkipped bypasses the required check, while a
+          // half-typed number (whether required or skipped) still isn't
+          // allowed to silently save.
+          if (!isPhoneValid(answers.phone)) {
+            newErrors.phone = true;
+            missingIds.push('contact');
+          } else if (q.required && !answers.phoneSkipped && !isAnswered(answers.phone)) {
+            newErrors.phone = true;
+            missingIds.push('contact');
+          }
+          continue;
         }
         if (!q.required) continue;
         if (q.type === 'personal') {
@@ -825,7 +827,13 @@ export default function Quiz() {
     if (!answers.gender) { newErrors.gender = true; missingIds.push('personal'); }
     if (!answers.country) { newErrors.country = true; missingIds.push('personal'); }
     if (!skipDate && !isAnswered(answers.field_CdZldwp5q09o)) { newErrors.field_CdZldwp5q09o = true; missingIds.push('date'); }
-    if (!isPhoneValid(answers.phone)) { newErrors.phone = true; missingIds.push('contact'); }
+    if (!isPhoneValid(answers.phone)) {
+      newErrors.phone = true;
+      missingIds.push('contact');
+    } else if (!answers.phoneSkipped && !isAnswered(answers.phone)) {
+      newErrors.phone = true;
+      missingIds.push('contact');
+    }
 
     setErrors(newErrors);
     if (missingIds.length) {
@@ -836,7 +844,10 @@ export default function Quiz() {
     return true;
   };
 
-  const handlePayment = async (plan) => {
+  // applySignupDiscount is only true when this fires from the "Skip for
+  // now" recovery popup's "Pay & save 10%" button — a direct click on the
+  // main pay button never gets the automatic discount, only a coupon does.
+  const handlePayment = async (plan, applySignupDiscount = false) => {
     if (!validate()) return;
     setSubmitting(true);
     try {
@@ -850,7 +861,7 @@ export default function Quiz() {
         email: attendeeUser?.email,
         plan,
         couponCode: appliedCoupon?.code,
-        context: 'signup',
+        ...(applySignupDiscount && !appliedCoupon ? { context: 'signup' } : {}),
         metadata: { quizData: JSON.stringify(answers) },
       });
       sessionStorage.setItem('heyder_quiz_answers', JSON.stringify(answers));
@@ -1065,29 +1076,59 @@ export default function Quiz() {
                   if (q.type === 'contact') {
                     return (
                       <div key="contact" id="q-contact" className="py-4">
-                        <motion.p initial="hidden" animate="visible" variants={fadeUpVariant} className="font-sans text-cream text-base mb-3">{q.title}</motion.p>
-                        <div className="flex gap-2">
-                          <select
-                            value={answers.phoneCountryCode || '+64'}
-                            onChange={e => setValue('phoneCountryCode', e.target.value)}
-                            className="quiz-input w-24 flex-shrink-0 px-2"
-                          >
-                            {DIAL_CODES.map(([name, code]) => (
-                              <option key={name} value={code} className="bg-navy text-cream">{code}</option>
-                            ))}
-                          </select>
-                          <input
-                            type="tel"
-                            inputMode="numeric"
-                            placeholder="Phone number"
-                            value={answers.phone || ''}
-                            onChange={e => setValue('phone', e.target.value.replace(/\D/g, '').slice(0, 15))}
-                            maxLength={15}
-                            className={`quiz-input flex-1 ${errors.phone ? 'border-red-400/60' : ''}`}
-                          />
+                        <div className="flex items-center justify-between mb-3">
+                          <motion.p initial="hidden" animate="visible" variants={fadeUpVariant} className="font-sans text-cream text-base">
+                            {q.title}
+                            {q.required && !answers.phoneSkipped && <span className="text-gold/60">{' *'}</span>}
+                          </motion.p>
+                          {answers.phoneSkipped ? (
+                            <button
+                              type="button"
+                              onClick={() => setValue('phoneSkipped', false)}
+                              className="font-sans text-gold/60 hover:text-gold text-xs transition-colors flex-shrink-0"
+                            >
+                              Add number instead
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => { setValue('phoneSkipped', true); setValue('phone', ''); }}
+                              className="font-sans text-cream/30 hover:text-cream/60 text-xs transition-colors flex-shrink-0"
+                            >
+                              Skip this
+                            </button>
+                          )}
                         </div>
-                        {errors.phone && (
-                          <p className="font-sans text-red-400/80 text-xs mt-1.5">Enter a valid phone number.</p>
+                        {answers.phoneSkipped ? (
+                          <p className="font-sans text-cream/25 text-xs italic">No contact number — you can add one later from your profile.</p>
+                        ) : (
+                          <>
+                            <div className="flex gap-2">
+                              <select
+                                value={answers.phoneCountryCode || '+64'}
+                                onChange={e => setValue('phoneCountryCode', e.target.value)}
+                                className="quiz-input w-24 flex-shrink-0 px-2"
+                              >
+                                {DIAL_CODES.map(([name, code]) => (
+                                  <option key={name} value={code} className="bg-navy text-cream">{code}</option>
+                                ))}
+                              </select>
+                              <input
+                                type="tel"
+                                inputMode="numeric"
+                                placeholder="Phone number"
+                                value={answers.phone || ''}
+                                onChange={e => setValue('phone', e.target.value.replace(/\D/g, '').slice(0, 15))}
+                                maxLength={15}
+                                className={`quiz-input flex-1 ${errors.phone ? 'border-red-400/60' : ''}`}
+                              />
+                            </div>
+                            {errors.phone && (
+                              <p className="font-sans text-red-400/80 text-xs mt-1.5">
+                                {answers.phone ? 'Enter a valid phone number.' : 'Add a number, or tap "Skip this".'}
+                              </p>
+                            )}
+                          </>
                         )}
                       </div>
                     );
@@ -1222,7 +1263,11 @@ export default function Quiz() {
                 </button>
               </div>
             ) : (() => {
-              const discountPercent = appliedCoupon ? appliedCoupon.discountPercent : SIGNUP_DISCOUNT_PERCENT;
+              // No discount is shown or applied up front — only a coupon
+              // (an explicit user action) changes the price here. The
+              // automatic 10% is a retention offer that only appears in the
+              // "Skip for now" popup below, never before that.
+              const discountPercent = appliedCoupon ? appliedCoupon.discountPercent : 0;
               const oneTimePrice = (10 * (1 - discountPercent / 100)).toFixed(2).replace(/\.00$/, '');
               const subPrice = (15 * (1 - discountPercent / 100)).toFixed(2).replace(/\.00$/, '');
               return (
@@ -1237,7 +1282,9 @@ export default function Quiz() {
                       <div className="flex items-center justify-between mb-1">
                         <span className="font-sans font-semibold text-base">One-time reservation</span>
                         <span className="flex items-baseline gap-1.5">
-                          <span className={`font-sans text-xs line-through ${selectedPlan === 'one_time' ? 'text-navy/40' : 'text-cream/25'}`}>$10</span>
+                          {discountPercent > 0 && (
+                            <span className={`font-sans text-xs line-through ${selectedPlan === 'one_time' ? 'text-navy/40' : 'text-cream/25'}`}>$10</span>
+                          )}
                           <span className="font-serif text-2xl">${oneTimePrice}</span>
                         </span>
                       </div>
@@ -1253,7 +1300,9 @@ export default function Quiz() {
                       <div className="flex items-center justify-between mb-1">
                         <span className="font-sans font-semibold text-base">Monthly membership</span>
                         <span className="flex items-baseline gap-1.5">
-                          <span className={`font-sans text-xs line-through ${selectedPlan === 'subscription' ? 'text-navy/40' : 'text-cream/25'}`}>$15</span>
+                          {discountPercent > 0 && (
+                            <span className={`font-sans text-xs line-through ${selectedPlan === 'subscription' ? 'text-navy/40' : 'text-cream/25'}`}>$15</span>
+                          )}
                           <span className="font-serif text-2xl">${subPrice}<span className="text-sm">/mo</span></span>
                         </span>
                       </div>
@@ -1273,13 +1322,14 @@ export default function Quiz() {
                       </div>
                     ) : (
                       <div>
+                        <label className="font-sans text-cream/40 text-xs tracking-[0.1em] uppercase mb-1.5 block">Coupon code</label>
                         <div className="flex gap-2">
                           <input
                             type="text"
                             value={couponInput}
                             onChange={e => { setCouponInput(e.target.value.toUpperCase()); setCouponError(''); }}
-                            placeholder="Have a coupon code?"
-                            className="quiz-input flex-1 uppercase"
+                            placeholder="Enter code"
+                            className="quiz-input flex-1"
                           />
                           <button
                             type="button"
@@ -1310,19 +1360,56 @@ export default function Quiz() {
                   <div className="text-center mt-4">
                     <button
                       type="button"
-                      onClick={skipPayment}
+                      onClick={() => setShowSkipDiscountModal(true)}
                       disabled={submitting}
                       className="font-sans text-cream/40 hover:text-cream text-xs transition-colors disabled:opacity-50"
                     >
                       Skip for now — set up my account
                     </button>
                     <p className="font-sans text-cream/25 text-[11px] mt-1">
-                      No dinner gets booked — you'll pay when you actually reserve one. Pay now instead and save {discountPercent}%.
+                      No dinner gets booked — you'll pay when you actually reserve one.
                     </p>
                   </div>
                 </div>
               );
             })()}
+          </div>
+        )}
+
+        {/* Shown only when someone tries to skip — the 10% incentive is a
+            retention offer for that moment, never advertised up front. */}
+        {showSkipDiscountModal && (
+          <div className="fixed inset-0 z-50 bg-navy/80 backdrop-blur flex items-center justify-center p-6" onClick={() => setShowSkipDiscountModal(false)}>
+            <div className="quiz-card max-w-sm w-full text-center" onClick={e => e.stopPropagation()}>
+              <p className="text-3xl mb-3">🎁</p>
+              {(() => {
+                const modalDiscount = appliedCoupon ? appliedCoupon.discountPercent : SIGNUP_DISCOUNT_PERCENT;
+                return (
+                  <>
+                    <p className="font-serif text-xl text-cream mb-2">Wait — pay now and save {modalDiscount}%?</p>
+                    <p className="font-sans text-cream/50 text-sm mb-6">
+                      Reserve today instead of skipping and we'll knock {modalDiscount}% off {selectedPlan === 'subscription' ? 'your first month' : "this Tuesday's dinner"}.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => { setShowSkipDiscountModal(false); handlePayment(selectedPlan, true); }}
+                      disabled={submitting}
+                      className="quiz-cta w-full mb-3 disabled:opacity-60"
+                    >
+                      Pay now & save {modalDiscount}%
+                    </button>
+                  </>
+                );
+              })()}
+              <button
+                type="button"
+                onClick={() => { setShowSkipDiscountModal(false); skipPayment(); }}
+                disabled={submitting}
+                className="font-sans text-cream/40 hover:text-cream text-xs transition-colors disabled:opacity-50"
+              >
+                Skip anyway
+              </button>
+            </div>
           </div>
         )}
 
