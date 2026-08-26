@@ -306,7 +306,7 @@ const COUNTRIES = [
 // Framer Motion owns transform on these buttons during their entrance, and
 // a CSS transition racing it on the same property is what caused the shake.
 export const choiceBase =
-  'text-left px-4 py-2.5 rounded-xl border font-sans text-sm transition-colors duration-150 cursor-pointer';
+  'text-left px-4 py-2.5 rounded-xl border font-sans text-base transition-colors duration-150 cursor-pointer';
 export const choiceIdle =
   'border-[#e7dcbd]/18 bg-[#e7dcbd]/[0.04] text-[#e7dcbd]/65 hover:border-[#e7dcbd]/40 hover:bg-[#e7dcbd]/[0.08] hover:text-[#e7dcbd]/95';
 // No font-weight change here on purpose — a bolder selected label is wider,
@@ -488,7 +488,7 @@ function QuestionField({ q, value, onChange, error, otherValue, onOtherChange })
       initial="hidden"
       animate="visible"
     >
-      <motion.p variants={fadeUpVariant} className="font-sans text-cream text-[15px] mb-3 leading-snug">
+      <motion.p variants={fadeUpVariant} className="font-sans text-cream text-base mb-3 leading-snug">
         {q.title}
         {/* Non-breaking space so the asterisk can't wrap onto its own line,
             orphaned below the title on narrow screens. */}
@@ -503,7 +503,7 @@ function QuestionField({ q, value, onChange, error, otherValue, onOtherChange })
               variants={fadeLeftVariant}
               type="button"
               onClick={() => onChange(opt.v)}
-              className={`flex-1 py-2.5 rounded-xl border font-sans text-sm transition-colors ${value === opt.v ? choiceActive : choiceIdle}`}
+              className={`flex-1 py-2.5 rounded-xl border font-sans text-base transition-colors ${value === opt.v ? choiceActive : choiceIdle}`}
             >
               {opt.label}
             </motion.button>
@@ -1065,7 +1065,7 @@ export default function Quiz() {
                   if (q.type === 'contact') {
                     return (
                       <div key="contact" id="q-contact" className="py-4">
-                        <motion.p initial="hidden" animate="visible" variants={fadeUpVariant} className="font-sans text-cream text-[15px] mb-3">{q.title}</motion.p>
+                        <motion.p initial="hidden" animate="visible" variants={fadeUpVariant} className="font-sans text-cream text-base mb-3">{q.title}</motion.p>
                         <div className="flex gap-2">
                           <select
                             value={answers.phoneCountryCode || '+64'}
@@ -1099,7 +1099,7 @@ export default function Quiz() {
                       // invalid DOB was visually flagging gender/country too even
                       // though they were filled in correctly.
                       <div key="personal" id="q-personal" className="py-4">
-                        <motion.p initial="hidden" animate="visible" variants={fadeUpVariant} className="font-sans text-cream text-[15px] mb-3">{q.title}</motion.p>
+                        <motion.p initial="hidden" animate="visible" variants={fadeUpVariant} className="font-sans text-cream text-base mb-3">{q.title}</motion.p>
                         <div className="space-y-3">
                           <div>
                             <label className="font-sans text-cream/40 text-xs tracking-[0.1em] uppercase mb-1.5 block">Date of birth <span className="text-gold/60">*</span></label>
