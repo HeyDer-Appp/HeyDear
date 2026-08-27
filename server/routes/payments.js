@@ -1,8 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const { admin, db } = require('../firebase');
-const { createCheckoutSession, constructWebhookEvent } = require('../services/stripe');
+const { createCheckoutSession, constructWebhookEvent, getCheckoutSession } = require('../services/stripe');
 const { getPricing } = require('../services/pricing');
+const { attendeeAuth } = require('../middleware/auth');
 
 // The incentive for paying immediately at signup instead of hitting "Skip
 // for now" — applied automatically when nobody typed a coupon code, only in
@@ -43,9 +44,18 @@ router.post('/validate-coupon', async (req, res) => {
   }
 });
 
-router.post('/create-checkout', async (req, res) => {
+// Requires being signed in — every caller (Quiz.jsx, BookDinner.jsx) only
+// ever renders for an authenticated attendee anyway, and this is what makes
+// the Stripe session's metadata.userId real instead of the literal string
+// "pending" it used to be. Without a real userId here, the webhook has no
+// way to reconcile a subscription on its own — it used to depend entirely
+// on the client successfully calling /profile/submit after the redirect
+// back from Stripe, which is not guaranteed (closed tab, crashed page,
+// flaky network) and silently left a real charge with no subscription record.
+router.post('/create-checkout', attendeeAuth, async (req, res) => {
   try {
-    const { email, tempUserId, plan, couponCode, context } = req.body;
+    const { plan, couponCode, context } = req.body;
+    const email = req.user.email;
     const baseUrl = process.env.CLIENT_URL || 'http://localhost:5173';
 
     // A coupon always wins over the automatic signup incentive rather than
@@ -66,7 +76,7 @@ router.post('/create-checkout', async (req, res) => {
 
     const session = await createCheckoutSession({
       plan: plan === 'subscription' ? 'subscription' : 'one_time',
-      userId: tempUserId || 'pending',
+      userId: req.user.id,
       email,
       discountPercent,
       oneTimeAmount: pricing.oneTimeAmount,
@@ -109,9 +119,27 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         }, { merge: true });
       }
-      // Subscription-mode sessions are reconciled in POST /api/profile/submit,
-      // which has the real user id at hand. Lifecycle updates from here on
-      // are keyed by the Stripe subscription id, which is already linked by then.
+
+      // The subscription record is created here, not left to a client-side
+      // call after the redirect back from Stripe — that path isn't
+      // guaranteed to run (closed tab, crashed page, flaky network), and a
+      // real charge with no subscription record is exactly the failure this
+      // is meant to prevent. POST /profile/submit's own reconcile still
+      // runs too when it does succeed — same doc id, harmless to write twice.
+      if (userId && userId !== 'pending' && session.mode === 'subscription' && session.subscription) {
+        const fullSession = await getCheckoutSession(session.id);
+        const sub = fullSession.subscription;
+        if (sub) {
+          await db.collection('subscriptions').doc(sub.id).set({
+            userId,
+            stripeCustomerId: session.customer,
+            plan: 'monthly',
+            status: sub.status,
+            currentPeriodEnd: admin.firestore.Timestamp.fromMillis(sub.current_period_end * 1000),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          }, { merge: true });
+        }
+      }
     }
 
     if (event.type === 'customer.subscription.updated' || event.type === 'customer.subscription.deleted') {
