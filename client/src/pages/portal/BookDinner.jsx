@@ -201,7 +201,7 @@ export default function BookDinner() {
               disabled={!selectedDate}
               className="quiz-cta w-full flex items-center justify-center gap-2 disabled:opacity-40"
             >
-              Continue to payment →
+              {hasActiveSubscription ? 'Confirm →' : 'Continue to payment →'}
             </button>
           </>
         )}
