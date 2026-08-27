@@ -4,16 +4,10 @@ import toast from 'react-hot-toast';
 import AdminLayout from '../../components/admin/AdminLayout';
 import api from '../../utils/api';
 
-function TypeBadge({ type }) {
-  const map = {
-    prompt: { label: 'Prompt', cls: 'bg-purple-500/15 text-purple-300' },
-    answer: { label: 'Answer', cls: 'bg-blue-500/15 text-blue-300' },
-    text: { label: 'Message', cls: 'bg-gold/15 text-gold' },
-  };
-  const cfg = map[type] || { label: type, cls: 'bg-white/10 text-cream/60' };
-  return <span className={`text-[10px] font-sans font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full ${cfg.cls}`}>{cfg.label}</span>;
-}
-
+// Deliberately no admin view of chat content, group or DM — a message
+// count is the only signal exposed (how active a table's chat is), never
+// what anyone actually said. Attendees' conversations aren't something
+// admin browses.
 export default function AdminContent() {
   const [searchParams] = useSearchParams();
   const [dinners, setDinners] = useState([]);
@@ -21,8 +15,6 @@ export default function AdminContent() {
   const [tables, setTables] = useState([]);
   const [selectedTable, setSelectedTable] = useState(null);
   const [photos, setPhotos] = useState([]);
-  const [messages, setMessages] = useState([]);
-  const [tab, setTab] = useState('photos');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -36,7 +28,6 @@ export default function AdminContent() {
     if (!selectedDinner) return;
     setSelectedTable(null);
     setPhotos([]);
-    setMessages([]);
     api.get(`/admin/content/tables/${selectedDinner}`)
       .then(r => setTables(r.data.tables || []))
       .catch(console.error);
@@ -46,12 +37,8 @@ export default function AdminContent() {
     setSelectedTable(tableId);
     setLoading(true);
     try {
-      const [p, m] = await Promise.all([
-        api.get(`/admin/content/tables/${tableId}/photos`),
-        api.get(`/admin/content/tables/${tableId}/messages`),
-      ]);
+      const p = await api.get(`/admin/content/tables/${tableId}/photos`);
       setPhotos(p.data.photos || []);
-      setMessages(m.data.messages || []);
     } catch { toast.error('Failed to load table content'); }
     setLoading(false);
   };
@@ -65,17 +52,8 @@ export default function AdminContent() {
     } catch { toast.error('Failed to delete photo'); }
   };
 
-  const deleteMessage = async (messageId) => {
-    if (!confirm('Delete this message? This cannot be undone.')) return;
-    try {
-      await api.delete(`/admin/content/messages/${messageId}`);
-      setMessages(prev => prev.filter(m => m.id !== messageId));
-      toast.success('Message deleted');
-    } catch { toast.error('Failed to delete message'); }
-  };
-
   return (
-    <AdminLayout title="Album & Group Chat">
+    <AdminLayout title="Album">
       <div className="space-y-6">
         <div className="flex items-center gap-4 flex-wrap">
           <div>
@@ -88,7 +66,7 @@ export default function AdminContent() {
               <option value="">Choose a dinner...</option>
               {dinners.map(d => (
                 <option key={d.id} value={d.id}>
-                  {new Date(d.date).toLocaleDateString('en-NZ', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+                  {new Date(d.date).toLocaleDateString('en-NZ', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Pacific/Auckland' })}
                   {' '}{d.city} ({d.attendee_count || 0} attendees)
                 </option>
               ))}
@@ -110,7 +88,7 @@ export default function AdminContent() {
                 }`}
               >
                 <p className="font-sans text-cream text-sm font-semibold">Table {t.table_number || '—'}</p>
-                <p className="font-sans text-cream/40 text-xs mt-0.5">{t.member_count} people · {t.photo_count} photos · {t.message_count} messages</p>
+                <p className="font-sans text-cream/40 text-xs mt-0.5">{t.member_count} people · {t.photo_count} photos · {t.message_count} chat messages</p>
               </button>
             ))}
           </div>
@@ -119,28 +97,15 @@ export default function AdminContent() {
           <div className="flex-1 min-w-0">
             {!selectedTable ? (
               <div className="card text-center py-16">
-                <p className="text-cream/40 text-sm">Select a table to review its album and group chat.</p>
+                <p className="text-cream/40 text-sm">Select a table to review its album.</p>
               </div>
             ) : (
               <div className="card">
-                <div className="flex gap-2 mb-5">
-                  <button
-                    onClick={() => setTab('photos')}
-                    className={`px-4 py-2 rounded-lg text-sm font-sans transition-all ${tab === 'photos' ? 'bg-gold/15 text-gold' : 'text-cream/50 hover:text-cream'}`}
-                  >
-                    Photos ({photos.length})
-                  </button>
-                  <button
-                    onClick={() => setTab('messages')}
-                    className={`px-4 py-2 rounded-lg text-sm font-sans transition-all ${tab === 'messages' ? 'bg-gold/15 text-gold' : 'text-cream/50 hover:text-cream'}`}
-                  >
-                    Group chat ({messages.length})
-                  </button>
-                </div>
+                <p className="font-sans font-semibold text-cream text-sm mb-5">Photos ({photos.length})</p>
 
                 {loading && <p className="text-cream/40 text-sm text-center py-8">Loading...</p>}
 
-                {!loading && tab === 'photos' && (
+                {!loading && (
                   photos.length === 0 ? (
                     <p className="text-cream/25 text-xs text-center py-8">No photos uploaded yet</p>
                   ) : (
@@ -155,38 +120,6 @@ export default function AdminContent() {
                             onClick={() => deletePhoto(p.id)}
                             className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-navy/80 text-cream/70 hover:text-red-400 hover:bg-navy flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
                             title="Delete photo"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )
-                )}
-
-                {!loading && tab === 'messages' && (
-                  messages.length === 0 ? (
-                    <p className="text-cream/25 text-xs text-center py-8">No messages yet</p>
-                  ) : (
-                    <div className="space-y-2 max-h-[60vh] overflow-y-auto">
-                      {messages.map(m => (
-                        <div key={m.id} className="flex items-start justify-between gap-3 px-4 py-3 rounded-xl bg-navy/40 border border-white/5 group">
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="font-sans text-cream text-xs font-semibold">{m.user_name}</span>
-                              <TypeBadge type={m.type} />
-                              <span className="font-sans text-cream/25 text-[10px]">
-                                {m.created_at ? new Date(m.created_at).toLocaleString('en-NZ', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''}
-                              </span>
-                            </div>
-                            {m.prompt_text && <p className="font-sans text-cream/50 text-xs italic mb-0.5">"{m.prompt_text}"</p>}
-                            {m.option && <p className="font-sans text-cream/80 text-sm">→ {m.option}</p>}
-                            {m.text && <p className="font-sans text-cream/80 text-sm">{m.text}</p>}
-                          </div>
-                          <button
-                            onClick={() => deleteMessage(m.id)}
-                            className="text-cream/20 hover:text-red-400 text-xs opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
-                            title="Delete message"
                           >
                             ✕
                           </button>

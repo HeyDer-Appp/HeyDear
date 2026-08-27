@@ -63,50 +63,9 @@ router.delete('/photos/:photoId', adminAuth, async (req, res) => {
   }
 });
 
-router.get('/tables/:tableId/messages', adminAuth, async (req, res) => {
-  try {
-    const { tableId } = req.params;
-    const [messagesSnap, membersSnap] = await Promise.all([
-      db.collection('groupMessages').where('tableId', '==', tableId).get(),
-      db.collection('tableMembers').where('tableId', '==', tableId).get(),
-    ]);
-
-    const nameByUserId = {};
-    membersSnap.docs.forEach(d => {
-      const m = d.data();
-      nameByUserId[m.user_id] = `${m.firstName || ''} ${m.lastName ? m.lastName.charAt(0) + '.' : ''}`.trim() || 'Unknown';
-    });
-
-    const messages = messagesSnap.docs
-      .map(d => {
-        const m = d.data();
-        return {
-          id: d.id,
-          type: m.type,
-          user_id: m.userId,
-          user_name: nameByUserId[m.userId] || 'Unknown',
-          prompt_text: m.promptText || null,
-          option: m.option || null,
-          text: m.text || null,
-          created_at: toIso(m.createdAt),
-        };
-      })
-      .sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
-
-    res.json({ messages });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-router.delete('/messages/:messageId', adminAuth, async (req, res) => {
-  try {
-    await db.collection('groupMessages').doc(req.params.messageId).delete();
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: 'Server error' });
-  }
-});
+// Deliberately no route reads group chat message content here — attendees'
+// chats aren't something admin browses, on request. Only an aggregate count
+// (above, in /tables/:dinnerId) is exposed, which says "how active" a table
+// is without revealing what anyone actually said.
 
 module.exports = router;
