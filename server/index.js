@@ -29,6 +29,7 @@ const adminAmbassadorsRoutes = require('./routes/admin/ambassadors');
 const adminContentRoutes = require('./routes/admin/content');
 const adminCouponsRoutes = require('./routes/admin/coupons');
 const adminPricingRoutes = require('./routes/admin/pricing');
+const adminSubscriptionsRoutes = require('./routes/admin/subscriptions');
 
 if (process.env.NODE_ENV === 'production') {
   const required = [
@@ -105,6 +106,7 @@ app.use('/api/admin/ambassadors', adminAmbassadorsRoutes);
 app.use('/api/admin/content', adminContentRoutes);
 app.use('/api/admin/coupons', adminCouponsRoutes);
 app.use('/api/admin/pricing', adminPricingRoutes);
+app.use('/api/admin/subscriptions', adminSubscriptionsRoutes);
 
 app.use('/api', (req, res) => res.status(404).json({ error: 'Not found' }));
 

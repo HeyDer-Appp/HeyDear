@@ -45,6 +45,7 @@ import AdminMatching from './pages/admin/Matching';
 import AdminAnalytics from './pages/admin/Analytics';
 import AdminAmbassadors from './pages/admin/Ambassadors';
 import AdminPricing from './pages/admin/Pricing';
+import AdminSubscriptions from './pages/admin/Subscriptions';
 import AdminDinners from './pages/admin/Dinners';
 import AdminRestaurants from './pages/admin/Restaurants';
 import AdminContent from './pages/admin/Content';
@@ -97,6 +98,7 @@ function AppRoutes() {
       <Route path="/admin/analytics" element={<AdminRoute><AdminAnalytics /></AdminRoute>} />
       <Route path="/admin/ambassadors" element={<AdminRoute><AdminAmbassadors /></AdminRoute>} />
       <Route path="/admin/pricing" element={<AdminRoute><AdminPricing /></AdminRoute>} />
+      <Route path="/admin/subscriptions" element={<AdminRoute><AdminSubscriptions /></AdminRoute>} />
       <Route path="/admin/dinners" element={<AdminRoute><AdminDinners /></AdminRoute>} />
       <Route path="/admin/restaurants" element={<AdminRoute><AdminRestaurants /></AdminRoute>} />
       <Route path="/admin/content" element={<AdminRoute><AdminContent /></AdminRoute>} />

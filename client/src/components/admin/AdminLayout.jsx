@@ -13,6 +13,7 @@ const navItems = [
   { label: 'Analytics', href: '/admin/analytics', icon: '◎' },
   { label: 'Ambassadors', href: '/admin/ambassadors', icon: '★' },
   { label: 'Pricing', href: '/admin/pricing', icon: '$' },
+  { label: 'Subscriptions', href: '/admin/subscriptions', icon: '✦' },
 ];
 
 export default function AdminLayout({ children, title }) {
