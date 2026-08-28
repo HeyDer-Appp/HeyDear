@@ -27,6 +27,18 @@ jobs:
         working-directory: client
         run: npm ci
 
+      - name: Build the web app
+        working-directory: client
+        run: npm run build
+
+      - name: Sync the Capacitor Android project
+        # client/android/.gitignore (Capacitor's own default) ignores
+        # capacitor-cordova-android-plugins/ as a generated directory, so it
+        # never gets pushed — this regenerates it (and copies the fresh web
+        # build in) on every run instead of relying on a committed copy.
+        working-directory: client
+        run: npx cap sync android
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
