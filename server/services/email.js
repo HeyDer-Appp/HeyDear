@@ -267,7 +267,12 @@ async function sendReminderEmail(user, venue) {
 }
 
 async function sendFeedbackEmail(user, dinner, restaurantName) {
-  const feedbackUrl = `${process.env.CLIENT_URL}/feedback/${dinner.id}?uid=${user.id}`;
+  // CLIENT_URL has had a trailing slash in production before (same issue
+  // fixed for CORS in index.js and for Stripe's success_url in payments.js)
+  // — a stray "/" here produces a double-slash link that React Router's
+  // routes won't match, silently bouncing the click to the home page.
+  const baseUrl = (process.env.CLIENT_URL || '').replace(/\/+$/, '');
+  const feedbackUrl = `${baseUrl}/feedback/${dinner.id}?uid=${user.id}`;
   const tmpl = templates.postDinnerFeedback({
     firstName: user.first_name,
     restaurantName,

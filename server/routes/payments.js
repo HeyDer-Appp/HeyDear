@@ -56,7 +56,13 @@ router.post('/create-checkout', attendeeAuth, async (req, res) => {
   try {
     const { plan, couponCode, context } = req.body;
     const email = req.user.email;
-    const baseUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+    // A trailing slash on CLIENT_URL (easy to set by accident, and exactly
+    // what was live in production) produces "https://host//profile/success"
+    // — a double slash React Router doesn't match against the real route,
+    // silently falling through to a catch-all instead of ever calling
+    // /profile/submit. Stripped defensively so the env var's exact value
+    // can't cause this again.
+    const baseUrl = (process.env.CLIENT_URL || 'http://localhost:5173').replace(/\/+$/, '');
 
     // A coupon always wins over the automatic signup incentive rather than
     // stacking with it — keeps "what discount did I actually get" simple to
