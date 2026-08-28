@@ -105,6 +105,16 @@ export default function BookDinner() {
         await submitBooking(fullAnswers, plan);
         return;
       }
+
+      // Save the booking BEFORE sending anyone to pay, not after — see the
+      // matching comment in Quiz.jsx's handlePayment for why: Stripe hands
+      // off to a different browser context on native apps, which can't
+      // finish anything that depends on this page's own state afterward.
+      await api.post('/profile/submit', {
+        ...fullAnswers,
+        field_OVB7lzEjSl7C: fullAnswers.field_OVB7lzEjSl7C || [],
+      });
+
       const stripe = await loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
       const res = await api.post('/payments/create-checkout', {
         email: attendeeUser?.email,

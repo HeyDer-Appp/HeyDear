@@ -862,6 +862,21 @@ export default function Quiz() {
         await submitQuizWithoutPayment(plan);
         return;
       }
+
+      // Save the profile + booking BEFORE sending anyone to pay, not after.
+      // Stripe hands off to a *different* browser context on native apps
+      // (the phone's own browser, not this app's WebView) — that context
+      // has no access to this page's sessionStorage or even this login
+      // session, so waiting until after payment to save anything meant a
+      // real, successful charge could still end up with nothing recorded
+      // at all. Saving first means the booking/profile exist regardless of
+      // what happens after the redirect — payment success just links the
+      // charge on top of a booking that's already there.
+      await api.post('/profile/submit', {
+        ...answers,
+        field_OVB7lzEjSl7C: answers.field_OVB7lzEjSl7C || [],
+      });
+
       const stripe = await loadStripe(stripeKey);
       const res = await api.post('/payments/create-checkout', {
         email: attendeeUser?.email,
