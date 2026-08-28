@@ -43,7 +43,7 @@ export default function HowItWorks() {
               {i < steps.length - 1 && (
                 <div className="hidden md:block absolute top-14 left-full w-full h-px bg-gradient-to-r from-gold/30 to-transparent z-10" />
               )}
-              <div className="bg-dark-card rounded-2xl p-8 border border-white/5 h-full">
+              <div className="bg-dark-card rounded-2xl p-8 border border-white/5 h-full transition-all duration-300 hover:scale-[1.02] hover:border-gold/20 hover:shadow-lg hover:shadow-black/30">
                 <div className="flex items-center gap-3 mb-6">
                   <span className="font-serif text-5xl text-gold/30 leading-none">{step.number}</span>
                   <img src={step.icon} alt={step.title} className="w-9 h-9" />

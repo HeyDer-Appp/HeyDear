@@ -46,7 +46,7 @@ export default function Testimonials() {
           {testimonials.map((t, i) => (
             <div
               key={i}
-              className="bg-dark-card rounded-2xl p-8 border border-white/5 flex flex-col"
+              className="bg-dark-card rounded-2xl p-8 border border-white/5 flex flex-col transition-all duration-300 hover:scale-[1.02] hover:border-gold/20 hover:shadow-lg hover:shadow-black/30"
             >
               <Stars count={t.stars} />
               <p className="font-sans text-cream/75 text-sm leading-relaxed flex-1 italic">

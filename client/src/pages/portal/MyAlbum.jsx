@@ -20,7 +20,7 @@ function PolaroidCard({ photo, dateLabel, onClick }) {
   return (
     <div
       onClick={onClick}
-      className={`bg-[#f5edd8] rounded-sm p-2 shadow-[0_10px_28px_rgba(0,0,0,0.5)] select-none ${onClick ? 'cursor-pointer' : ''}`}
+      className={`bg-[#f5edd8] rounded-sm p-2 shadow-[0_10px_28px_rgba(0,0,0,0.5)] select-none transition-transform duration-300 ${onClick ? 'cursor-pointer hover:scale-[1.04] hover:shadow-[0_14px_36px_rgba(0,0,0,0.6)]' : ''}`}
     >
       <div className="w-full aspect-square bg-black/20 overflow-hidden">
         <img src={photo.photo} alt="" className="w-full h-full object-cover" draggable={false} />

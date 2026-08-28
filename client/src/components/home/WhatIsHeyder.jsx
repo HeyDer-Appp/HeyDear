@@ -40,7 +40,7 @@ export default function WhatIsHeyder() {
           {features.map((f) => (
             <div
               key={f.title}
-              className="bg-dark-card rounded-2xl p-8 border border-white/5 hover:border-gold/20 transition-colors group"
+              className="bg-dark-card rounded-2xl p-8 border border-white/5 hover:border-gold/20 hover:scale-[1.02] hover:shadow-lg hover:shadow-black/30 transition-all duration-300 group"
             >
               <img src={f.icon} alt={f.title} className="w-10 h-10 mb-5" />
               <h3 className="font-serif text-2xl text-cream mb-3">{f.title}</h3>

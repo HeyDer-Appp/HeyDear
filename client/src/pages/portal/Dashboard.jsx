@@ -51,7 +51,7 @@ function GlimpseCard({ member, revealed }) {
   const Wrapper = revealed ? Link : 'div';
   const wrapperProps = revealed ? { to: `/portal/person/${member.user_id}` } : {};
   return (
-    <Wrapper {...wrapperProps} className={`flex items-center gap-3 bg-white/[0.03] rounded-xl p-3 border border-white/5 ${revealed ? 'hover:border-gold/30 transition-colors' : ''}`}>
+    <Wrapper {...wrapperProps} className={`flex items-center gap-3 bg-white/[0.03] rounded-xl p-3 border border-white/5 ${revealed ? 'hover:border-gold/30 hover:scale-[1.02] transition-all duration-300' : ''}`}>
       {member.photo ? (
         <div className="rounded-full overflow-hidden w-12 h-12 flex-shrink-0 border border-white/10">
           <img
