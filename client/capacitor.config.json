@@ -1,0 +1,9 @@
+{
+  "appId": "nz.heyder.app",
+  "appName": "HeyDer",
+  "webDir": "dist",
+  "server": {
+    "url": "https://heydear.onrender.com",
+    "cleartext": false
+  }
+}

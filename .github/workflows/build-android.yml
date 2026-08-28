@@ -1,0 +1,42 @@
+name: Build Android APK
+
+# Manual trigger, plus automatically on any push that touches the Capacitor
+# Android project — the wrapper's WebView points at the live deployed site
+# (see client/capacitor.config.json), so this only needs rebuilding when the
+# native shell itself changes, not on every web deploy.
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+    paths:
+      - 'client/android/**'
+      - 'client/capacitor.config.json'
+      - '.github/workflows/build-android.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install client dependencies
+        working-directory: client
+        run: npm ci
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Build a debug APK
+        working-directory: client/android
+        run: chmod +x ./gradlew && ./gradlew assembleDebug --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: heyder-debug-apk
+          path: client/android/app/build/outputs/apk/debug/app-debug.apk
