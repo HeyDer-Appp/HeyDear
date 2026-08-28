@@ -32,6 +32,52 @@ export default function BookDinner() {
     api.get('/payments/pricing').then(res => setPricing(res.data)).catch(() => {});
   }, []);
 
+  // Same as Quiz.jsx's handlePayment: on native builds, Stripe opens in the
+  // phone's own browser, so this page never actually navigates away — it's
+  // still sitting here, frozen mid "Processing...", whenever the app is
+  // switched back into. Check on resume whether the payment actually went
+  // through instead of leaving that button stuck forever.
+  useEffect(() => {
+    let cancelled = false;
+    let attempts = 0;
+
+    const checkPendingPayment = async () => {
+      const pendingSessionId = sessionStorage.getItem('heyder_pending_session_id');
+      if (!pendingSessionId || cancelled) return;
+      attempts += 1;
+      try {
+        const res = await api.get(`/payments/verify/${pendingSessionId}`);
+        if (cancelled) return;
+        if (res.data.paid) {
+          sessionStorage.removeItem('heyder_pending_session_id');
+          navigate('/profile/success');
+          return;
+        }
+      } catch {
+        // ignore — treated the same as "not confirmed yet" below
+      }
+      if (attempts < 3) {
+        setTimeout(checkPendingPayment, 2500);
+      } else {
+        sessionStorage.removeItem('heyder_pending_session_id');
+        setSubmitting(false);
+      }
+    };
+
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') { attempts = 0; checkPendingPayment(); }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    checkPendingPayment();
+
+    return () => {
+      cancelled = true;
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+    };
+  }, [navigate]);
+
   useEffect(() => {
     Promise.all([
       api.get('/portal/full-profile'),
@@ -122,6 +168,7 @@ export default function BookDinner() {
         metadata: { quizData: JSON.stringify(fullAnswers) },
       });
       sessionStorage.setItem('heyder_quiz_answers', JSON.stringify(fullAnswers));
+      sessionStorage.setItem('heyder_pending_session_id', res.data.sessionId);
       await stripe.redirectToCheckout({ sessionId: res.data.sessionId });
     } catch (err) {
       toast.error(err.response?.data?.error || 'Payment setup failed. Please try again.');

@@ -599,6 +599,55 @@ export default function Quiz() {
     api.get('/payments/pricing').then(res => setPricing(res.data)).catch(() => {});
   }, []);
 
+  // On native builds, Stripe checkout opens in the phone's own browser —
+  // this page's WebView never navigates away, so coming back to the app
+  // just re-shows this exact page, frozen mid "Processing...". Whenever the
+  // app becomes visible again with a payment still pending, check whether
+  // it actually went through instead of leaving that button stuck forever.
+  useEffect(() => {
+    let cancelled = false;
+    let attempts = 0;
+
+    const checkPendingPayment = async () => {
+      const pendingSessionId = sessionStorage.getItem('heyder_pending_session_id');
+      if (!pendingSessionId || cancelled) return;
+      attempts += 1;
+      try {
+        const res = await api.get(`/payments/verify/${pendingSessionId}`);
+        if (cancelled) return;
+        if (res.data.paid) {
+          sessionStorage.removeItem('heyder_pending_session_id');
+          navigate('/profile/success');
+          return;
+        }
+      } catch {
+        // ignore — treated the same as "not confirmed yet" below
+      }
+      // Webhooks land almost instantly, well before a human can switch back
+      // to the app — but give it a couple of retries before giving up
+      // rather than deciding "not paid" on one unlucky check.
+      if (attempts < 3) {
+        setTimeout(checkPendingPayment, 2500);
+      } else {
+        sessionStorage.removeItem('heyder_pending_session_id');
+        setSubmitting(false);
+      }
+    };
+
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') { attempts = 0; checkPendingPayment(); }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    checkPendingPayment();
+
+    return () => {
+      cancelled = true;
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+    };
+  }, [navigate]);
+
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [stepIndex]);
@@ -886,6 +935,13 @@ export default function Quiz() {
         metadata: { quizData: JSON.stringify(answers) },
       });
       sessionStorage.setItem('heyder_quiz_answers', JSON.stringify(answers));
+      // Stripe opens in the phone's own browser on native builds — this
+      // page's WebView never actually navigates away, so it's still sitting
+      // right here (still showing "Processing...") whenever the app is
+      // switched back into. Remembering the session id lets the resume
+      // listener below check whether that payment actually went through
+      // instead of leaving the button frozen forever.
+      sessionStorage.setItem('heyder_pending_session_id', res.data.sessionId);
       await stripe.redirectToCheckout({ sessionId: res.data.sessionId });
     } catch (err) {
       toast.error(err.response?.data?.error || 'Payment setup failed. Please try again.');
