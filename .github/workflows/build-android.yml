@@ -88,7 +88,10 @@ jobs:
           java-version: '21'
 
       - name: Decode the release keystore
-        working-directory: client/android
+        # Written into app/ — the :app module's build.gradle resolves the
+        # relative RELEASE_KEYSTORE_PATH from its own project dir, not from
+        # client/android/.
+        working-directory: client/android/app
         run: echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 -d > release.jks
 
       - name: Build a signed release bundle (.aab)
@@ -102,7 +105,7 @@ jobs:
 
       - name: Remove the decoded keystore
         if: always()
-        working-directory: client/android
+        working-directory: client/android/app
         run: rm -f release.jks
 
       - uses: actions/upload-artifact@v4
