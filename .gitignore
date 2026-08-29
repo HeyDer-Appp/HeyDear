@@ -7,3 +7,10 @@ build/
 .DS_Store
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
+
+# Android release signing key — never commit this, it's the private key
+# that proves app updates come from you. Keep it and its passwords backed
+# up somewhere safe outside of git (e.g. your own Drive / password manager).
+client/android-signing/
+*.jks
+*.keystore

@@ -52,3 +52,60 @@ jobs:
         with:
           name: heyder-debug-apk
           path: client/android/app/build/outputs/apk/debug/app-debug.apk
+
+  # Signed release bundle for the Play Store. Only runs when manually
+  # triggered (not on every push) since it needs the signing secrets below
+  # to be configured under Settings → Secrets and variables → Actions:
+  #   RELEASE_KEYSTORE_BASE64   — `base64 -w0 heyder-release.jks` output
+  #   RELEASE_KEYSTORE_PASSWORD
+  #   RELEASE_KEY_ALIAS
+  #   RELEASE_KEY_PASSWORD
+  release:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install client dependencies
+        working-directory: client
+        run: npm ci
+
+      - name: Build the web app
+        working-directory: client
+        run: npm run build
+
+      - name: Sync the Capacitor Android project
+        working-directory: client
+        run: npx cap sync android
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Decode the release keystore
+        working-directory: client/android
+        run: echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 -d > release.jks
+
+      - name: Build a signed release bundle (.aab)
+        working-directory: client/android
+        env:
+          RELEASE_KEYSTORE_PATH: release.jks
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: chmod +x ./gradlew && ./gradlew bundleRelease --no-daemon
+
+      - name: Remove the decoded keystore
+        if: always()
+        working-directory: client/android
+        run: rm -f release.jks
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: heyder-release-aab
+          path: client/android/app/build/outputs/bundle/release/app-release.aab
