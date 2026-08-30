@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../../utils/api';
+import { useAuth } from '../../context/AuthContext';
 import { QUESTIONS, CHAPTERS, isPhoneValid } from '../Quiz';
 import { fileToResizedBase64 } from '../../utils/image';
 import { DIAL_CODES } from '../../utils/flags';
@@ -19,20 +20,11 @@ function getAge(dob) {
 
 const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
 
-// Badge + live countdown to renewal, with a Renew button that only shows up
-// once there are 3 days or fewer left — otherwise it'd just be a button
-// sitting there for weeks with nothing to actually do yet.
+// Badge + renewal date, with a Renew button that only shows up once there
+// are 3 days or fewer left — otherwise it'd just be a button sitting there
+// for weeks with nothing to actually do yet.
 function SubscriptionCard({ renewsAt, onRenew, renewing }) {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const tick = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(tick);
-  }, []);
-
-  const msLeft = Math.max(0, new Date(renewsAt).getTime() - now);
-  const days = Math.floor(msLeft / (24 * 60 * 60 * 1000));
-  const hours = Math.floor((msLeft % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
-  const minutes = Math.floor((msLeft % (60 * 60 * 1000)) / 60000);
+  const msLeft = Math.max(0, new Date(renewsAt).getTime() - Date.now());
   const showRenew = msLeft <= THREE_DAYS_MS;
 
   return (
@@ -42,9 +34,9 @@ function SubscriptionCard({ renewsAt, onRenew, renewing }) {
           ✦ Subscription active
         </span>
       </div>
-      <p className="font-sans text-cream/40 text-xs uppercase tracking-widest mb-1">Renews in</p>
+      <p className="font-sans text-cream/40 text-xs uppercase tracking-widest mb-1">Renews</p>
       <p className="font-serif text-2xl text-cream mb-3">
-        {days > 0 ? `${days}d ${hours}h ${minutes}m` : `${hours}h ${minutes}m`}
+        {new Date(renewsAt).toLocaleDateString('en-NZ', { day: 'numeric', month: 'long', year: 'numeric' })}
       </p>
       {showRenew && (
         <>
@@ -88,6 +80,7 @@ function SaveButton({ onClick, saving, compact }) {
 
 export default function EditProfile() {
   const navigate = useNavigate();
+  const { attendeeUser, logout, resetPassword } = useAuth();
   const [locked, setLocked] = useState(null);
   const [answers, setAnswers] = useState({});
   const [initialAnswers, setInitialAnswers] = useState(null);
@@ -98,6 +91,11 @@ export default function EditProfile() {
   const [renewing, setRenewing] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [saveAttempted, setSaveAttempted] = useState(false);
+  const [showAccountMenu, setShowAccountMenu] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const subscriptionRef = useRef(null);
 
   const loadProfile = () => api.get('/portal/full-profile')
     .then(res => {
@@ -128,6 +126,34 @@ export default function EditProfile() {
       toast.error(err.response?.data?.error || 'Could not renew right now.');
     } finally {
       setRenewing(false);
+    }
+  };
+
+  const handleManageSubscription = () => {
+    setShowAccountMenu(false);
+    subscriptionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
+  const handleResetPassword = async () => {
+    setShowAccountMenu(false);
+    try {
+      await resetPassword(attendeeUser.email);
+      toast.success(`Password reset link sent to ${attendeeUser.email}`);
+    } catch (err) {
+      toast.error('Could not send reset email. Please try again.');
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    setDeleting(true);
+    try {
+      await api.delete('/portal/account');
+      await logout();
+      navigate('/');
+      toast.success('Your account has been deleted.');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Could not delete your account. Please try again.');
+      setDeleting(false);
     }
   };
 
@@ -242,16 +268,58 @@ export default function EditProfile() {
       </nav>
 
       <div className="relative z-10 max-w-lg mx-auto px-5 py-8 space-y-6">
-        <div>
-          <p className="font-sans text-cream/40 text-sm">Your profile</p>
-          <h1 className="font-serif text-3xl text-cream mt-1">Edit your answers</h1>
-          <p className="font-sans text-cream/40 text-sm mt-2 leading-relaxed">
-            Change anything you like — we'll use your latest answers for future matching.
-          </p>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="font-sans text-cream/40 text-sm">Your profile</p>
+            <h1 className="font-serif text-3xl text-cream mt-1">Edit your answers</h1>
+          </div>
+
+          <div className="relative flex-shrink-0 mt-1">
+            <button
+              onClick={() => setShowAccountMenu(v => !v)}
+              aria-label="Account settings"
+              className="w-9 h-9 rounded-full border border-white/10 bg-white/[0.04] flex items-center justify-center text-cream/60 hover:text-gold hover:border-gold/40 transition-colors"
+            >
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+              </svg>
+            </button>
+
+            {showAccountMenu && (
+              <>
+                <div className="fixed inset-0 z-20" onClick={() => setShowAccountMenu(false)} />
+                <div className="absolute right-0 top-full mt-2 w-52 bg-navy border border-white/10 rounded-xl shadow-xl overflow-hidden z-30">
+                  {subscription.active && (
+                    <button
+                      onClick={handleManageSubscription}
+                      className="w-full text-left px-4 py-3 font-sans text-sm text-cream/80 hover:bg-white/[0.06] transition-colors"
+                    >
+                      Manage subscription
+                    </button>
+                  )}
+                  <button
+                    onClick={handleResetPassword}
+                    className={`w-full text-left px-4 py-3 font-sans text-sm text-cream/80 hover:bg-white/[0.06] transition-colors ${subscription.active ? 'border-t border-white/[0.06]' : ''}`}
+                  >
+                    Reset password
+                  </button>
+                  <button
+                    onClick={() => { setShowAccountMenu(false); setShowDeleteConfirm(true); }}
+                    className="w-full text-left px-4 py-3 font-sans text-sm text-red-400 hover:bg-red-500/10 transition-colors border-t border-white/[0.06]"
+                  >
+                    Delete account
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
 
         {subscription.active && subscription.renewsAt && (
-          <SubscriptionCard renewsAt={subscription.renewsAt} onRenew={handleRenew} renewing={renewing} />
+          <div ref={subscriptionRef}>
+            <SubscriptionCard renewsAt={subscription.renewsAt} onRenew={handleRenew} renewing={renewing} />
+          </div>
         )}
 
         {/* Profile photo */}
@@ -475,6 +543,44 @@ export default function EditProfile() {
             >
               Do not apply
             </button>
+          </div>
+        </div>
+      )}
+
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-5">
+          <div className="quiz-card w-full max-w-sm space-y-4">
+            <p className="font-serif text-xl text-cream">Delete your account?</p>
+            <p className="font-sans text-cream/60 text-sm leading-relaxed">
+              This permanently deletes your profile, bookings, matches, messages, photos and cancels any active subscription.
+              <span className="text-red-400"> This cannot be undone.</span>
+            </p>
+            <div>
+              <label className="font-sans text-cream/50 text-xs block mb-1.5">Type DELETE to confirm</label>
+              <input
+                type="text"
+                value={deleteConfirmText}
+                onChange={e => setDeleteConfirmText(e.target.value)}
+                className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2.5 text-cream font-sans text-sm focus:outline-none focus:border-red-400/50"
+                placeholder="DELETE"
+              />
+            </div>
+            <div className="flex gap-3 pt-1">
+              <button
+                onClick={() => { setShowDeleteConfirm(false); setDeleteConfirmText(''); }}
+                disabled={deleting}
+                className="flex-1 py-2.5 rounded-xl font-sans text-sm text-cream/70 border border-white/10 hover:bg-white/[0.04] transition-colors disabled:opacity-40"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deleteConfirmText !== 'DELETE' || deleting}
+                className="flex-1 py-2.5 rounded-xl font-sans text-sm text-white bg-red-500/80 hover:bg-red-500 transition-colors disabled:opacity-30 disabled:pointer-events-none"
+              >
+                {deleting ? 'Deleting…' : 'Delete account'}
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -55,6 +55,54 @@ function NameTag({ name, country }) {
   );
 }
 
+// Custom radio rows instead of a native <select> — picking an option
+// answers immediately (no separate submit step), so the tapped row fills
+// gold right away and the rest dim out while the answer posts.
+function PromptOptions({ options, onSelect }) {
+  const [choice, setChoice] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const handlePick = async (opt) => {
+    if (submitting) return;
+    setChoice(opt);
+    setSubmitting(true);
+    try {
+      await onSelect(opt);
+    } catch {
+      setChoice(null);
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="mt-1.5 space-y-1.5">
+      {options.map(opt => {
+        const active = choice === opt;
+        return (
+          <button
+            key={opt}
+            type="button"
+            onClick={() => handlePick(opt)}
+            disabled={submitting}
+            className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl border text-left font-sans text-xs transition-all duration-200 ${
+              active
+                ? 'border-gold bg-gold/10 text-cream shadow-[0_4px_20px_rgba(232,168,84,0.15)]'
+                : 'border-white/10 bg-white/[0.03] text-cream/70 hover:border-gold/40 hover:bg-white/[0.06]'
+            } ${submitting && !active ? 'opacity-35' : ''}`}
+          >
+            <span className={`flex-shrink-0 w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors duration-200 ${
+              active ? 'border-gold' : 'border-cream/25'
+            }`}>
+              <span className={`w-2 h-2 rounded-full bg-gold transition-transform duration-200 ${active ? 'scale-100' : 'scale-0'}`} />
+            </span>
+            {opt}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function PromptMessage({ msg, photo, name, country, blurred, onAnswer, isOwn }) {
   return (
     <div className="flex items-end gap-2 mb-3">
@@ -70,16 +118,7 @@ function PromptMessage({ msg, photo, name, country, blurred, onAnswer, isOwn }) 
         {isOwn ? (
           <p className="mt-1.5 font-sans text-cream/25 text-[11px] italic">Your question — waiting on answers</p>
         ) : (
-          <select
-            defaultValue=""
-            onChange={e => { if (e.target.value) onAnswer(msg.id, e.target.value); }}
-            className="mt-1.5 w-full bg-white/[0.04] border border-gold/25 rounded-xl px-3 py-2 text-cream/80 font-sans text-xs focus:outline-none focus:border-gold/60"
-          >
-            <option value="" disabled className="bg-navy text-cream/50">Tap to answer…</option>
-            {(msg.prompt_options || []).map(opt => (
-              <option key={opt} value={opt} className="bg-navy text-cream">{opt}</option>
-            ))}
-          </select>
+          <PromptOptions options={msg.prompt_options || []} onSelect={(opt) => onAnswer(msg.id, opt)} />
         )}
       </div>
     </div>
@@ -313,6 +352,7 @@ function GroupDetail({ tableId, onBack }) {
       setData(prev => ({ ...prev, messages: [...(prev.messages || []), res.data.message] }));
     } catch (err) {
       toast.error(err.response?.data?.error || 'Could not send that answer.');
+      throw err; // lets PromptOptions un-select and re-enable its radios
     }
   };
 
