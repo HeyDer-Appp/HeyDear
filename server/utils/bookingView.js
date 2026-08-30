@@ -12,6 +12,9 @@ function bookingToPerson(id, booking) {
     phone: booking.phone,
     gender: booking.gender,
     country: booking.country,
+    // Bookings created before city was captured have no such field —
+    // every real signup was Auckland-only at that point anyway.
+    city: booking.city || 'Auckland',
     dob: booking.dob,
     intent: booking.field_cqCcs6psQuhE,
     personality: booking.field_L6GblNns9C7v,

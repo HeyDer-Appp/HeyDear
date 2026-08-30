@@ -572,7 +572,14 @@ function QuestionField({ q, value, onChange, error, otherValue, onOtherChange })
 export default function Quiz() {
   const navigate = useNavigate();
   const { attendeeUser } = useAuth();
-  const [answers, setAnswers] = useState({});
+  // The city picker on the dashboard's pre-profile screen stashes the
+  // selected city here since it can't pass props across a route navigation
+  // — picked up once on mount so it rides along in the /profile/submit
+  // payload below instead of being silently dropped.
+  const [answers, setAnswers] = useState(() => {
+    const city = sessionStorage.getItem('heyder_signup_city');
+    return city ? { city } : {};
+  });
   const [errors, setErrors] = useState({});
   const [disqualified, setDisqualified] = useState(false);
   const [submitting, setSubmitting] = useState(false);

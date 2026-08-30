@@ -99,7 +99,7 @@ router.post('/submit', attendeeAuth, quizLimiter, async (req, res) => {
   try {
     const {
       field_CdZldwp5q09o,
-      first_name, last_name, phone, dob, gender, country, photo,
+      first_name, last_name, phone, dob, gender, country, photo, city,
       referral_code, stripe_session_id, plan, skip_booking,
     } = req.body;
 
@@ -182,7 +182,11 @@ router.post('/submit', attendeeAuth, quizLimiter, async (req, res) => {
       };
       if (!userSnap.exists) {
         userUpdate.email = req.user.email;
-        userUpdate.city = 'Auckland';
+        // Was hardcoded to 'Auckland' regardless of what the signup flow's
+        // city picker actually recorded — city never made it into the
+        // request at all, so every signup looked identical and the admin
+        // panel had nothing to filter or even display.
+        userUpdate.city = city || 'Auckland';
         userUpdate.createdAt = admin.firestore.FieldValue.serverTimestamp();
       }
       if (first_name) userUpdate.firstName = first_name;
@@ -220,6 +224,7 @@ router.post('/submit', attendeeAuth, quizLimiter, async (req, res) => {
         dob: userUpdate.dob || existingUser.dob,
         gender: userUpdate.gender || existingUser.gender,
         country: userUpdate.country || existingUser.country,
+        city: userUpdate.city || existingUser.city || 'Auckland',
         ...answers,
         submittedAt: admin.firestore.FieldValue.serverTimestamp(),
       };

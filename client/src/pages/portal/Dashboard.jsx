@@ -469,7 +469,13 @@ export default function PortalDashboard() {
 
         <Link
           to="/profile"
-          onClick={e => { if (location !== 'Auckland') e.preventDefault(); }}
+          onClick={e => {
+            if (location !== 'Auckland') { e.preventDefault(); return; }
+            // Quiz.jsx (mounted at /profile) picks this up and includes it
+            // in the submission — this selector used to be purely cosmetic,
+            // the picked city never actually reached the server.
+            sessionStorage.setItem('heyder_signup_city', location);
+          }}
           className={`quiz-cta w-full flex items-center justify-center text-base py-4 ${location !== 'Auckland' ? 'opacity-40 pointer-events-none' : ''}`}
         >
           Build My Profile →

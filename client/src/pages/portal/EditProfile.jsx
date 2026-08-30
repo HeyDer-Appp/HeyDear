@@ -158,17 +158,20 @@ export default function EditProfile() {
   // Returns whether it actually saved — callers that navigate away
   // afterward (like applyAndLeave below) need to know not to leave on a
   // failed save, or the still-unsaved changes just get discarded anyway.
-  const save = async () => {
+  // `silent` skips the success toast for autosave — every pause-while-typing
+  // firing a toast would get noisy fast; manual Save Changes clicks still
+  // get one since that's an explicit action wanting confirmation.
+  const save = async ({ silent = false } = {}) => {
     setSaveAttempted(true);
     if (phoneError) {
-      toast.error(answers.phone ? 'Enter a valid phone number.' : 'Phone number is required.');
+      if (!silent) toast.error(answers.phone ? 'Enter a valid phone number.' : 'Phone number is required.');
       return false;
     }
     setSaving(true);
     try {
       await api.patch('/portal/profile', answers);
       setInitialAnswers(answers);
-      toast.success('Profile updated!');
+      if (!silent) toast.success('Profile updated!');
       return true;
     } catch {
       toast.error('Failed to save changes');
@@ -177,6 +180,17 @@ export default function EditProfile() {
       setSaving(false);
     }
   };
+
+  // Autosave: every change on this page saves itself shortly after the user
+  // pauses, instead of requiring an explicit Save Changes click. Debounced
+  // so a burst of quick changes (typing, tapping through choices) collapses
+  // into one request rather than one per keystroke/tap.
+  useEffect(() => {
+    if (!isDirty || phoneError || saving) return;
+    const t = setTimeout(() => { save({ silent: true }); }, 900);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [answers]);
 
   // Leaving with unsaved changes asks first instead of silently discarding
   // them — "Apply" saves then leaves, "Do not apply" leaves without saving.
@@ -212,7 +226,16 @@ export default function EditProfile() {
       <nav className="sticky top-0 z-20 flex items-center justify-between px-6 py-5 border-b border-white/[0.06] backdrop-blur bg-[#16181d]/90">
         <div className="flex items-center gap-3">
           <Link to="/portal" onClick={handleBackClick} className="font-sans text-cream/50 text-sm hover:text-cream transition-colors">← Back</Link>
-          {isDirty && <SaveButton onClick={save} saving={saving} compact />}
+          {saving ? (
+            <span className="font-sans text-cream/30 text-xs flex items-center gap-1.5">
+              <div className="w-3 h-3 border-2 border-cream/30 border-t-transparent rounded-full animate-spin" />
+              Saving...
+            </span>
+          ) : isDirty ? (
+            <span className="font-sans text-cream/25 text-xs">Unsaved</span>
+          ) : initialAnswers && (
+            <span className="font-sans text-cream/25 text-xs">Saved</span>
+          )}
         </div>
         <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-7" />
         <div className="w-10" />

@@ -32,7 +32,8 @@ export default function AdminSignups() {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [dates, setDates] = useState([]);
-  const [filters, setFilters] = useState({ date: '', intent: '', gender: '', search: '' });
+  const [cities, setCities] = useState([]);
+  const [filters, setFilters] = useState({ date: '', intent: '', gender: '', city: '', search: '' });
   const [selected, setSelected] = useState(null);
 
   const loadSignups = async () => {
@@ -51,6 +52,7 @@ export default function AdminSignups() {
 
   useEffect(() => {
     api.get('/admin/signups/dates').then(r => setDates(r.data.dates || [])).catch(console.error);
+    api.get('/admin/signups/cities').then(r => setCities(r.data.cities || [])).catch(console.error);
   }, []);
 
   const exportCSV = () => {
@@ -105,6 +107,17 @@ export default function AdminSignups() {
               </select>
             </div>
             <div>
+              <label className="font-sans text-cream/50 text-xs block mb-1">City</label>
+              <select
+                className="input-field py-2 text-sm"
+                value={filters.city}
+                onChange={e => setFilters(f => ({ ...f, city: e.target.value }))}
+              >
+                <option value="">All cities</option>
+                {cities.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div>
               <label className="font-sans text-cream/50 text-xs block mb-1">Search</label>
               <input
                 className="input-field py-2 text-sm w-48"
@@ -123,16 +136,16 @@ export default function AdminSignups() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-white/5">
-                  {['Name', 'Age / Gender', 'Intent', 'Personality', 'Budget', 'Date', 'Dietary', 'R-Score', 'Matched', 'Signed up'].map(h => (
+                  {['Name', 'Age / Gender', 'City', 'Intent', 'Personality', 'Budget', 'Date', 'Dietary', 'R-Score', 'Matched', 'Signed up'].map(h => (
                     <th key={h} className="text-left px-4 py-3 font-sans text-cream/40 text-xs font-semibold tracking-wider uppercase whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={10} className="px-4 py-8 text-center text-cream/40 font-sans text-sm">Loading...</td></tr>
+                  <tr><td colSpan={11} className="px-4 py-8 text-center text-cream/40 font-sans text-sm">Loading...</td></tr>
                 ) : signups.length === 0 ? (
-                  <tr><td colSpan={10} className="px-4 py-8 text-center text-cream/40 font-sans text-sm">No signups found</td></tr>
+                  <tr><td colSpan={11} className="px-4 py-8 text-center text-cream/40 font-sans text-sm">No signups found</td></tr>
                 ) : signups.map(s => (
                   <tr
                     key={s.id}
@@ -147,6 +160,7 @@ export default function AdminSignups() {
                       <p className="font-sans text-cream/40 text-xs">{s.email}</p>
                     </td>
                     <td className="px-4 py-3 font-sans text-cream/70 text-sm whitespace-nowrap">{getAge(s.dob)} · {s.gender}</td>
+                    <td className="px-4 py-3 font-sans text-cream/70 text-sm whitespace-nowrap">{s.city || '—'}</td>
                     <td className="px-4 py-3">
                       <span className={`text-xs px-2 py-0.5 rounded-full ${s.intent?.includes('Meaningful') ? 'bg-blue-500/15 text-blue-300' : 'bg-purple-500/15 text-purple-300'}`}>
                         {s.intent?.includes('Meaningful') ? '💙 Meaningful' : '🎉 Fun'}

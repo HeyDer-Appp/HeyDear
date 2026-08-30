@@ -11,11 +11,12 @@ const { bookingToPerson } = require('../../utils/bookingView');
 // scale (hundreds, not millions, of signups per dinner).
 router.get('/', adminAuth, async (req, res) => {
   try {
-    const { date, intent, gender, search, page = 1, limit = 50 } = req.query;
+    const { date, intent, gender, city, search, page = 1, limit = 50 } = req.query;
 
     let query = db.collection('bookings');
     if (date) query = query.where('tuesdayDate', '==', date);
     if (gender) query = query.where('gender', '==', gender);
+    if (city) query = query.where('city', '==', city);
 
     const snap = await query.get();
     let signups = snap.docs.map(d => {
@@ -69,6 +70,16 @@ router.get('/dates', adminAuth, async (req, res) => {
   }
 });
 
+router.get('/cities', adminAuth, async (req, res) => {
+  try {
+    const snap = await db.collection('bookings').select('city').get();
+    const cities = [...new Set(snap.docs.map(d => d.data().city).filter(Boolean))].sort();
+    res.json({ cities });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 router.get('/:id', adminAuth, async (req, res) => {
   try {
     // where() + orderBy() on different fields needs a composite index, so
@@ -109,7 +120,7 @@ router.get('/export/csv', adminAuth, async (req, res) => {
       .sort((a, b) => (b.submitted_at?.toMillis?.() || 0) - (a.submitted_at?.toMillis?.() || 0))
       .map(s => ({
         first_name: s.first_name, last_name: s.last_name, email: s.email, phone: s.phone,
-        gender: s.gender, country: s.country, dob: s.dob,
+        gender: s.gender, country: s.country, city: s.city, dob: s.dob,
         intent: s.intent, personality: s.personality, budget: s.budget,
         preferred_date: s.preferred_date, tuesday_date: s.tuesday_date,
         reliability: s.reliability_score, dietary: (s.dietary || []).join('; '),
