@@ -127,13 +127,14 @@ const header = (
   </nav>
 );
 
-// Lets someone tell at a glance whether a group's chat is worth opening
-// without tapping in — "Open" alone read as a duplicate of the "Open chat"
-// button right below it, so this spells out what's actually open/locked.
+// Only worth flagging when there's something to tell someone before they
+// tap in — locked (nothing to see yet) or already attended. Open is the
+// normal, expected state once a chat's unlocked, so it shows nothing here
+// rather than a badge that just duplicates the "Open chat" button below it.
 function StatusBadge({ g }) {
   if (g.revealed) return <span className="text-emerald-400 text-[10px] font-sans font-semibold uppercase tracking-widest">Attended</span>;
-  if (g.chat_open) return <span className="text-gold text-[10px] font-sans font-semibold uppercase tracking-widest">Chat open</span>;
-  return <span className="text-cream/30 text-[10px] font-sans font-semibold uppercase tracking-widest">Chat locked</span>;
+  if (g.chat_open) return null;
+  return <span className="text-cream/30 text-[10px] font-sans font-semibold uppercase tracking-widest">Locked</span>;
 }
 
 function GroupListCard({ g, onOpen, onExit }) {
