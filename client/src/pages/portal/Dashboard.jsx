@@ -435,7 +435,7 @@ export default function PortalDashboard() {
         <Link to="/">
           <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-7" />
         </Link>
-        <button onClick={() => { logout(); navigate('/'); }} className="font-sans text-cream/40 text-xs hover:text-cream transition-colors">
+        <button onClick={async () => { await logout(); navigate('/'); }} className="font-sans text-cream/40 text-xs hover:text-cream transition-colors">
           Sign out
         </button>
       </nav>
@@ -526,7 +526,7 @@ export default function PortalDashboard() {
                   Reset password
                 </button>
                 <button
-                  onClick={() => { setShowAccountMenu(false); logout(); navigate('/'); }}
+                  onClick={async () => { setShowAccountMenu(false); await logout(); navigate('/'); }}
                   className="w-full text-left px-4 py-3 font-sans text-sm text-cream/80 hover:bg-white/[0.06] transition-colors border-t border-white/[0.06]"
                 >
                   Sign out

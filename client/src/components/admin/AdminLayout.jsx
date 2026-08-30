@@ -22,8 +22,8 @@ export default function AdminLayout({ children, title }) {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate('/admin/login');
   };
 
