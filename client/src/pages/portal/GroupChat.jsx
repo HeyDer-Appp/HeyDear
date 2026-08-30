@@ -55,7 +55,7 @@ function NameTag({ name, country }) {
   );
 }
 
-function PromptMessage({ msg, photo, name, country, blurred, onAnswer }) {
+function PromptMessage({ msg, photo, name, country, blurred, onAnswer, isOwn }) {
   return (
     <div className="flex items-end gap-2 mb-3">
       <Avatar photo={photo} blurred={blurred} />
@@ -65,16 +65,22 @@ function PromptMessage({ msg, photo, name, country, blurred, onAnswer }) {
           <p className="font-sans text-cream/35 text-[10px] uppercase tracking-widest mb-1">Asked</p>
           <p className="font-serif text-cream text-base leading-snug">{msg.prompt_text}</p>
         </div>
-        <select
-          defaultValue=""
-          onChange={e => { if (e.target.value) onAnswer(msg.id, e.target.value); }}
-          className="mt-1.5 w-full bg-white/[0.04] border border-gold/25 rounded-xl px-3 py-2 text-cream/80 font-sans text-xs focus:outline-none focus:border-gold/60"
-        >
-          <option value="" disabled className="bg-navy text-cream/50">Tap to answer…</option>
-          {(msg.prompt_options || []).map(opt => (
-            <option key={opt} value={opt} className="bg-navy text-cream">{opt}</option>
-          ))}
-        </select>
+        {/* You can't answer your own question — server enforces this too,
+            this just keeps the picker from showing up in the first place. */}
+        {isOwn ? (
+          <p className="mt-1.5 font-sans text-cream/25 text-[11px] italic">Your question — waiting on answers</p>
+        ) : (
+          <select
+            defaultValue=""
+            onChange={e => { if (e.target.value) onAnswer(msg.id, e.target.value); }}
+            className="mt-1.5 w-full bg-white/[0.04] border border-gold/25 rounded-xl px-3 py-2 text-cream/80 font-sans text-xs focus:outline-none focus:border-gold/60"
+          >
+            <option value="" disabled className="bg-navy text-cream/50">Tap to answer…</option>
+            {(msg.prompt_options || []).map(opt => (
+              <option key={opt} value={opt} className="bg-navy text-cream">{opt}</option>
+            ))}
+          </select>
+        )}
       </div>
     </div>
   );
@@ -141,7 +147,10 @@ function GroupListCard({ g, onOpen, onExit }) {
   return (
     <div className="quiz-card">
       <div className="flex items-center justify-between mb-1">
-        <p className="font-serif text-lg text-cream">{formatDinnerDate(g.dinner_date)}</p>
+        <p className="font-serif text-lg text-cream flex items-center gap-2">
+          {formatDinnerDate(g.dinner_date)}
+          {g.has_unread && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0" />}
+        </p>
         <StatusBadge g={g} />
       </div>
       <p className="font-sans text-cream/40 text-xs mb-4">{g.city} · {g.member_count} people</p>
@@ -414,7 +423,7 @@ function GroupDetail({ tableId, onBack }) {
           const country = countryByUser[msg.user_id];
           const name = data.revealed ? (nameByUser[msg.user_id] || 'Guest') : null;
           if (msg.type === 'prompt') {
-            return <PromptMessage key={msg.id} msg={msg} photo={photo} name={name} country={country} blurred={!data.revealed} onAnswer={handleAnswer} />;
+            return <PromptMessage key={msg.id} msg={msg} photo={photo} name={name} country={country} blurred={!data.revealed} onAnswer={handleAnswer} isOwn={isOwn} />;
           }
           if (msg.type === 'answer') {
             return <AnswerMessage key={msg.id} msg={msg} photo={photo} name={name} country={country} blurred={!data.revealed} isOwn={isOwn} />;

@@ -50,6 +50,18 @@ async function requireMembership(tableId, userId) {
   return member;
 }
 
+// Mirrors connectionHasUnread's pattern in connections.js — a message from
+// anyone other than this user, newer than their own lastReadAt on this
+// table, counts as unread.
+async function groupHasUnread(tableId, uid, lastReadAt) {
+  const lastReadMs = lastReadAt?.toMillis?.() || 0;
+  const snap = await db.collection('groupMessages').where('tableId', '==', tableId).get();
+  return snap.docs.some(d => {
+    const m = d.data();
+    return m.userId !== uid && (m.createdAt?.toMillis?.() || 0) > lastReadMs;
+  });
+}
+
 // Every group chat this attendee has ever been matched into (not hidden),
 // newest dinner first — mirrors the bookings -> tables -> dinners join used
 // in album.js, but lists everything rather than picking one active table.
@@ -75,13 +87,18 @@ router.get('/', attendeeAuth, async (req, res) => {
       const dinnerDate = toDate(dinner?.date);
       if (!dinnerDate) return null;
 
-      const membersSnap = await db.collection('tableMembers').where('tableId', '==', tableId).get();
+      const timing = timingSummary(dinnerDate);
+      const [membersSnap, hasUnread] = await Promise.all([
+        db.collection('tableMembers').where('tableId', '==', tableId).get(),
+        timing.chat_open ? groupHasUnread(tableId, req.user.id, member.lastReadAt) : Promise.resolve(false),
+      ]);
 
       return {
         table_id: tableId,
         city: dinner.city || 'Auckland',
         member_count: membersSnap.size,
-        ...timingSummary(dinnerDate),
+        has_unread: hasUnread,
+        ...timing,
       };
     }));
 
@@ -116,6 +133,12 @@ router.get('/:tableId', attendeeAuth, async (req, res) => {
     const base = { table_id: tableId, city: dinner.city || 'Auckland', ...timing };
 
     if (!timing.chat_open) return res.json(base);
+
+    // Opening the chat is what clears its unread state for the list's
+    // green dot — fire-and-forget since it shouldn't hold up the response.
+    db.collection('tableMembers').doc(`${tableId}_${req.user.id}`)
+      .set({ lastReadAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true })
+      .catch(() => {});
 
     // where() + orderBy() on different fields needs a composite index, so
     // filter here and sort in memory instead (same pattern used everywhere
@@ -244,6 +267,9 @@ router.post('/:tableId/messages/:messageId/answer', attendeeAuth, async (req, re
     }
     if (!Array.isArray(promptMsg.promptOptions) || !promptMsg.promptOptions.includes(option)) {
       return res.status(400).json({ error: 'Invalid option for this prompt' });
+    }
+    if (promptMsg.userId === req.user.id) {
+      return res.status(403).json({ error: "You can't answer your own question." });
     }
 
     const docRef = await db.collection('groupMessages').add({
