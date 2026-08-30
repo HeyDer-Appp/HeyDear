@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { admin, db } = require('../firebase');
+const { admin, db, auth } = require('../firebase');
 const { attendeeAuth } = require('../middleware/auth');
 const { stripe } = require('../services/stripe');
 const { ANSWER_FIELDS } = require('../utils/answerFields');
@@ -475,6 +475,77 @@ router.post('/cancel-pending/:bookingId', attendeeAuth, async (req, res) => {
         ? 'Booking cancelled. Your refund has been issued and should appear in 2-3 working days.'
         : 'Booking cancelled. If you paid a booking fee, contact info@heyder.nz for your refund.',
     });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Deletes the account and everything tied to it: cancels any live Stripe
+// subscription first (otherwise the user keeps being billed after their
+// data is gone), then wipes every Firestore doc keyed to this uid, then
+// removes the Firebase Auth account itself. Table group chat messages are
+// left in place since they're shared history other members still see.
+router.delete('/account', attendeeAuth, async (req, res) => {
+  const uid = req.user.id;
+  try {
+    const subsSnap = await db.collection('subscriptions').where('userId', '==', uid).get();
+    await Promise.all(subsSnap.docs.map(async (d) => {
+      const sub = d.data();
+      if (!d.id.startsWith('sim_') && ['active', 'trialing'].includes(sub.status)) {
+        try { await stripe.subscriptions.cancel(d.id); } catch (e) { console.error('Stripe cancel failed for', d.id, e.message); }
+      }
+    }));
+
+    const [
+      bookingsSnap, paymentsSnap, tableMembersSnap, dinnerPhotosSnap,
+      connectionsA, connectionsB, requestsTo, requestsFrom,
+      dismissalsBy, dismissalsOf, pushSubsSnap,
+    ] = await Promise.all([
+      db.collection('bookings').where('userId', '==', uid).get(),
+      db.collection('payments').where('userId', '==', uid).get(),
+      db.collection('tableMembers').where('user_id', '==', uid).get(),
+      db.collection('dinnerPhotos').where('userId', '==', uid).get(),
+      db.collection('connections').where('user1Id', '==', uid).get(),
+      db.collection('connections').where('user2Id', '==', uid).get(),
+      db.collection('connectionRequests').where('toUserId', '==', uid).get(),
+      db.collection('connectionRequests').where('fromUserId', '==', uid).get(),
+      db.collection('connectionDismissals').where('dismisserId', '==', uid).get(),
+      db.collection('connectionDismissals').where('targetId', '==', uid).get(),
+      db.collection('pushSubscriptions').where('userId', '==', uid).get(),
+    ]);
+
+    const connectionDocs = [...connectionsA.docs, ...connectionsB.docs];
+    const connectionIds = connectionDocs.map((d) => d.id);
+    const dmSnaps = await Promise.all(
+      connectionIds.map((id) => db.collection('dmMessages').where('connectionId', '==', id).get())
+    );
+
+    const refs = [
+      db.collection('users').doc(uid),
+      ...subsSnap.docs.map((d) => d.ref),
+      ...bookingsSnap.docs.map((d) => d.ref),
+      ...paymentsSnap.docs.map((d) => d.ref),
+      ...tableMembersSnap.docs.map((d) => d.ref),
+      ...dinnerPhotosSnap.docs.map((d) => d.ref),
+      ...connectionDocs.map((d) => d.ref),
+      ...requestsTo.docs.map((d) => d.ref),
+      ...requestsFrom.docs.map((d) => d.ref),
+      ...dismissalsBy.docs.map((d) => d.ref),
+      ...dismissalsOf.docs.map((d) => d.ref),
+      ...pushSubsSnap.docs.map((d) => d.ref),
+      ...dmSnaps.flatMap((snap) => snap.docs.map((d) => d.ref)),
+    ];
+
+    for (let i = 0; i < refs.length; i += 400) {
+      const batch = db.batch();
+      refs.slice(i, i + 400).forEach((ref) => batch.delete(ref));
+      await batch.commit();
+    }
+
+    await auth.deleteUser(uid).catch((e) => console.error('Auth user delete failed for', uid, e.message));
+
+    res.json({ success: true });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });

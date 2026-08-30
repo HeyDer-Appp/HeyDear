@@ -340,7 +340,7 @@ function DinnerCard({ dinner, onCancel }) {
 }
 
 export default function PortalDashboard() {
-  const { attendeeUser, logout } = useAuth();
+  const { attendeeUser, logout, resetPassword } = useAuth();
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
@@ -349,6 +349,10 @@ export default function PortalDashboard() {
   const [loadError, setLoadError] = useState(false);
   const [needsProfile, setNeedsProfile] = useState(false);
   const [location, setLocation] = useState('');
+  const [showAccountMenu, setShowAccountMenu] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -383,6 +387,29 @@ export default function PortalDashboard() {
       setDinners(prev => prev.filter(d => dinner.is_pending ? d.booking_id !== dinner.booking_id : d.table_id !== dinner.table_id));
     } catch (err) {
       toast.error(err.response?.data?.error || 'Cancellations must be made 48 hours before dinner.');
+    }
+  };
+
+  const handleResetPassword = async () => {
+    setShowAccountMenu(false);
+    try {
+      await resetPassword(attendeeUser.email);
+      toast.success(`Password reset link sent to ${attendeeUser.email}`);
+    } catch (err) {
+      toast.error('Could not send reset email. Please try again.');
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    setDeleting(true);
+    try {
+      await api.delete('/portal/account');
+      await logout();
+      navigate('/');
+      toast.success('Your account has been deleted.');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Could not delete your account. Please try again.');
+      setDeleting(false);
     }
   };
 
@@ -483,13 +510,76 @@ export default function PortalDashboard() {
         <Link to="/">
           <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-7" />
         </Link>
-        <div className="flex items-center gap-3">
-          <img src={profile?.photo || AVATAR} alt="Account" className="w-8 h-8 rounded-full border border-gold/30 object-cover" />
-          <button onClick={() => { logout(); navigate('/'); }} className="font-sans text-cream/40 text-xs hover:text-cream transition-colors">
-            Sign out
+        <div className="relative">
+          <button onClick={() => setShowAccountMenu(v => !v)} className="flex items-center gap-2">
+            <img src={profile?.photo || AVATAR} alt="Account" className="w-8 h-8 rounded-full border border-gold/30 object-cover" />
           </button>
+
+          {showAccountMenu && (
+            <>
+              <div className="fixed inset-0 z-20" onClick={() => setShowAccountMenu(false)} />
+              <div className="absolute right-0 top-full mt-2 w-52 bg-navy border border-white/10 rounded-xl shadow-xl overflow-hidden z-30">
+                <button
+                  onClick={handleResetPassword}
+                  className="w-full text-left px-4 py-3 font-sans text-sm text-cream/80 hover:bg-white/[0.06] transition-colors"
+                >
+                  Reset password
+                </button>
+                <button
+                  onClick={() => { setShowAccountMenu(false); logout(); navigate('/'); }}
+                  className="w-full text-left px-4 py-3 font-sans text-sm text-cream/80 hover:bg-white/[0.06] transition-colors border-t border-white/[0.06]"
+                >
+                  Sign out
+                </button>
+                <button
+                  onClick={() => { setShowAccountMenu(false); setShowDeleteConfirm(true); }}
+                  className="w-full text-left px-4 py-3 font-sans text-sm text-red-400 hover:bg-red-500/10 transition-colors border-t border-white/[0.06]"
+                >
+                  Delete account
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </nav>
+
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm flex items-center justify-center p-5">
+          <div className="quiz-card w-full max-w-sm space-y-4">
+            <p className="font-serif text-xl text-cream">Delete your account?</p>
+            <p className="font-sans text-cream/60 text-sm leading-relaxed">
+              This permanently deletes your profile, bookings, matches, messages, photos and cancels any active subscription.
+              <span className="text-red-400"> This cannot be undone.</span>
+            </p>
+            <div>
+              <label className="font-sans text-cream/50 text-xs block mb-1.5">Type DELETE to confirm</label>
+              <input
+                type="text"
+                value={deleteConfirmText}
+                onChange={e => setDeleteConfirmText(e.target.value)}
+                className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2.5 text-cream font-sans text-sm focus:outline-none focus:border-red-400/50"
+                placeholder="DELETE"
+              />
+            </div>
+            <div className="flex gap-3 pt-1">
+              <button
+                onClick={() => { setShowDeleteConfirm(false); setDeleteConfirmText(''); }}
+                disabled={deleting}
+                className="flex-1 py-2.5 rounded-xl font-sans text-sm text-cream/70 border border-white/10 hover:bg-white/[0.04] transition-colors disabled:opacity-40"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deleteConfirmText !== 'DELETE' || deleting}
+                className="flex-1 py-2.5 rounded-xl font-sans text-sm text-white bg-red-500/80 hover:bg-red-500 transition-colors disabled:opacity-30 disabled:pointer-events-none"
+              >
+                {deleting ? 'Deleting…' : 'Delete account'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="relative z-10 max-w-lg mx-auto px-5 py-8 space-y-6">
 
