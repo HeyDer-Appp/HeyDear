@@ -159,8 +159,10 @@ async function syncPendingBooking(uid, updates) {
 router.patch('/profile', attendeeAuth, async (req, res) => {
   try {
     // 9 or 10 digits — NZ mobiles are 9, most other countries we see are 10.
-    if ('phone' in req.body && req.body.phone && !/^\d{9,10}$/.test(req.body.phone)) {
-      return res.status(400).json({ error: 'Enter a valid phone number.' });
+    // Required (not skippable like on the signup quiz) — this is the real
+    // enforcement point since the client-side check is trivially bypassable.
+    if ('phone' in req.body && (!req.body.phone || !/^\d{9,10}$/.test(req.body.phone))) {
+      return res.status(400).json({ error: req.body.phone ? 'Enter a valid phone number.' : 'Phone number is required.' });
     }
 
     const updates = {};

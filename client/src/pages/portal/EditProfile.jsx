@@ -97,6 +97,7 @@ export default function EditProfile() {
   const [subscription, setSubscription] = useState({ active: false, renewsAt: null });
   const [renewing, setRenewing] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [saveAttempted, setSaveAttempted] = useState(false);
 
   const loadProfile = () => api.get('/portal/full-profile')
     .then(res => {
@@ -134,7 +135,10 @@ export default function EditProfile() {
   // compares against a snapshot taken right after load (and refreshed after
   // every successful save), not a dirty flag that could drift out of sync.
   const isDirty = initialAnswers !== null && JSON.stringify(answers) !== JSON.stringify(initialAnswers);
-  const phoneError = !isPhoneValid(answers.phone);
+  // isPhoneValid() alone treats an empty phone as "valid" (it's skippable
+  // during the initial signup quiz) — but this edit page has no skip
+  // option, so an empty phone here should block saving, not pass through.
+  const phoneError = !isPhoneValid(answers.phone) || !answers.phone;
 
   const setValue = (field, value) => setAnswers(prev => ({ ...prev, [field]: value }));
 
@@ -155,8 +159,9 @@ export default function EditProfile() {
   // afterward (like applyAndLeave below) need to know not to leave on a
   // failed save, or the still-unsaved changes just get discarded anyway.
   const save = async () => {
+    setSaveAttempted(true);
     if (phoneError) {
-      toast.error('Enter a valid phone number.');
+      toast.error(answers.phone ? 'Enter a valid phone number.' : 'Phone number is required.');
       return false;
     }
     setSaving(true);
@@ -303,11 +308,13 @@ export default function EditProfile() {
               value={answers.phone || ''}
               onChange={e => setValue('phone', e.target.value.replace(/\D/g, '').slice(0, 10))}
               maxLength={10}
-              className={`quiz-input flex-1 ${phoneError && answers.phone ? 'border-red-400/60' : ''}`}
+              className={`quiz-input flex-1 ${phoneError && (answers.phone || saveAttempted) ? 'border-red-400/60' : ''}`}
             />
           </div>
-          {phoneError && answers.phone && (
-            <p className="font-sans text-red-400/80 text-xs mt-1.5">Enter a valid phone number.</p>
+          {phoneError && (answers.phone || saveAttempted) && (
+            <p className="font-sans text-red-400/80 text-xs mt-1.5">
+              {answers.phone ? 'Enter a valid phone number.' : 'Phone number is required.'}
+            </p>
           )}
         </div>
 
