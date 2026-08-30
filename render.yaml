@@ -26,13 +26,20 @@ services:
       # actual deployed URL instead. If either service is ever renamed or
       # redeployed under a different account (causing a different generated
       # URL), update this value to match.
+      # Kept as the onrender.com address (not app.heyder.nz) because the
+      # Capacitor app's WebView loads this exact URL — payment redirects and
+      # the app-resume polling flow depend on staying on the same origin the
+      # app is already running on.
       - key: CLIENT_URL
         value: https://heydear.onrender.com
       # Comma-separated list of frontend origins allowed to call this API.
+      # app.heyder.nz is the branded domain, also pointed at heyder-client —
+      # listed here so it works too when someone visits it directly in a
+      # browser (the app itself doesn't use it, see CLIENT_URL note above).
       # Add the standalone admin panel's deployed URL here once it exists
-      # (e.g. "https://heydear.onrender.com,https://heyder-admin.onrender.com").
+      # (e.g. "https://app.heyder.nz,https://heyder-admin.onrender.com").
       - key: ALLOWED_ORIGINS
-        value: https://heydear.onrender.com
+        value: https://heydear.onrender.com,https://app.heyder.nz
       - key: STRIPE_SECRET_KEY
         sync: false
       - key: STRIPE_WEBHOOK_SECRET
