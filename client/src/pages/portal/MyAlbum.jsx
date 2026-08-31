@@ -107,8 +107,24 @@ export default function MyAlbum() {
 
   if (loading) {
     return (
-      <div className="quiz-bg min-h-screen flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+      <div className="quiz-bg min-h-screen relative overflow-hidden pb-24">
+        <nav className="relative z-10 flex items-center justify-between px-6 py-5 border-b border-white/[0.06] backdrop-blur">
+          <Link to="/portal/dashboard" className="font-sans text-cream/50 text-sm hover:text-cream transition-colors">← Back</Link>
+          <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-7" />
+          <div className="w-10" />
+        </nav>
+        <div className="relative z-10 max-w-lg mx-auto px-5 py-8 animate-pulse">
+          <div className="mb-6 space-y-2">
+            <div className="h-4 w-24 rounded bg-white/[0.04]" />
+            <div className="h-8 w-32 rounded bg-white/[0.06]" />
+          </div>
+          <div className="grid grid-cols-2 gap-5">
+            {[0, 1, 2, 3].map(i => (
+              <div key={i} className="w-full max-w-[128px] aspect-square rounded-sm bg-white/[0.06]" />
+            ))}
+          </div>
+        </div>
+        <BottomNav />
       </div>
     );
   }

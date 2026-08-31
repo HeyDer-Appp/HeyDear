@@ -232,8 +232,24 @@ function GroupList({ onOpen }) {
 
   if (loading) {
     return (
-      <div className="quiz-bg min-h-screen flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+      <div className="quiz-bg min-h-screen relative overflow-hidden pb-24">
+        {header}
+        <div className="relative z-10 max-w-lg mx-auto px-5 py-8 space-y-8 animate-pulse">
+          <div className="space-y-2">
+            <div className="h-4 w-24 rounded bg-white/[0.04]" />
+            <div className="h-8 w-40 rounded bg-white/[0.06]" />
+          </div>
+          <div className="space-y-3">
+            {[0, 1].map(i => (
+              <div key={i} className="quiz-card space-y-3">
+                <div className="h-5 w-36 rounded bg-white/[0.06]" />
+                <div className="h-3 w-28 rounded bg-white/[0.04]" />
+                <div className="h-8 w-24 rounded-full bg-white/[0.06]" />
+              </div>
+            ))}
+          </div>
+        </div>
+        <BottomNav />
       </div>
     );
   }
@@ -381,8 +397,16 @@ function GroupDetail({ tableId, onBack }) {
 
   if (loading) {
     return (
-      <div className="quiz-bg min-h-screen flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+      <div className="quiz-bg min-h-screen relative overflow-hidden pb-24">
+        {detailHeader}
+        <div className="relative z-10 max-w-lg mx-auto px-5 py-8 space-y-3 animate-pulse">
+          {[0, 1, 2].map(i => (
+            <div key={i} className={`flex items-end gap-2 ${i % 2 ? 'flex-row-reverse' : ''}`}>
+              <div className="w-8 h-8 rounded-full bg-white/[0.06] flex-shrink-0" />
+              <div className={`h-10 rounded-2xl bg-white/[0.06] ${i === 1 ? 'w-40' : 'w-56'}`} />
+            </div>
+          ))}
+        </div>
       </div>
     );
   }

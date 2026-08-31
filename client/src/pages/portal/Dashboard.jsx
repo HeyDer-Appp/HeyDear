@@ -386,9 +386,32 @@ export default function PortalDashboard() {
     }
   };
 
+  // A blank screen + spinner reads as "stuck" — showing the real chrome
+  // (nav, bottom nav) immediately plus a placeholder shaped like the actual
+  // content feels instant even though the fetch hasn't resolved yet.
   if (loading) return (
-    <div className="quiz-bg min-h-screen flex items-center justify-center">
-      <div className="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+    <div className="quiz-bg min-h-screen relative overflow-hidden pb-24">
+      <nav className="relative z-10 flex items-center justify-between px-6 py-5 border-b border-white/[0.06] backdrop-blur">
+        <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-7" />
+        <div className="w-8 h-8 rounded-full bg-white/[0.06] animate-pulse" />
+      </nav>
+      <div className="relative z-10 max-w-lg mx-auto px-5 py-8 space-y-6 animate-pulse">
+        <div className="flex items-center gap-3">
+          <div className="w-14 h-14 rounded-full bg-white/[0.06] flex-shrink-0" />
+          <div className="flex-1 space-y-2">
+            <div className="h-5 w-32 rounded bg-white/[0.06]" />
+            <div className="h-3 w-24 rounded bg-white/[0.04]" />
+          </div>
+        </div>
+        {[0, 1].map(i => (
+          <div key={i} className="quiz-card space-y-3">
+            <div className="h-4 w-40 rounded bg-white/[0.06]" />
+            <div className="h-3 w-full rounded bg-white/[0.04]" />
+            <div className="h-3 w-2/3 rounded bg-white/[0.04]" />
+          </div>
+        ))}
+      </div>
+      <BottomNav />
     </div>
   );
 

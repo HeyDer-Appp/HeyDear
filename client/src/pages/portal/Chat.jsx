@@ -131,8 +131,17 @@ export default function Chat() {
 
   if (loading) {
     return (
-      <div className="quiz-bg min-h-screen flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+      <div className="quiz-bg min-h-screen relative overflow-hidden pb-24">
+        {header}
+        <div className="relative z-10 max-w-lg mx-auto px-5 py-8 space-y-2.5 animate-pulse">
+          {[0, 1, 2, 3, 4].map(i => (
+            <div key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-white/5 bg-white/[0.02]">
+              <div className="w-9 h-9 rounded-full bg-white/[0.06] flex-shrink-0" />
+              <div className="h-3.5 flex-1 rounded bg-white/[0.06]" style={{ maxWidth: `${60 - i * 6}%` }} />
+            </div>
+          ))}
+        </div>
+        <BottomNav />
       </div>
     );
   }

@@ -233,8 +233,25 @@ export default function EditProfile() {
   const leaveWithoutApplying = () => navigate('/portal');
 
   if (loading) return (
-    <div className="quiz-bg min-h-screen flex items-center justify-center">
-      <div className="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+    <div className="quiz-bg min-h-screen relative overflow-hidden pb-24">
+      <nav className="sticky top-0 z-20 flex items-center justify-between px-6 py-5 border-b border-white/[0.06] backdrop-blur bg-[#16181d]/90">
+        <span className="font-sans text-cream/50 text-sm">← Back</span>
+        <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-7" />
+        <div className="w-10" />
+      </nav>
+      <div className="relative z-10 max-w-lg mx-auto px-5 py-8 space-y-6 animate-pulse">
+        <div className="space-y-2">
+          <div className="h-4 w-20 rounded bg-white/[0.04]" />
+          <div className="h-8 w-48 rounded bg-white/[0.06]" />
+        </div>
+        {[0, 1, 2].map(i => (
+          <div key={i} className="quiz-card space-y-3">
+            <div className="h-4 w-32 rounded bg-white/[0.06]" />
+            <div className="h-3 w-full rounded bg-white/[0.04]" />
+          </div>
+        ))}
+      </div>
+      <BottomNav />
     </div>
   );
 
