@@ -103,20 +103,24 @@ function PromptOptions({ options, onSelect }) {
   );
 }
 
-function PromptMessage({ msg, photo, name, country, blurred, onAnswer, isOwn }) {
+function PromptMessage({ msg, photo, name, country, blurred, onAnswer, isOwn, myAnswer }) {
   return (
-    <div className="flex items-end gap-2 mb-3">
+    <div className={`flex items-end gap-2 mb-3 ${isOwn ? 'flex-row-reverse' : ''}`}>
       <Avatar photo={photo} blurred={blurred} />
-      <div className="max-w-[75%]">
-        <NameTag name={name} country={country} />
-        <div className="bg-white/[0.06] rounded-2xl rounded-bl-sm px-4 py-2.5">
-          <p className="font-sans text-cream/35 text-[10px] uppercase tracking-widest mb-1">Asked</p>
-          <p className="font-serif text-cream text-base leading-snug">{msg.prompt_text}</p>
+      <div className={`max-w-[75%] ${isOwn ? 'text-right' : ''}`}>
+        {!isOwn && <NameTag name={name} country={country} />}
+        <div className={`rounded-2xl px-4 py-2.5 ${isOwn ? 'bg-gold text-navy rounded-br-sm' : 'bg-white/[0.06] text-cream rounded-bl-sm'}`}>
+          <p className={`font-sans text-[10px] uppercase tracking-widest mb-1 ${isOwn ? 'text-navy/50' : 'text-cream/35'}`}>Asked</p>
+          <p className="font-serif text-base leading-snug">{msg.prompt_text}</p>
         </div>
         {/* You can't answer your own question — server enforces this too,
-            this just keeps the picker from showing up in the first place. */}
+            this just keeps the picker from showing up in the first place. Once
+            you've answered, the picker is replaced with what you picked —
+            same server-side rule (one answer per prompt) backs this too. */}
         {isOwn ? (
           <p className="mt-1.5 font-sans text-cream/25 text-[11px] italic">Your question — waiting on answers</p>
+        ) : myAnswer ? (
+          <p className="mt-1.5 font-sans text-cream/40 text-[11px]">You answered: <span className="text-gold font-medium">{myAnswer}</span></p>
         ) : (
           <PromptOptions options={msg.prompt_options || []} onSelect={(opt) => onAnswer(msg.id, opt)} />
         )}
@@ -234,12 +238,12 @@ function GroupList({ onOpen }) {
     return (
       <div className="quiz-bg min-h-screen relative overflow-hidden pb-24">
         {header}
-        <div className="relative z-10 max-w-lg mx-auto px-5 py-8 space-y-8 animate-pulse">
-          <div className="space-y-2">
-            <div className="h-4 w-24 rounded bg-white/[0.04]" />
-            <div className="h-8 w-40 rounded bg-white/[0.06]" />
+        <div className="relative z-10 max-w-lg mx-auto px-5 py-8 space-y-8">
+          <div>
+            <p className="font-sans text-cream/40 text-sm">Your dinners</p>
+            <h1 className="font-serif text-3xl text-cream mt-1">Group Chats</h1>
           </div>
-          <div className="space-y-3">
+          <div className="space-y-3 animate-pulse">
             {[0, 1].map(i => (
               <div key={i} className="quiz-card space-y-3">
                 <div className="h-5 w-36 rounded bg-white/[0.06]" />
@@ -487,7 +491,10 @@ function GroupDetail({ tableId, onBack }) {
           const country = countryByUser[msg.user_id];
           const name = data.revealed ? (nameByUser[msg.user_id] || 'Guest') : null;
           if (msg.type === 'prompt') {
-            return <PromptMessage key={msg.id} msg={msg} photo={photo} name={name} country={country} blurred={!data.revealed} onAnswer={handleAnswer} isOwn={isOwn} />;
+            const myAnswer = (data.messages || []).find(
+              m => m.type === 'answer' && m.reply_to_id === msg.id && m.user_id === attendeeUser?.uid
+            )?.option;
+            return <PromptMessage key={msg.id} msg={msg} photo={photo} name={name} country={country} blurred={!data.revealed} onAnswer={handleAnswer} isOwn={isOwn} myAnswer={myAnswer} />;
           }
           if (msg.type === 'answer') {
             return <AnswerMessage key={msg.id} msg={msg} photo={photo} name={name} country={country} blurred={!data.revealed} isOwn={isOwn} />;

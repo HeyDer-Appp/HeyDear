@@ -272,6 +272,15 @@ router.post('/:tableId/messages/:messageId/answer', attendeeAuth, async (req, re
       return res.status(403).json({ error: "You can't answer your own question." });
     }
 
+    const existingAnswerSnap = await db.collection('groupMessages')
+      .where('tableId', '==', tableId)
+      .where('replyToId', '==', messageId)
+      .where('userId', '==', req.user.id)
+      .get();
+    if (!existingAnswerSnap.empty) {
+      return res.status(400).json({ error: "You've already answered this question." });
+    }
+
     const docRef = await db.collection('groupMessages').add({
       tableId,
       dinnerId: table.dinnerId,

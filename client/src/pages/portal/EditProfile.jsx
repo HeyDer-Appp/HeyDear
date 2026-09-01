@@ -95,7 +95,9 @@ export default function EditProfile() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const [showPhotoModal, setShowPhotoModal] = useState(false);
   const subscriptionRef = useRef(null);
+  const photoInputRef = useRef(null);
 
   const loadProfile = () => api.get('/portal/full-profile')
     .then(res => {
@@ -239,17 +241,19 @@ export default function EditProfile() {
         <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-7" />
         <div className="w-10" />
       </nav>
-      <div className="relative z-10 max-w-lg mx-auto px-5 py-8 space-y-6 animate-pulse">
-        <div className="space-y-2">
-          <div className="h-4 w-20 rounded bg-white/[0.04]" />
-          <div className="h-8 w-48 rounded bg-white/[0.06]" />
+      <div className="relative z-10 max-w-lg mx-auto px-5 py-8 space-y-6">
+        <div>
+          <p className="font-sans text-cream/40 text-sm">Your profile</p>
+          <h1 className="font-serif text-3xl text-cream mt-1">Edit your answers</h1>
         </div>
-        {[0, 1, 2].map(i => (
-          <div key={i} className="quiz-card space-y-3">
-            <div className="h-4 w-32 rounded bg-white/[0.06]" />
-            <div className="h-3 w-full rounded bg-white/[0.04]" />
-          </div>
-        ))}
+        <div className="space-y-6 animate-pulse">
+          {[0, 1, 2].map(i => (
+            <div key={i} className="quiz-card space-y-3">
+              <div className="h-4 w-32 rounded bg-white/[0.06]" />
+              <div className="h-3 w-full rounded bg-white/[0.04]" />
+            </div>
+          ))}
+        </div>
       </div>
       <BottomNav />
     </div>
@@ -339,10 +343,17 @@ export default function EditProfile() {
           </div>
         )}
 
-        {/* Profile photo */}
+        {/* Profile photo — tapping an existing photo opens a big preview
+            with the option to change it there, instead of jumping straight
+            to the file picker every time. */}
         <div className="quiz-card flex items-center gap-5">
-          <label className="relative cursor-pointer group flex-shrink-0">
+          <button
+            type="button"
+            onClick={() => { if (answers.photo) setShowPhotoModal(true); else photoInputRef.current?.click(); }}
+            className="relative cursor-pointer group flex-shrink-0"
+          >
             <input
+              ref={photoInputRef}
               type="file"
               accept="image/*"
               className="hidden"
@@ -357,7 +368,7 @@ export default function EditProfile() {
                 <span className="text-2xl">📷</span>
               )}
             </div>
-          </label>
+          </button>
           <div>
             <p className="font-sans font-semibold text-cream text-sm mb-1">Profile photo</p>
             <p className="font-sans text-cream/40 text-xs mb-2">Helps your table recognise you.</p>
@@ -371,6 +382,28 @@ export default function EditProfile() {
             )}
           </div>
         </div>
+
+        {showPhotoModal && answers.photo && (
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-6" onClick={() => setShowPhotoModal(false)}>
+            <div className="max-w-sm w-full space-y-4" onClick={e => e.stopPropagation()}>
+              <img src={answers.photo} alt="Your profile" className="w-full aspect-square object-cover rounded-2xl border border-white/10" />
+              <div className="flex gap-3">
+                <button
+                  onClick={() => { setShowPhotoModal(false); photoInputRef.current?.click(); }}
+                  className="quiz-cta flex-1"
+                >
+                  Change photo
+                </button>
+                <button
+                  onClick={() => setShowPhotoModal(false)}
+                  className="flex-1 py-2.5 rounded-xl border border-white/10 text-cream/70 font-sans text-sm hover:bg-white/[0.04] transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Locked identity fields */}
         <div className="quiz-card">

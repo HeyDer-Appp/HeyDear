@@ -133,13 +133,22 @@ export default function Chat() {
     return (
       <div className="quiz-bg min-h-screen relative overflow-hidden pb-24">
         {header}
-        <div className="relative z-10 max-w-lg mx-auto px-5 py-8 space-y-2.5 animate-pulse">
-          {[0, 1, 2, 3, 4].map(i => (
-            <div key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-white/5 bg-white/[0.02]">
-              <div className="w-9 h-9 rounded-full bg-white/[0.06] flex-shrink-0" />
-              <div className="h-3.5 flex-1 rounded bg-white/[0.06]" style={{ maxWidth: `${60 - i * 6}%` }} />
-            </div>
-          ))}
+        <div className="relative z-10 max-w-lg mx-auto px-5 py-8 space-y-3">
+          <div className="mb-5">
+            <p className="font-sans text-cream/40 text-sm">Your people</p>
+            <h1 className="font-serif text-3xl text-cream mt-1">Connections</h1>
+            <p className="font-sans text-cream/40 text-sm mt-2 leading-relaxed">
+              Everyone you've shared a revealed dinner with. Connect to message directly, or ✕ if not.
+            </p>
+          </div>
+          <div className="space-y-2.5 animate-pulse">
+            {[0, 1, 2, 3, 4].map(i => (
+              <div key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-white/5 bg-white/[0.02]">
+                <div className="w-9 h-9 rounded-full bg-white/[0.06] flex-shrink-0" />
+                <div className="h-3.5 flex-1 rounded bg-white/[0.06]" style={{ maxWidth: `${60 - i * 6}%` }} />
+              </div>
+            ))}
+          </div>
         </div>
         <BottomNav />
       </div>

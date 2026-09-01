@@ -113,12 +113,13 @@ export default function MyAlbum() {
           <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-7" />
           <div className="w-10" />
         </nav>
-        <div className="relative z-10 max-w-lg mx-auto px-5 py-8 animate-pulse">
-          <div className="mb-6 space-y-2">
-            <div className="h-4 w-24 rounded bg-white/[0.04]" />
-            <div className="h-8 w-32 rounded bg-white/[0.06]" />
+        <div className="relative z-10 max-w-lg mx-auto px-5 py-8">
+          <div className="mb-6">
+            <p className="font-sans text-cream/40 text-sm">Your dinners</p>
+            <h1 className="font-serif text-3xl text-cream mt-1">My Album</h1>
+            <p className="font-sans text-cream/40 text-sm mt-2 leading-relaxed">Tap a stack to view your memories.</p>
           </div>
-          <div className="grid grid-cols-2 gap-5">
+          <div className="grid grid-cols-2 gap-5 animate-pulse">
             {[0, 1, 2, 3].map(i => (
               <div key={i} className="w-full max-w-[128px] aspect-square rounded-sm bg-white/[0.06]" />
             ))}
