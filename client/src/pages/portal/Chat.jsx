@@ -20,9 +20,6 @@ function PersonRow({ person, onOpen, onConnect, onDismiss, onAccept, onDecline, 
     >
       <div className="relative flex-shrink-0">
         <img src={person.photo || AVATAR_FALLBACK} alt="" className="w-9 h-9 rounded-full object-cover border border-white/10" />
-        {person.has_unread && (
-          <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-[#16181d]" />
-        )}
       </div>
       <p className={`font-sans text-cream text-sm font-medium flex items-center gap-1.5 truncate min-w-0 ${isNone ? 'flex-shrink' : 'flex-1'} ${person.has_unread ? 'font-semibold' : ''}`}>
         {person.first_name || 'Guest'}
