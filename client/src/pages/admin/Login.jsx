@@ -1,23 +1,29 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 
 export default function AdminLogin() {
-  const { loginAdmin } = useAuth();
+  const { adminUser, loginAdmin } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
+
+  // Same fix as portal/Login.jsx: loginAdmin resolving doesn't mean
+  // AuthContext's adminUser is populated yet — navigating immediately used
+  // to race the separate onAuthStateChanged listener that actually sets it,
+  // bouncing back to /admin/login before it caught up.
+  useEffect(() => {
+    if (adminUser) navigate('/admin/dashboard');
+  }, [adminUser, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
       await loginAdmin(form.email, form.password);
-      navigate('/admin/dashboard');
     } catch (err) {
       toast.error(friendlyError(err));
-    } finally {
       setLoading(false);
     }
   };

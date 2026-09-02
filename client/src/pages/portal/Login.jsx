@@ -1,15 +1,27 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
 
 export default function PortalLogin() {
-  const { signupAttendee, loginAttendee, resetPassword } = useAuth();
+  const { attendeeUser, signupAttendee, loginAttendee, resetPassword } = useAuth();
   const navigate = useNavigate();
   const [mode, setMode] = useState('signin'); // 'signin' | 'signup'
   const [form, setForm] = useState({ email: '', password: '', firstName: '', lastName: '' });
   const [loading, setLoading] = useState(false);
+
+  // signupAttendee/loginAttendee resolving doesn't mean AuthContext's
+  // attendeeUser is populated yet — that only happens once Firebase's
+  // separate onAuthStateChanged listener fires, which lags a moment behind
+  // (it does its own forced token refresh). Navigating right after the
+  // Firebase call used to race that: PortalRoute would see the still-stale
+  // attendeeUser === null and bounce straight back to /portal/login, so
+  // signing up or in appeared to silently need doing twice. Waiting for
+  // attendeeUser itself before navigating removes the race entirely.
+  useEffect(() => {
+    if (attendeeUser) navigate('/portal/dashboard');
+  }, [attendeeUser, navigate]);
 
   const set = (key) => (e) => setForm(f => ({ ...f, [key]: e.target.value }));
 
@@ -33,14 +45,15 @@ export default function PortalLogin() {
       if (mode === 'signup') {
         await signupAttendee(form.email, form.password);
         await api.post('/auth/attendee/register', { firstName: form.firstName, lastName: form.lastName });
-        navigate('/portal/dashboard');
       } else {
         await loginAttendee(form.email, form.password);
-        navigate('/portal/dashboard');
       }
+      // Navigation happens via the effect above once attendeeUser actually
+      // updates — deliberately not calling setLoading(false) here, so the
+      // button stays in its "please wait" state for the moment or two until
+      // that happens, rather than flashing back to normal first.
     } catch (err) {
       toast.error(friendlyError(err));
-    } finally {
       setLoading(false);
     }
   };
