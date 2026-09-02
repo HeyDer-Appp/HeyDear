@@ -62,6 +62,7 @@ router.get('/', attendeeAuth, async (req, res) => {
         .map(d => ({
           id: d.id,
           photo: d.data().photo,
+          userId: d.data().userId,
           uploaderName: d.data().uploaderFirstName || '',
           createdAt: toDate(d.data().createdAt)?.toISOString() || null,
         }))
@@ -140,6 +141,34 @@ router.post('/:tableId/photos', attendeeAuth, async (req, res) => {
         createdAt: new Date().toISOString(),
       },
     });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Removes one photo the caller uploaded — anyone else's photo, even from
+// the same table, is off-limits. No time-window restriction (unlike
+// uploading itself) since there's no real reason someone shouldn't be able
+// to take down their own photo later, e.g. months after the dinner.
+router.delete('/:tableId/photos/:photoId', attendeeAuth, async (req, res) => {
+  try {
+    const { tableId, photoId } = req.params;
+
+    const memberSnap = await db.collection('tableMembers').doc(`${tableId}_${req.user.id}`).get();
+    if (!memberSnap.exists) return res.status(403).json({ error: "You weren't seated at this table" });
+
+    const photoRef = db.collection('dinnerPhotos').doc(photoId);
+    const photoSnap = await photoRef.get();
+    if (!photoSnap.exists || photoSnap.data().tableId !== tableId) {
+      return res.status(404).json({ error: 'Photo not found' });
+    }
+    if (photoSnap.data().userId !== req.user.id) {
+      return res.status(403).json({ error: 'You can only delete photos you uploaded.' });
+    }
+
+    await photoRef.delete();
+    res.json({ success: true });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });

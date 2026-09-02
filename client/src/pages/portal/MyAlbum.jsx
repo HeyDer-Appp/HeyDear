@@ -3,8 +3,10 @@ import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import api from '../../utils/api';
-import { fileToResizedBase64 } from '../../utils/image';
+import { useAuth } from '../../context/AuthContext';
+import { fileToDataUrl, cropAndResizeImage } from '../../utils/image';
 import BottomNav from '../../components/BottomNav';
+import PhotoCropModal from '../../components/PhotoCropModal';
 
 const MAX_STACK = 3;
 
@@ -70,12 +72,14 @@ function PhotoStack({ photos, dateLabel, onOpen }) {
 }
 
 export default function MyAlbum() {
+  const { attendeeUser } = useAuth();
   const [dinners, setDinners] = useState([]);
   const [firstName, setFirstName] = useState('');
   const [loading, setLoading] = useState(true);
   const [uploadingFor, setUploadingFor] = useState(null);
   const [openDinnerId, setOpenDinnerId] = useState(null);
   const [openPhotoIndex, setOpenPhotoIndex] = useState(null);
+  const [cropTarget, setCropTarget] = useState(null);
 
   useEffect(() => {
     Promise.all([
@@ -88,11 +92,23 @@ export default function MyAlbum() {
       .finally(() => setLoading(false));
   }, []);
 
-  const handleUpload = async (tableId, file) => {
+  // Picking a file just opens the crop step for that dinner — the actual
+  // resize/upload happens in handleCropConfirm once a crop's chosen.
+  const handleFileSelect = async (tableId, file) => {
     if (!file) return;
+    try {
+      const dataUrl = await fileToDataUrl(file);
+      setCropTarget({ tableId, src: dataUrl });
+    } catch (err) {
+      toast.error(err.message || 'Could not use that photo.');
+    }
+  };
+
+  const handleCropConfirm = async (croppedAreaPixels) => {
+    const { tableId, src } = cropTarget;
     setUploadingFor(tableId);
     try {
-      const dataUrl = await fileToResizedBase64(file, { maxSize: 900, quality: 0.75 });
+      const dataUrl = await cropAndResizeImage(src, croppedAreaPixels, { maxSize: 900, quality: 0.75 });
       const res = await api.post(`/album/${tableId}/photos`, { photo: dataUrl });
       setDinners(prev => prev.map(d => (
         d.table_id === tableId ? { ...d, photos: [...d.photos, res.data.photo] } : d
@@ -102,6 +118,21 @@ export default function MyAlbum() {
       toast.error(err.response?.data?.error || 'Could not upload that photo.');
     } finally {
       setUploadingFor(null);
+      setCropTarget(null);
+    }
+  };
+
+  const handleDeletePhoto = async (tableId, photoId) => {
+    if (!confirm('Delete this photo? This cannot be undone.')) return;
+    try {
+      await api.delete(`/album/${tableId}/photos/${photoId}`);
+      setDinners(prev => prev.map(d => (
+        d.table_id === tableId ? { ...d, photos: d.photos.filter(p => p.id !== photoId) } : d
+      )));
+      setOpenPhotoIndex(null);
+      toast.success('Photo deleted.');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Could not delete that photo.');
     }
   };
 
@@ -188,7 +219,7 @@ export default function MyAlbum() {
                         accept="image/*"
                         capture="environment"
                         className="hidden"
-                        onChange={e => { handleUpload(dinner.table_id, e.target.files?.[0]); e.target.value = ''; }}
+                        onChange={e => { handleFileSelect(dinner.table_id, e.target.files?.[0]); e.target.value = ''; }}
                       />
                     </label>
                     <label className={`flex-1 bg-[#f5edd8] text-[#2a2a2a] rounded-lg text-base py-2 flex items-center justify-center cursor-pointer shadow-[0_2px_8px_rgba(0,0,0,0.3)] hover:bg-white transition-colors ${uploadingFor === dinner.table_id ? 'opacity-60 pointer-events-none' : ''}`}>
@@ -197,7 +228,7 @@ export default function MyAlbum() {
                         type="file"
                         accept="image/*"
                         className="hidden"
-                        onChange={e => { handleUpload(dinner.table_id, e.target.files?.[0]); e.target.value = ''; }}
+                        onChange={e => { handleFileSelect(dinner.table_id, e.target.files?.[0]); e.target.value = ''; }}
                       />
                     </label>
                   </div>
@@ -277,12 +308,22 @@ export default function MyAlbum() {
             className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-black/90 px-4"
             onClick={() => setOpenPhotoIndex(null)}
           >
-            <button
-              onClick={() => setOpenPhotoIndex(null)}
-              className="absolute top-5 right-5 font-sans text-cream/60 hover:text-cream text-sm"
-            >
-              Close ✕
-            </button>
+            <div className="absolute top-5 right-5 flex items-center gap-4">
+              {openPhoto.userId === attendeeUser?.uid && (
+                <button
+                  onClick={e => { e.stopPropagation(); handleDeletePhoto(openDinner.table_id, openPhoto.id); }}
+                  className="font-sans text-red-400/70 hover:text-red-400 text-sm"
+                >
+                  Delete
+                </button>
+              )}
+              <button
+                onClick={() => setOpenPhotoIndex(null)}
+                className="font-sans text-cream/60 hover:text-cream text-sm"
+              >
+                Close ✕
+              </button>
+            </div>
 
             {openDinner.photos.length > 1 && (
               <>
@@ -325,6 +366,10 @@ export default function MyAlbum() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {cropTarget && (
+        <PhotoCropModal imageSrc={cropTarget.src} cropShape="rect" onConfirm={handleCropConfirm} onCancel={() => setCropTarget(null)} />
+      )}
 
       <BottomNav />
     </div>

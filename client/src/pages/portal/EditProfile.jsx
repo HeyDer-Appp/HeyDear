@@ -4,9 +4,10 @@ import toast from 'react-hot-toast';
 import api from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 import { QUESTIONS, CHAPTERS, isPhoneValid } from '../Quiz';
-import { fileToResizedBase64 } from '../../utils/image';
+import { fileToDataUrl, cropAndResizeImage } from '../../utils/image';
 import { DIAL_CODES } from '../../utils/flags';
 import BottomNav from '../../components/BottomNav';
+import PhotoCropModal from '../../components/PhotoCropModal';
 
 const choiceIdle =
   'border-[#e7dcbd]/18 bg-[#e7dcbd]/[0.04] text-[#e7dcbd]/65 hover:border-[#e7dcbd]/40 hover:bg-[#e7dcbd]/[0.08] hover:text-[#e7dcbd]/95';
@@ -96,6 +97,7 @@ export default function EditProfile() {
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [showPhotoModal, setShowPhotoModal] = useState(false);
+  const [cropSrc, setCropSrc] = useState(null);
   const subscriptionRef = useRef(null);
   const photoInputRef = useRef(null);
 
@@ -170,16 +172,28 @@ export default function EditProfile() {
 
   const setValue = (field, value) => setAnswers(prev => ({ ...prev, [field]: value }));
 
+  // Picking a file just opens the crop step — the actual resize/save
+  // happens in handleCropConfirm once the user's chosen a crop.
   const handlePhotoSelect = async (file) => {
     if (!file) return;
+    try {
+      const dataUrl = await fileToDataUrl(file);
+      setCropSrc(dataUrl);
+    } catch (err) {
+      toast.error(err.message || 'Could not use that photo.');
+    }
+  };
+
+  const handleCropConfirm = async (croppedAreaPixels) => {
     setPhotoUploading(true);
     try {
-      const dataUrl = await fileToResizedBase64(file);
+      const dataUrl = await cropAndResizeImage(cropSrc, croppedAreaPixels);
       setValue('photo', dataUrl);
     } catch (err) {
       toast.error(err.message || 'Could not use that photo.');
     } finally {
       setPhotoUploading(false);
+      setCropSrc(null);
     }
   };
 
@@ -633,6 +647,10 @@ export default function EditProfile() {
             </div>
           </div>
         </div>
+      )}
+
+      {cropSrc && (
+        <PhotoCropModal imageSrc={cropSrc} cropShape="round" onConfirm={handleCropConfirm} onCancel={() => setCropSrc(null)} />
       )}
 
       <BottomNav />
