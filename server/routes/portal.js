@@ -458,8 +458,11 @@ router.post('/cancel/:tableId', attendeeAuth, async (req, res) => {
     const dinnerDate = toDate(dinnerSnap.data()?.date);
     const hoursUntil = dinnerDate ? (nzTime(dinnerDate, 19, 0) - new Date()) / (1000 * 60 * 60) : Infinity;
 
-    if (hoursUntil < 48) {
-      return res.status(400).json({ error: 'Cancellations must be made at least 48 hours before dinner.' });
+    if (hoursUntil < 24) {
+      return res.status(400).json({
+        error: "It's too close to dinner to cancel yourself — contact us and we'll sort it out.",
+        contactRequired: true,
+      });
     }
 
     await memberRef.delete();

@@ -399,6 +399,7 @@ export default function PortalDashboard() {
   const [loadError, setLoadError] = useState(false);
   const [needsProfile, setNeedsProfile] = useState(false);
   const [location, setLocation] = useState('');
+  const [showContactModal, setShowContactModal] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -432,7 +433,14 @@ export default function PortalDashboard() {
       toast.success(res.data.message);
       setDinners(prev => prev.filter(d => dinner.is_pending ? d.booking_id !== dinner.booking_id : d.table_id !== dinner.table_id));
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Cancellations must be made 48 hours before dinner.');
+      // Inside 24h of dinner, self-cancel is blocked server-side — that gets
+      // its own modal (with the contact email front and centre) rather than
+      // just a toast, since it needs a real next step, not just "no".
+      if (err.response?.data?.contactRequired) {
+        setShowContactModal(true);
+      } else {
+        toast.error(err.response?.data?.error || 'Could not cancel that booking.');
+      }
     }
   };
 
@@ -647,6 +655,29 @@ export default function PortalDashboard() {
           Questions? <a href="mailto:info@heyder.nz" className="text-gold/60 hover:text-gold transition-colors">info@heyder.nz</a>
         </p>
       </div>
+
+      {showContactModal && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-5" onClick={() => setShowContactModal(false)}>
+          <div className="quiz-card w-full max-w-sm space-y-4 text-center" onClick={e => e.stopPropagation()}>
+            <p className="font-serif text-xl text-cream">Too close to dinner to cancel</p>
+            <p className="font-sans text-cream/60 text-sm leading-relaxed">
+              Cancellations within 24 hours of dinner can't be self-served — the table's already been booked. Email us and we'll sort it out.
+            </p>
+            <a
+              href="mailto:info@heyder.nz"
+              className="quiz-cta w-full flex items-center justify-center"
+            >
+              info@heyder.nz
+            </a>
+            <button
+              onClick={() => setShowContactModal(false)}
+              className="font-sans text-cream/40 hover:text-cream text-xs transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
 
       <BottomNav />
     </div>
