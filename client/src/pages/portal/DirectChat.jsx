@@ -3,6 +3,7 @@ import { Link, useParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
+import ReportUserModal from '../../components/ReportUserModal';
 
 const AVATAR_FALLBACK = 'https://heyder.nz/wp-content/uploads/2026/06/account-2.png';
 
@@ -15,6 +16,7 @@ export default function DirectChat() {
   const [loadError, setLoadError] = useState(false);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
+  const [showReport, setShowReport] = useState(false);
   const feedRef = useRef(null);
 
   const fetchThread = () => api.get(`/connections/${connectionId}/messages`)
@@ -84,10 +86,15 @@ export default function DirectChat() {
     <div className="quiz-bg min-h-screen relative overflow-hidden">
       {header}
 
-      <Link to={`/portal/person/${other.user_id}`} className="relative z-10 flex items-center gap-3 max-w-lg mx-auto px-5 pt-5 pb-3 hover:opacity-80 transition-opacity">
-        <img src={other.photo || AVATAR_FALLBACK} alt="" className="w-10 h-10 rounded-full object-cover border border-white/10" />
-        <p className="font-sans text-cream font-semibold text-sm">{other.first_name || 'Guest'}</p>
-      </Link>
+      <div className="relative z-10 flex items-center justify-between max-w-lg mx-auto px-5 pt-5 pb-3">
+        <Link to={`/portal/person/${other.user_id}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+          <img src={other.photo || AVATAR_FALLBACK} alt="" className="w-10 h-10 rounded-full object-cover border border-white/10" />
+          <p className="font-sans text-cream font-semibold text-sm">{other.first_name || 'Guest'}</p>
+        </Link>
+        <button onClick={() => setShowReport(true)} className="font-sans text-cream/25 hover:text-red-400 text-xs transition-colors flex-shrink-0">
+          Report
+        </button>
+      </div>
 
       <div ref={feedRef} className="relative z-10 max-w-lg mx-auto px-5 pb-40 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 220px)' }}>
         {(data.messages || []).length === 0 && (
@@ -129,6 +136,10 @@ export default function DirectChat() {
           </button>
         </div>
       </div>
+
+      {showReport && (
+        <ReportUserModal userId={other.user_id} userName={other.first_name} onClose={() => setShowReport(false)} />
+      )}
     </div>
   );
 }

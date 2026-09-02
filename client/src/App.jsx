@@ -27,6 +27,7 @@ import QuizSuccess from './pages/QuizSuccess';
 import Feedback from './pages/Feedback';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import DeleteAccount from './pages/DeleteAccount';
+import ChildSafety from './pages/ChildSafety';
 import TermsConditions from './pages/TermsConditions';
 
 import PortalLogin from './pages/portal/Login';
@@ -79,6 +80,7 @@ function AppRoutes() {
       <Route path="/feedback/:dinnerId" element={<Feedback />} />
       <Route path="/privacy-policy" element={<PrivacyPolicy />} />
       <Route path="/delete-account" element={<DeleteAccount />} />
+      <Route path="/child-safety" element={<ChildSafety />} />
       <Route path="/terms-conditions" element={<TermsConditions />} />
 
       <Route path="/portal/login" element={<PortalLogin />} />

@@ -5,6 +5,7 @@ const { attendeeAuth } = require('../middleware/auth');
 const { stripe } = require('../services/stripe');
 const { ANSWER_FIELDS } = require('../utils/answerFields');
 const { nzTime } = require('../utils/nzTime');
+const { sendEmail } = require('../services/email');
 
 function toDate(v) {
   if (!v) return null;
@@ -326,6 +327,65 @@ router.patch('/rsvp/:tableId', attendeeAuth, async (req, res) => {
     if (!memberSnap.exists) return res.status(404).json({ error: "You weren't seated at this table" });
 
     await memberRef.set({ rsvpAttending: attending }, { merge: true });
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Files a child-safety / general safety report against another user —
+// required for Google Play's child safety standards declaration (any
+// social/dating-category app must let users report safety concerns
+// in-app, not just describe a policy on paper). Writes a record and
+// alerts info@heyder.nz immediately; no auto-action is taken here, a
+// human reviews every report.
+router.post('/report', attendeeAuth, async (req, res) => {
+  try {
+    const { reportedUserId, reason, details } = req.body;
+    if (!reportedUserId || typeof reportedUserId !== 'string') {
+      return res.status(400).json({ error: 'reportedUserId is required' });
+    }
+    if (!reason || typeof reason !== 'string' || reason.length > 100) {
+      return res.status(400).json({ error: 'reason is required' });
+    }
+    if (details && (typeof details !== 'string' || details.length > 2000)) {
+      return res.status(400).json({ error: 'details is too long' });
+    }
+
+    const [reporterSnap, reportedSnap] = await Promise.all([
+      db.collection('users').doc(req.user.id).get(),
+      db.collection('users').doc(reportedUserId).get(),
+    ]);
+
+    const docRef = await db.collection('safetyReports').add({
+      reporterId: req.user.id,
+      reporterEmail: reporterSnap.data()?.email || req.user.email,
+      reportedUserId,
+      reportedName: reportedSnap.exists
+        ? `${reportedSnap.data().firstName || ''} ${reportedSnap.data().lastName || ''}`.trim() || null
+        : null,
+      reason,
+      details: details || '',
+      status: 'open',
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    // Best-effort — the report is already saved above regardless of whether
+    // this email goes out, so a failure here shouldn't fail the request.
+    sendEmail({
+      to: 'info@heyder.nz',
+      subject: `⚠️ Safety report filed — ${reason}`,
+      html: `
+        <p>A new in-app safety report was filed.</p>
+        <p><strong>Reporter:</strong> ${reporterSnap.data()?.email || req.user.email} (${req.user.id})</p>
+        <p><strong>Reported user:</strong> ${reportedSnap.exists ? reportedSnap.data().firstName || 'Unknown' : 'Unknown'} (${reportedUserId})</p>
+        <p><strong>Reason:</strong> ${reason}</p>
+        <p><strong>Details:</strong> ${details ? details.replace(/</g, '&lt;') : '(none provided)'}</p>
+        <p><strong>Report ID:</strong> ${docRef.id}</p>
+      `,
+    }).catch((err) => console.error('Failed to send safety report alert email', err));
+
     res.json({ success: true });
   } catch (err) {
     console.error(err);

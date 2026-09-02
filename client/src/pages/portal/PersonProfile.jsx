@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import api from '../../utils/api';
 import { flagUrl } from '../../utils/flags';
 import BottomNav from '../../components/BottomNav';
+import ReportUserModal from '../../components/ReportUserModal';
 
 const AVATAR_FALLBACK = 'https://heyder.nz/wp-content/uploads/2026/06/account-2.png';
 
@@ -24,6 +25,7 @@ export default function PersonProfile() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [showReport, setShowReport] = useState(false);
 
   const fetchProfile = () => api.get(`/connections/profile/${userId}`)
     .then(res => { setData(res.data); setError(null); })
@@ -156,7 +158,21 @@ export default function PersonProfile() {
             </p>
           </div>
         )}
+
+        <div className="text-center pt-2">
+          <button
+            onClick={() => setShowReport(true)}
+            className="font-sans text-cream/25 hover:text-red-400 text-xs transition-colors"
+          >
+            Report {data.first_name || 'this user'}
+          </button>
+        </div>
       </div>
+
+      {showReport && (
+        <ReportUserModal userId={userId} userName={data.first_name} onClose={() => setShowReport(false)} />
+      )}
+
       <BottomNav />
     </div>
   );
