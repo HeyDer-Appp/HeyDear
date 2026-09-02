@@ -220,6 +220,8 @@ function formatCountdown(secs) {
 
 function DinnerCard({ dinner, onCancel }) {
   const [now, setNow] = useState(() => new Date());
+  const [rsvpAttending, setRsvpAttending] = useState(dinner.rsvp_attending ?? null);
+  const [rsvpSubmitting, setRsvpSubmitting] = useState(false);
   // dinner.date is the actual 7pm-NZT dinner-start instant (server-computed,
   // timezone-correct) — used as-is rather than re-deriving "7pm" from a
   // bare date string in the viewer's own local timezone, which would be
@@ -235,6 +237,23 @@ function DinnerCard({ dinner, onCancel }) {
   const isPending = dinner.is_pending || !dinner.table_id;
   const isPast = dinnerDate ? dinnerDate < now : false;
   const hoursUntil = dinnerDate ? (dinnerDate - now) / (1000 * 60 * 60) : Infinity;
+  // Same 30-minute window the 6:30pm push notification fires in (see
+  // server/services/scheduler.js's rsvpPromptAt) — closes once dinner
+  // actually starts.
+  const rsvpWindowOpen = dinnerDate && !isPast && now >= new Date(dinnerDate.getTime() - 30 * 60 * 1000);
+
+  const respondRsvp = async (value) => {
+    if (rsvpSubmitting) return;
+    setRsvpSubmitting(true);
+    try {
+      await api.patch(`/portal/rsvp/${dinner.table_id}`, { attending: value });
+      setRsvpAttending(value);
+    } catch {
+      toast.error('Could not save your response. Try again.');
+    } finally {
+      setRsvpSubmitting(false);
+    }
+  };
 
   let status = 'pending';
   if (!isPending && dinner.table_status === 'confirmed') {
@@ -324,6 +343,37 @@ function DinnerCard({ dinner, onCancel }) {
           tableId={dinner.table_id}
           dinner={dinner}
         />
+      )}
+
+      {/* Day-of RSVP — "are you actually coming tonight?" */}
+      {dinner.table_status === 'confirmed' && rsvpWindowOpen && (
+        <div className="mt-5 pt-5 border-t border-white/[0.06]">
+          {rsvpAttending === null ? (
+            <>
+              <p className="font-sans text-cream text-sm font-medium mb-3">Still coming tonight?</p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => respondRsvp(true)}
+                  disabled={rsvpSubmitting}
+                  className="flex-1 py-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-sans text-sm font-medium hover:bg-emerald-500/25 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+                >
+                  ✓ I'm coming
+                </button>
+                <button
+                  onClick={() => respondRsvp(false)}
+                  disabled={rsvpSubmitting}
+                  className="flex-1 py-2.5 rounded-xl bg-red-500/10 border border-red-500/25 text-red-400 font-sans text-sm font-medium hover:bg-red-500/20 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+                >
+                  ✕ Can't make it
+                </button>
+              </div>
+            </>
+          ) : rsvpAttending ? (
+            <p className="font-sans text-emerald-400 text-sm">✓ You confirmed you're coming tonight</p>
+          ) : (
+            <p className="font-sans text-red-400 text-sm">✕ You said you can't make it tonight</p>
+          )}
+        </div>
       )}
 
       {/* Cancel */}

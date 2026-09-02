@@ -226,11 +226,14 @@ router.get('/dinners', attendeeAuth, async (req, res) => {
       // Only relevant for past dinners, but cheap enough to check for all —
       // lets the dashboard show "Rate your experience" only once, not repeat
       // the prompt after it's already been submitted.
-      const feedbackSnap = await db.collection('feedback')
-        .where('userId', '==', req.user.id)
-        .where('dinnerId', '==', table.dinnerId)
-        .limit(1)
-        .get();
+      const [feedbackSnap, memberSnap] = await Promise.all([
+        db.collection('feedback')
+          .where('userId', '==', req.user.id)
+          .where('dinnerId', '==', table.dinnerId)
+          .limit(1)
+          .get(),
+        db.collection('tableMembers').doc(`${booking.tableId}_${req.user.id}`).get(),
+      ]);
 
       return {
         table_id: booking.tableId,
@@ -254,6 +257,10 @@ router.get('/dinners', attendeeAuth, async (req, res) => {
         menu_price_min: venueRevealed ? restaurant.menuPriceMin : null,
         menu_price_max: venueRevealed ? restaurant.menuPriceMax : null,
         has_feedback: !feedbackSnap.empty,
+        // null = hasn't been asked to confirm yet or hasn't answered;
+        // true/false once they've tapped a response to the "still coming
+        // tonight?" prompt (shown from 6:30pm on the dinner itself).
+        rsvp_attending: memberSnap.exists ? (memberSnap.data().rsvpAttending ?? null) : null,
       };
     }));
 
@@ -296,6 +303,30 @@ router.get('/dinners', attendeeAuth, async (req, res) => {
     }
 
     res.json({ dinners: [...matchedDinners, ...pendingDinners] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Records whether someone's actually showing up tonight — prompted from
+// 6:30pm on the dinner itself (see server/services/scheduler.js's
+// rsvpPromptAt). Anyone seated at the table can answer, any time; there's
+// no window restriction since a late "actually no" is still useful to know.
+router.patch('/rsvp/:tableId', attendeeAuth, async (req, res) => {
+  try {
+    const { tableId } = req.params;
+    const { attending } = req.body;
+    if (typeof attending !== 'boolean') {
+      return res.status(400).json({ error: 'attending must be true or false' });
+    }
+
+    const memberRef = db.collection('tableMembers').doc(`${tableId}_${req.user.id}`);
+    const memberSnap = await memberRef.get();
+    if (!memberSnap.exists) return res.status(404).json({ error: "You weren't seated at this table" });
+
+    await memberRef.set({ rsvpAttending: attending }, { merge: true });
+    res.json({ success: true });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });

@@ -11,6 +11,10 @@ function glimpseRevealAt(dinnerDate) {
 function venueRevealAt(dinnerDate) {
   return new Date(glimpseRevealAt(dinnerDate).getTime() + 24 * 60 * 60 * 1000);
 }
+// 6:30pm the night of — 30 minutes before the 7pm sit-down.
+function rsvpPromptAt(dinnerDate) {
+  return nzTime(dinnerDate, 18, 30);
+}
 
 const CHECK_INTERVAL_MS = 5 * 60 * 1000;
 
@@ -23,7 +27,7 @@ async function checkReveals() {
 
   for (const doc of tablesSnap.docs) {
     const table = doc.data();
-    if (table.pushGlimpseSent && table.pushVenueSent) continue;
+    if (table.pushGlimpseSent && table.pushVenueSent && table.pushRsvpSent) continue;
 
     const dinnerSnap = await db.collection('dinners').doc(table.dinnerId).get();
     if (!dinnerSnap.exists) continue;
@@ -44,6 +48,11 @@ async function checkReveals() {
       }
       await pushService.sendToTable(doc.id, pushService.notifications.venueReveal(restaurantName)).catch(() => {});
       await doc.ref.set({ pushVenueSent: true }, { merge: true });
+    }
+
+    if (!table.pushRsvpSent && now >= rsvpPromptAt(dinnerDate)) {
+      await pushService.sendToTable(doc.id, pushService.notifications.rsvpPrompt()).catch(() => {});
+      await doc.ref.set({ pushRsvpSent: true }, { merge: true });
     }
   }
 }

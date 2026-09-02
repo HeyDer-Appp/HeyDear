@@ -103,6 +103,15 @@ const notifications = {
     ],
   }),
 
+  rsvpPrompt: () => ({
+    title: 'Still coming tonight? 🍽️',
+    body: 'Dinner starts at 7pm — open the app to confirm.',
+    url: '/portal',
+    tag: 'rsvp-prompt',
+    requireInteraction: true,
+    actions: [{ action: 'view_dinner', title: 'Confirm now' }],
+  }),
+
   reminder: (restaurantName) => ({
     title: `Dinner tonight — 7pm 🍽️`,
     body: `${restaurantName} is waiting for you. See you there.`,
