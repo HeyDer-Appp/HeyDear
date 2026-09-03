@@ -124,7 +124,12 @@ router.post('/submit', attendeeAuth, quizLimiter, async (req, res) => {
       for (const doc of existingBookingsSnap.docs) {
         const b = doc.data();
         if (b.tuesdayDate === parsedDate) continue;
-        if (b.matched === false) {
+        // paid === false means an abandoned/never-completed checkout (or,
+        // before a fix, a leftover from cancelling a matched booking) — the
+        // dashboard already doesn't show these at all, so blocking a
+        // resubmit on one left someone stuck forever with no visible
+        // booking to cancel and no way to make a new one.
+        if (b.matched === false && b.paid !== false) {
           return res.status(409).json({ error: "You already have a dinner booked. Cancel it first if you'd like to book a different Tuesday." });
         }
         if (b.matched === true && b.dinnerId) {
