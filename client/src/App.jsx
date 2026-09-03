@@ -1,6 +1,8 @@
-import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
+import { Capacitor } from '@capacitor/core';
+import { App as CapacitorApp } from '@capacitor/app';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 class ErrorBoundary extends React.Component {
@@ -69,7 +71,33 @@ function PortalRoute({ children }) {
 // rest of the attendee portal, just aliased for clarity at the call site.
 const ProfileRoute = PortalRoute;
 
+// In the native app, coming back from minimised (or a cold relaunch after
+// Android killed the backgrounded process) landed wherever the WebView's
+// last URL happened to be, instead of the dashboard — jarring since that
+// could be several taps deep. Skipped for a pending Stripe checkout, since
+// Quiz.jsx/BookDinner.jsx's own resume listeners need to run on that exact
+// page to check whether the payment went through; forcing a navigate away
+// here would race and break that check.
+function useResumeToDashboard() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { attendeeUser } = useAuth();
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    const listenerPromise = CapacitorApp.addListener('appStateChange', ({ isActive }) => {
+      if (!isActive || !attendeeUser) return;
+      if (sessionStorage.getItem('heyder_pending_session_id')) return;
+      if (location.pathname.startsWith('/admin')) return;
+      if (location.pathname === '/portal/dashboard') return;
+      navigate('/portal/dashboard');
+    });
+    return () => { listenerPromise.then(l => l.remove()); };
+  }, [attendeeUser, navigate, location.pathname]);
+}
+
 function AppRoutes() {
+  useResumeToDashboard();
   return (
     <Routes>
       <Route path="/" element={<Home />} />

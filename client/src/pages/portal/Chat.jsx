@@ -135,7 +135,7 @@ export default function Chat() {
             <p className="font-sans text-cream/40 text-sm">Your people</p>
             <h1 className="font-serif text-3xl text-cream mt-1">Connections</h1>
             <p className="font-sans text-cream/40 text-sm mt-2 leading-relaxed">
-              Everyone you've shared a revealed dinner with. Connect to message directly, or ✕ if not.
+              Everyone you met on a HeyDer dinner
             </p>
           </div>
           <div className="space-y-2.5 animate-pulse">
@@ -174,7 +174,7 @@ export default function Chat() {
           <p className="font-sans text-cream/40 text-sm">Your people</p>
           <h1 className="font-serif text-3xl text-cream mt-1">Connections</h1>
           <p className="font-sans text-cream/40 text-sm mt-2 leading-relaxed">
-            Everyone you've shared a revealed dinner with. Connect to message directly, or ✕ if not.
+            Everyone you met on a HeyDer dinner
           </p>
         </div>
 
