@@ -3,6 +3,13 @@ const router = express.Router();
 const { admin, db } = require('../../firebase');
 const { adminAuth } = require('../../middleware/auth');
 
+// The coupon doc ID always matches the general coupon system's uppercase
+// convention (see admin/coupons.js and payments.js's lookupCoupon), even
+// though the ambassador doc ID itself stays lowercase-hyphenated — an
+// ambassador's code is typed in exactly the same at checkout either way,
+// since lookup uppercases whatever the attendee enters.
+const couponIdFor = (ambassadorCode) => ambassadorCode.toUpperCase();
+
 router.get('/', adminAuth, async (req, res) => {
   try {
     const [ambassadorsSnap, confirmedMembersSnap] = await Promise.all([
@@ -12,7 +19,10 @@ router.get('/', adminAuth, async (req, res) => {
     const confirmedUserIds = confirmedMembersSnap.docs.map(d => d.data().user_id);
 
     const ambassadors = await Promise.all(ambassadorsSnap.docs.map(async (a) => {
-      const referralsSnap = await db.collection('ambassadors').doc(a.id).collection('referrals').get();
+      const [referralsSnap, couponSnap] = await Promise.all([
+        db.collection('ambassadors').doc(a.id).collection('referrals').get(),
+        db.collection('coupons').doc(couponIdFor(a.id)).get(),
+      ]);
       const referredUserIds = new Set(referralsSnap.docs.map(d => d.id));
       const dinnersAttended = confirmedUserIds.filter(uid => referredUserIds.has(uid)).length;
 
@@ -22,6 +32,7 @@ router.get('/', adminAuth, async (req, res) => {
         referral_code: a.id,
         total_referrals: referralsSnap.size,
         dinners_attended: dinnersAttended,
+        coupon_redemptions: couponSnap.exists ? (couponSnap.data().redemptionCount || 0) : 0,
       };
     }));
 
@@ -54,8 +65,22 @@ router.post('/', adminAuth, async (req, res) => {
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
+
+    // Every ambassador's code doubles as a 10% discount coupon, unrestricted
+    // by type (works for both one-time and subscription checkout) — separate
+    // admin-created coupons are the ones that get scoped to a single type.
+    await db.collection('coupons').doc(couponIdFor(code)).set({
+      discountPercent: 10,
+      type: null,
+      active: true,
+      redemptionCount: 0,
+      ambassadorId: ref.id,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
     const snap = await ref.get();
-    res.json({ ambassador: { id: ref.id, ...snap.data(), referral_code: ref.id } });
+    res.json({ ambassador: { id: ref.id, ...snap.data(), referral_code: ref.id, coupon_redemptions: 0 } });
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
   }
@@ -76,6 +101,16 @@ router.put('/:id', adminAuth, async (req, res) => {
     await ref.set(updates, { merge: true });
     const snap = await ref.get();
     if (!snap.exists) return res.status(404).json({ error: 'Not found' });
+
+    // Keep the matching coupon's active state in sync — an inactive
+    // ambassador shouldn't leave a working discount code behind.
+    if (active !== undefined) {
+      await db.collection('coupons').doc(couponIdFor(req.params.id)).set({
+        active,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      }, { merge: true }).catch(() => {});
+    }
+
     res.json({ ambassador: { id: ref.id, ...snap.data(), referral_code: ref.id } });
   } catch (err) {
     res.status(500).json({ error: 'Server error' });

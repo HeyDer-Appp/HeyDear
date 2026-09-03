@@ -17,7 +17,13 @@ async function lookupCoupon(code) {
   const c = snap.data();
   if (c.active === false) return null;
   if (c.expiresAt && c.expiresAt.toDate() < new Date()) return null;
-  return { code: snap.id, discountPercent: c.discountPercent };
+  return { code: snap.id, discountPercent: c.discountPercent, type: c.type || null };
+}
+
+// A coupon created for one purchase type shouldn't work on the other — an
+// unrestricted coupon (no type set, e.g. an ambassador's code) passes either.
+function couponMatchesPlan(coupon, normalizedPlan) {
+  return !coupon.type || coupon.type === normalizedPlan;
 }
 
 // Lets the payment screen show the real, current price (set from the admin
@@ -37,7 +43,13 @@ router.post('/validate-coupon', async (req, res) => {
   try {
     const coupon = await lookupCoupon(req.body.code);
     if (!coupon) return res.status(404).json({ valid: false, error: 'That code is invalid or has expired.' });
-    res.json({ valid: true, code: coupon.code, discountPercent: coupon.discountPercent });
+    if (req.body.plan) {
+      const normalizedPlan = req.body.plan === 'subscription' ? 'subscription' : 'one_time';
+      if (!couponMatchesPlan(coupon, normalizedPlan)) {
+        return res.status(400).json({ valid: false, error: `That code only works for ${coupon.type === 'subscription' ? 'the monthly membership' : 'one-time reservations'}.` });
+      }
+    }
+    res.json({ valid: true, code: coupon.code, discountPercent: coupon.discountPercent, type: coupon.type });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
@@ -67,11 +79,16 @@ router.post('/create-checkout', attendeeAuth, async (req, res) => {
     // A coupon always wins over the automatic signup incentive rather than
     // stacking with it — keeps "what discount did I actually get" simple to
     // reason about both for attendees and for us reading payment records.
+    const normalizedPlan = plan === 'subscription' ? 'subscription' : 'one_time';
+
     let discountPercent = 0;
     let appliedCoupon = null;
     if (couponCode) {
       const coupon = await lookupCoupon(couponCode);
       if (!coupon) return res.status(400).json({ error: 'That coupon code is invalid or has expired.' });
+      if (!couponMatchesPlan(coupon, normalizedPlan)) {
+        return res.status(400).json({ error: `That code only works for ${coupon.type === 'subscription' ? 'the monthly membership' : 'one-time reservations'}.` });
+      }
       discountPercent = coupon.discountPercent;
       appliedCoupon = coupon.code;
     } else if (context === 'signup') {
@@ -81,7 +98,7 @@ router.post('/create-checkout', attendeeAuth, async (req, res) => {
     const pricing = await getPricing();
 
     const session = await createCheckoutSession({
-      plan: plan === 'subscription' ? 'subscription' : 'one_time',
+      plan: normalizedPlan,
       userId: req.user.id,
       email,
       discountPercent,
@@ -113,7 +130,33 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
   try {
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
-      const { userId } = session.metadata || {};
+      const { userId, couponCode } = session.metadata || {};
+
+      // Record the redemption only once payment is actually confirmed (not
+      // at checkout-session creation, since a user can abandon checkout
+      // without paying). Stripe can redeliver the same webhook, so this
+      // guards against double-counting with a transaction: the redemption
+      // doc (keyed by session.id) only gets written, and the counter only
+      // incremented, the first time this session is seen.
+      if (couponCode && userId && userId !== 'pending') {
+        const userSnap = await db.collection('users').doc(userId).get();
+        const user = userSnap.data() || {};
+        const couponRef = db.collection('coupons').doc(couponCode);
+        const redemptionRef = couponRef.collection('redemptions').doc(session.id);
+        await db.runTransaction(async (tx) => {
+          const existing = await tx.get(redemptionRef);
+          if (existing.exists) return;
+          tx.set(redemptionRef, {
+            userId,
+            email: session.customer_details?.email || user.email || null,
+            name: [user.firstName, user.lastName].filter(Boolean).join(' ') || null,
+            plan: session.mode === 'subscription' ? 'subscription' : 'one_time',
+            amount: session.amount_total,
+            redeemedAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+          tx.set(couponRef, { redemptionCount: admin.firestore.FieldValue.increment(1) }, { merge: true });
+        });
+      }
 
       if (userId && userId !== 'pending' && session.mode === 'payment') {
         await db.collection('payments').doc(session.id).set({
