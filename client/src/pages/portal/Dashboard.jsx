@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
 import BottomNav from '../../components/BottomNav';
 import { flagUrl } from '../../utils/flags';
+import { useCachedFetch } from '../../utils/useCachedFetch';
 
 const AVATAR = 'https://heyder.nz/wp-content/uploads/2026/06/account-2.png';
 
@@ -218,7 +219,7 @@ function formatCountdown(secs) {
     : `${pad(hours)}h ${pad(minutes)}m ${pad(seconds)}s`;
 }
 
-function DinnerCard({ dinner, onCancel }) {
+function DinnerCard({ dinner, onCancel, onRsvpUpdate }) {
   const [now, setNow] = useState(() => new Date());
   const [rsvpAttending, setRsvpAttending] = useState(dinner.rsvp_attending ?? null);
   const [rsvpSubmitting, setRsvpSubmitting] = useState(false);
@@ -248,6 +249,7 @@ function DinnerCard({ dinner, onCancel }) {
     try {
       await api.patch(`/portal/rsvp/${dinner.table_id}`, { attending: value });
       setRsvpAttending(value);
+      onRsvpUpdate?.(dinner.table_id, value);
     } catch {
       toast.error('Could not save your response. Try again.');
     } finally {
@@ -392,34 +394,51 @@ function DinnerCard({ dinner, onCancel }) {
 export default function PortalDashboard() {
   const { attendeeUser, logout } = useAuth();
   const navigate = useNavigate();
-  const [profile, setProfile] = useState(null);
-  const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
-  const [dinners, setDinners] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
-  const [needsProfile, setNeedsProfile] = useState(false);
   const [location, setLocation] = useState('');
   const [showContactModal, setShowContactModal] = useState(false);
 
-  useEffect(() => {
-    Promise.all([
-      api.get('/portal/profile'),
-      api.get('/portal/dinners'),
-    ]).then(([p, d]) => {
-      setProfile(p.data.user);
-      setHasActiveSubscription(!!p.data.hasActiveSubscription);
-      setDinners(d.data.dinners || []);
-    }).catch((err) => {
-      // A brand-new account (or one that hasn't finished onboarding) has no
-      // Firestore profile doc yet — that's a normal state, not a failure.
+  // Cached (stale-while-revalidate): a repeat visit shows what was here last
+  // time instantly, while a fresh copy loads quietly in the background — see
+  // utils/useCachedFetch. A brand-new account (or one that hasn't finished
+  // onboarding) has no Firestore profile doc yet, which the API reports as a
+  // 404 — folded into the cached "data" itself (needsProfile: true) rather
+  // than treated as a load error, same as before.
+  const {
+    data: profileData,
+    loading: profileLoading,
+    error: profileLoadError,
+    setData: setProfileData,
+  } = useCachedFetch('portal_profile', async () => {
+    try {
+      const res = await api.get('/portal/profile');
+      return { user: res.data.user, hasActiveSubscription: !!res.data.hasActiveSubscription, needsProfile: false };
+    } catch (err) {
       if (err.response?.status === 404) {
-        setNeedsProfile(true);
-      } else {
-        console.error(err);
-        setLoadError(true);
+        return { user: null, hasActiveSubscription: false, needsProfile: true };
       }
-    }).finally(() => setLoading(false));
-  }, []);
+      throw err;
+    }
+  });
+
+  const { data: dinnersData, loading: dinnersLoading, setData: setDinnersData } = useCachedFetch(
+    'portal_dinners',
+    async () => (await api.get('/portal/dinners')).data.dinners || []
+  );
+
+  const loading = profileLoading || dinnersLoading;
+  const loadError = profileLoadError;
+  const needsProfile = profileData?.needsProfile ?? false;
+  const profile = profileData?.user ?? null;
+  const hasActiveSubscription = profileData?.hasActiveSubscription ?? false;
+  const dinners = dinnersData ?? [];
+
+  // A dinner's own RSVP response happens inside DinnerCard (its own local
+  // state, since each card ticks its own countdown) — this is how that
+  // answer also lands in the cached list, so a later visit doesn't briefly
+  // show the "still coming tonight?" prompt again before revalidating.
+  const updateRsvpCache = (tableId, attending) => {
+    setDinnersData(prev => (prev || []).map(d => d.table_id === tableId ? { ...d, rsvp_attending: attending } : d));
+  };
 
   // A pending (not yet matched) booking has no table_id at all — cancelling
   // it goes through a different endpoint that just removes the booking
@@ -431,7 +450,7 @@ export default function PortalDashboard() {
         ? await api.post(`/portal/cancel-pending/${dinner.booking_id}`)
         : await api.post(`/portal/cancel/${dinner.table_id}`);
       toast.success(res.data.message);
-      setDinners(prev => prev.filter(d => dinner.is_pending ? d.booking_id !== dinner.booking_id : d.table_id !== dinner.table_id));
+      setDinnersData(prev => (prev || []).filter(d => dinner.is_pending ? d.booking_id !== dinner.booking_id : d.table_id !== dinner.table_id));
     } catch (err) {
       // Inside 24h of dinner, self-cancel is blocked server-side — that gets
       // its own modal (with the contact email front and centre) rather than
@@ -609,7 +628,7 @@ export default function PortalDashboard() {
         {upcoming.length > 0 ? (
           <div className="space-y-4">
             {upcoming.map(d => (
-              <DinnerCard key={d.table_id} dinner={d} onCancel={cancelBooking} />
+              <DinnerCard key={d.table_id} dinner={d} onCancel={cancelBooking} onRsvpUpdate={updateRsvpCache} />
             ))}
           </div>
         ) : (

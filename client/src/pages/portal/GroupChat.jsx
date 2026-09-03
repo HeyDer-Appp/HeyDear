@@ -6,6 +6,7 @@ import api from '../../utils/api';
 import BottomNav from '../../components/BottomNav';
 import { flagUrl } from '../../utils/flags';
 import { GlimpseModal } from './Dashboard';
+import { useCachedFetch } from '../../utils/useCachedFetch';
 
 const AVATAR_FALLBACK = 'https://heyder.nz/wp-content/uploads/2026/06/account-2.png';
 
@@ -209,25 +210,21 @@ function GroupListCard({ g, onOpen, onExit }) {
 // upcoming Tuesday (still building up to the reveal) and dinners already
 // attended (fully unlocked). Each is independently selectable and exitable.
 function GroupList({ onOpen }) {
-  const [groups, setGroups] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
-
-  const fetchGroups = () => api.get('/group')
-    .then(res => { setGroups(res.data.groups || []); setLoadError(false); })
-    .catch(() => setLoadError(true));
+  const { data: groups, loading, error: loadError, refetch, setData: setGroups } = useCachedFetch(
+    'portal_groups',
+    async () => (await api.get('/group')).data.groups || []
+  );
 
   useEffect(() => {
-    fetchGroups().finally(() => setLoading(false));
-    const poll = setInterval(fetchGroups, 20000);
+    const poll = setInterval(() => refetch({ silent: true }).catch(() => {}), 20000);
     return () => clearInterval(poll);
-  }, []);
+  }, [refetch]);
 
   const handleExit = async (tableId) => {
     if (!confirm("Remove this group from your list? You won't see it here anymore.")) return;
     try {
       await api.post(`/group/${tableId}/exit`);
-      setGroups(prev => prev.filter(g => g.table_id !== tableId));
+      setGroups(prev => (prev || []).filter(g => g.table_id !== tableId));
       toast.success('Left the group.');
     } catch (err) {
       toast.error(err.response?.data?.error || 'Could not leave that group.');

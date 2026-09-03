@@ -5,6 +5,7 @@ import api from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 import { QUESTIONS, CHAPTERS, isPhoneValid, ScaleSlider } from '../Quiz';
 import { fileToDataUrl, cropAndResizeImage } from '../../utils/image';
+import { clearCached } from '../../utils/cache';
 import { DIAL_CODES } from '../../utils/flags';
 import BottomNav from '../../components/BottomNav';
 import PhotoCropModal from '../../components/PhotoCropModal';
@@ -126,6 +127,10 @@ export default function EditProfile() {
       await api.post('/portal/subscription/renew');
       toast.success('Subscription renewed for another month!');
       loadProfile();
+      // Dashboard's own cached copy of this (subscription badge, renewal
+      // date) would otherwise still show the pre-renewal state until its
+      // own background refetch happened to catch up.
+      clearCached('portal_profile');
     } catch (err) {
       toast.error(err.response?.data?.error || 'Could not renew right now.');
     } finally {
@@ -152,6 +157,8 @@ export default function EditProfile() {
     setDeleting(true);
     try {
       await api.delete('/portal/account');
+      clearCached('portal_profile');
+      clearCached('portal_dinners');
       await logout();
       navigate('/');
       toast.success('Your account has been deleted.');

@@ -7,6 +7,7 @@ import {
   signOut,
 } from 'firebase/auth';
 import { auth } from '../firebase';
+import { clearAllCached } from '../utils/cache';
 
 const AuthContext = createContext(null);
 
@@ -64,7 +65,10 @@ export function AuthProvider({ children }) {
     return cred.user;
   };
 
-  const logout = () => signOut(auth);
+  // Cleared here (not just on delete-account) so a different account
+  // logging into the same device — common on shared/test devices during
+  // beta testing — never briefly sees the previous person's cached data.
+  const logout = () => { clearAllCached(); return signOut(auth); };
 
   const resetPassword = (email) => sendPasswordResetEmail(auth, email);
 

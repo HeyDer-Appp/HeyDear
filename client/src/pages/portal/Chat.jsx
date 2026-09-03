@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../../utils/api';
 import { flagUrl } from '../../utils/flags';
 import BottomNav from '../../components/BottomNav';
+import { useCachedFetch } from '../../utils/useCachedFetch';
 
 const AVATAR_FALLBACK = 'https://heyder.nz/wp-content/uploads/2026/06/account-2.png';
 
@@ -87,22 +88,15 @@ function PersonRow({ person, onOpen, onConnect, onDismiss, onAccept, onDecline, 
 
 export default function Chat() {
   const navigate = useNavigate();
-  const [people, setPeople] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
   const [busyId, setBusyId] = useState(null);
-
-  const fetchData = () => api.get('/connections')
-    .then(res => { setPeople(res.data.people || []); setLoadError(false); })
-    .catch(() => setLoadError(true));
-
-  useEffect(() => {
-    fetchData().finally(() => setLoading(false));
-  }, []);
+  const { data: people, loading, error: loadError, refetch } = useCachedFetch(
+    'portal_connections',
+    async () => (await api.get('/connections')).data.people || []
+  );
 
   const withBusy = async (id, fn) => {
     setBusyId(id);
-    try { await fn(); await fetchData(); }
+    try { await fn(); await refetch({ silent: true }); }
     catch (err) { toast.error(err.response?.data?.error || 'Something went wrong.'); }
     finally { setBusyId(null); }
   };

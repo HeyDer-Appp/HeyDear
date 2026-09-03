@@ -2,12 +2,22 @@ import React, { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import api from '../utils/api';
 import PushPrompt from '../components/PushPrompt';
+import { clearCached } from '../utils/cache';
 
 export default function QuizSuccess() {
   const [searchParams] = useSearchParams();
   const [submitted, setSubmitted] = useState(false);
   const [userId, setUserId] = useState(null);
   const sessionId = searchParams.get('session_id');
+
+  // Every path that lands here means the dashboard's cached profile/dinners
+  // (from before this signup or booking completed) is now stale — cleared
+  // so the dashboard does a real fetch next, instead of briefly showing
+  // "build your profile" or an old dinner list before revalidating.
+  useEffect(() => {
+    clearCached('portal_profile');
+    clearCached('portal_dinners');
+  }, []);
 
   useEffect(() => {
     const submitIfNeeded = async () => {

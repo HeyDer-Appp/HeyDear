@@ -7,6 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 import { fileToDataUrl, cropAndResizeImage } from '../../utils/image';
 import BottomNav from '../../components/BottomNav';
 import PhotoCropModal from '../../components/PhotoCropModal';
+import { useCachedFetch } from '../../utils/useCachedFetch';
 
 const MAX_STACK = 3;
 
@@ -73,24 +74,24 @@ function PhotoStack({ photos, dateLabel, onOpen }) {
 
 export default function MyAlbum() {
   const { attendeeUser } = useAuth();
-  const [dinners, setDinners] = useState([]);
-  const [firstName, setFirstName] = useState('');
-  const [loading, setLoading] = useState(true);
   const [uploadingFor, setUploadingFor] = useState(null);
   const [openDinnerId, setOpenDinnerId] = useState(null);
   const [openPhotoIndex, setOpenPhotoIndex] = useState(null);
   const [cropTarget, setCropTarget] = useState(null);
 
-  useEffect(() => {
-    Promise.all([
+  const { data: albumData, loading, error, setData: setAlbumData } = useCachedFetch('portal_album', async () => {
+    const [album, profile] = await Promise.all([
       api.get('/album'),
       api.get('/portal/profile').catch(() => null),
-    ]).then(([album, profile]) => {
-      setDinners(album.data.dinners || []);
-      setFirstName(profile?.data?.user?.first_name || '');
-    }).catch(() => toast.error('Could not load your album'))
-      .finally(() => setLoading(false));
-  }, []);
+    ]);
+    return { dinners: album.data.dinners || [], firstName: profile?.data?.user?.first_name || '' };
+  });
+  const dinners = albumData?.dinners ?? [];
+  const firstName = albumData?.firstName ?? '';
+
+  useEffect(() => {
+    if (error) toast.error('Could not load your album');
+  }, [error]);
 
   // Picking a file just opens the crop step for that dinner — the actual
   // resize/upload happens in handleCropConfirm once a crop's chosen.
@@ -110,9 +111,10 @@ export default function MyAlbum() {
     try {
       const dataUrl = await cropAndResizeImage(src, croppedAreaPixels, { maxSize: 900, quality: 0.75 });
       const res = await api.post(`/album/${tableId}/photos`, { photo: dataUrl });
-      setDinners(prev => prev.map(d => (
-        d.table_id === tableId ? { ...d, photos: [...d.photos, res.data.photo] } : d
-      )));
+      setAlbumData(prev => ({
+        ...prev,
+        dinners: prev.dinners.map(d => d.table_id === tableId ? { ...d, photos: [...d.photos, res.data.photo] } : d),
+      }));
       toast.success('Photo added to the album!');
     } catch (err) {
       toast.error(err.response?.data?.error || 'Could not upload that photo.');
@@ -126,9 +128,10 @@ export default function MyAlbum() {
     if (!confirm('Delete this photo? This cannot be undone.')) return;
     try {
       await api.delete(`/album/${tableId}/photos/${photoId}`);
-      setDinners(prev => prev.map(d => (
-        d.table_id === tableId ? { ...d, photos: d.photos.filter(p => p.id !== photoId) } : d
-      )));
+      setAlbumData(prev => ({
+        ...prev,
+        dinners: prev.dinners.map(d => d.table_id === tableId ? { ...d, photos: d.photos.filter(p => p.id !== photoId) } : d),
+      }));
       setOpenPhotoIndex(null);
       toast.success('Photo deleted.');
     } catch (err) {
