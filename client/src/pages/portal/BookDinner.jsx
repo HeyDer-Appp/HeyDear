@@ -25,6 +25,10 @@ export default function BookDinner() {
   const [step, setStep] = useState('date');
   const [submitting, setSubmitting] = useState(false);
   const [pricing, setPricing] = useState({ oneTimeAmount: 1000, subscriptionAmount: 1500 });
+  const [couponInput, setCouponInput] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [couponError, setCouponError] = useState('');
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
 
   const stripeConfigured = !!import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
 
@@ -168,6 +172,7 @@ export default function BookDinner() {
       const res = await api.post('/payments/create-checkout', {
         email: attendeeUser?.email,
         plan,
+        couponCode: appliedCoupon?.code,
         metadata: { quizData: JSON.stringify(fullAnswers) },
       });
       sessionStorage.setItem('heyder_quiz_answers', JSON.stringify(fullAnswers));
@@ -178,6 +183,24 @@ export default function BookDinner() {
       setSubmitting(false);
     }
   };
+
+  const applyCoupon = async () => {
+    if (!couponInput.trim()) return;
+    setValidatingCoupon(true);
+    setCouponError('');
+    try {
+      const res = await api.post('/payments/validate-coupon', { code: couponInput.trim() });
+      setAppliedCoupon({ code: res.data.code, discountPercent: res.data.discountPercent });
+      toast.success(`${res.data.discountPercent}% off applied!`);
+    } catch (err) {
+      setAppliedCoupon(null);
+      setCouponError(err.response?.data?.error || 'That code is invalid or has expired.');
+    } finally {
+      setValidatingCoupon(false);
+    }
+  };
+
+  const removeCoupon = () => { setAppliedCoupon(null); setCouponInput(''); setCouponError(''); };
 
   const header = (
     <nav className="relative z-10 flex items-center justify-between px-6 py-5 border-b border-white/[0.06] backdrop-blur">
@@ -297,8 +320,11 @@ export default function BookDinner() {
                   </button>
                 </div>
               ) : (() => {
-                const oneTimePrice = (pricing.oneTimeAmount / 100).toFixed(2).replace(/\.00$/, '');
-                const subPrice = (pricing.subscriptionAmount / 100).toFixed(2).replace(/\.00$/, '');
+                const discountPercent = appliedCoupon ? appliedCoupon.discountPercent : 0;
+                const baseOneTime = pricing.oneTimeAmount / 100;
+                const baseSub = pricing.subscriptionAmount / 100;
+                const oneTimePrice = (baseOneTime * (1 - discountPercent / 100)).toFixed(2).replace(/\.00$/, '');
+                const subPrice = (baseSub * (1 - discountPercent / 100)).toFixed(2).replace(/\.00$/, '');
                 return (
                 <div>
                   <motion.div initial="hidden" animate="visible" variants={staggerContainerVariant} className="space-y-3 mb-5">
@@ -310,7 +336,12 @@ export default function BookDinner() {
                     >
                       <div className="flex items-center justify-between mb-1">
                         <span className="font-sans font-semibold text-base">One-time reservation</span>
-                        <span className="font-serif text-2xl">${oneTimePrice}</span>
+                        <span className="flex items-baseline gap-1.5">
+                          {discountPercent > 0 && (
+                            <span className={`font-sans text-xs line-through ${selectedPlan === 'one_time' ? 'text-navy/40' : 'text-cream/25'}`}>${baseOneTime.toFixed(2).replace(/\.00$/, '')}</span>
+                          )}
+                          <span className="font-serif text-2xl">${oneTimePrice}</span>
+                        </span>
                       </div>
                       <p className={`font-sans text-sm ${selectedPlan === 'one_time' ? 'text-navy/60' : 'text-cream/40'}`}>Reserve just this Tuesday's dinner. Refundable up to 48hrs before.</p>
                     </motion.button>
@@ -323,11 +354,52 @@ export default function BookDinner() {
                       <span className="absolute -top-2.5 right-5 bg-yellow text-navy text-[10px] font-sans font-bold uppercase tracking-widest px-2.5 py-1 rounded-full">Best value</span>
                       <div className="flex items-center justify-between mb-1">
                         <span className="font-sans font-semibold text-base">Monthly membership</span>
-                        <span className="font-serif text-2xl">${subPrice}<span className="text-sm">/mo</span></span>
+                        <span className="flex items-baseline gap-1.5">
+                          {discountPercent > 0 && (
+                            <span className={`font-sans text-xs line-through ${selectedPlan === 'subscription' ? 'text-navy/40' : 'text-cream/25'}`}>${baseSub.toFixed(2).replace(/\.00$/, '')}</span>
+                          )}
+                          <span className="font-serif text-2xl">${subPrice}<span className="text-sm">/mo</span></span>
+                        </span>
                       </div>
                       <p className={`font-sans text-sm ${selectedPlan === 'subscription' ? 'text-navy/60' : 'text-cream/40'}`}>Unlimited HeyDer dinners this month.</p>
                     </motion.button>
                   </motion.div>
+
+                  {/* Coupon entry — matches Quiz.jsx's signup-flow version,
+                      just missing here before this fix. */}
+                  <div className="mb-4">
+                    {appliedCoupon ? (
+                      <div className="flex items-center justify-between rounded-xl border border-emerald-400/25 bg-emerald-400/[0.06] px-3 py-2.5">
+                        <span className="font-sans text-emerald-400 text-xs">
+                          ✓ Code <span className="font-mono">{appliedCoupon.code}</span> applied — {appliedCoupon.discountPercent}% off
+                        </span>
+                        <button type="button" onClick={removeCoupon} className="font-sans text-cream/40 hover:text-cream text-xs transition-colors">Remove</button>
+                      </div>
+                    ) : (
+                      <div>
+                        <label className="font-sans text-cream/40 text-xs tracking-[0.1em] uppercase mb-1.5 block">Coupon code</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={couponInput}
+                            onChange={e => { setCouponInput(e.target.value.toUpperCase()); setCouponError(''); }}
+                            placeholder="Enter code"
+                            className="quiz-input flex-1"
+                          />
+                          <button
+                            type="button"
+                            onClick={applyCoupon}
+                            disabled={validatingCoupon || !couponInput.trim()}
+                            className="btn-outline text-xs px-4 disabled:opacity-50"
+                          >
+                            {validatingCoupon ? '...' : 'Apply'}
+                          </button>
+                        </div>
+                        {couponError && <p className="font-sans text-red-400/80 text-xs mt-1.5">{couponError}</p>}
+                      </div>
+                    )}
+                  </div>
+
                   <button
                     onClick={() => handlePayment(selectedPlan)}
                     disabled={submitting}

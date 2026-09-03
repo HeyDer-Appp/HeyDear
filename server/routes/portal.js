@@ -534,11 +534,17 @@ router.post('/cancel/:tableId', attendeeAuth, async (req, res) => {
 
     await memberRef.delete();
 
+    // Deleted outright, not reset to matched: false — resetting it left a
+    // "cancelled" booking sitting there looking exactly like a fresh
+    // pending reservation (is_pending: true), which then both resurfaced
+    // on the dashboard after a cancellation and blocked rebooking with
+    // "you already have a dinner booked" even though nothing was actually
+    // booked anymore. Mirrors how /cancel-pending already deletes outright.
     const bookingSnap = await db.collection('bookings')
       .where('userId', '==', req.user.id)
       .where('tableId', '==', tableId)
       .get();
-    await Promise.all(bookingSnap.docs.map(d => d.ref.set({ matched: false, tableId: null, dinnerId: null }, { merge: true })));
+    await Promise.all(bookingSnap.docs.map(d => d.ref.delete()));
 
     const refunded = await refundLatestPayment(req.user.id);
 
