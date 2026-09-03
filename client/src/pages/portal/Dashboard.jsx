@@ -6,6 +6,7 @@ import api from '../../utils/api';
 import BottomNav from '../../components/BottomNav';
 import { flagUrl } from '../../utils/flags';
 import { useCachedFetch } from '../../utils/useCachedFetch';
+import { prefetchPortalData } from '../../utils/prefetch';
 
 const AVATAR = 'https://heyder.nz/wp-content/uploads/2026/06/account-2.png';
 
@@ -431,6 +432,16 @@ export default function PortalDashboard() {
   const profile = profileData?.user ?? null;
   const hasActiveSubscription = profileData?.hasActiveSubscription ?? false;
   const dinners = dinnersData ?? [];
+
+  // Warms every other tab's cache as soon as the dashboard itself has
+  // loaded, so opening Group Chats/Connections/Album/Edit Profile for the
+  // first time in a session still renders instantly instead of showing a
+  // loading state once each. Skipped for a brand-new account still mid-
+  // onboarding — those endpoints would just return empty results anyway.
+  useEffect(() => {
+    if (!loading && !needsProfile) prefetchPortalData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, needsProfile]);
 
   // A dinner's own RSVP response happens inside DinnerCard (its own local
   // state, since each card ticks its own countdown) — this is how that

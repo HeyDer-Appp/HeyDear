@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { QUESTIONS, CHAPTERS, isPhoneValid, ScaleSlider } from '../Quiz';
 import { fileToDataUrl, cropAndResizeImage } from '../../utils/image';
 import { clearCached } from '../../utils/cache';
+import { useCachedFetch } from '../../utils/useCachedFetch';
 import { DIAL_CODES } from '../../utils/flags';
 import BottomNav from '../../components/BottomNav';
 import PhotoCropModal from '../../components/PhotoCropModal';
@@ -86,7 +87,6 @@ export default function EditProfile() {
   const [locked, setLocked] = useState(null);
   const [answers, setAnswers] = useState({});
   const [initialAnswers, setInitialAnswers] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [photoUploading, setPhotoUploading] = useState(false);
   const [subscription, setSubscription] = useState({ active: false, renewsAt: null });
@@ -101,32 +101,45 @@ export default function EditProfile() {
   const [cropSrc, setCropSrc] = useState(null);
   const subscriptionRef = useRef(null);
   const photoInputRef = useRef(null);
+  const seededRef = useRef(false);
 
-  const loadProfile = () => api.get('/portal/full-profile')
-    .then(res => {
-      setLocked(res.data.locked);
+  const { data: profileData, loading, error: loadError, refetch } = useCachedFetch(
+    'portal_full_profile',
+    async () => (await api.get('/portal/full-profile')).data
+  );
+
+  useEffect(() => {
+    if (loadError) toast.error('Failed to load your profile');
+  }, [loadError]);
+
+  useEffect(() => {
+    if (!profileData) return;
+    setLocked(profileData.locked);
+    setSubscription({ active: !!profileData.hasActiveSubscription, renewsAt: profileData.subscriptionRenewsAt || null });
+    // The editable form is only ever seeded once per mount — a background
+    // revalidation (or the cached copy resolving after the cache already
+    // rendered) must never clobber answers/autosave that are already in
+    // progress. Nothing outside this page's own autosave ever changes these
+    // fields anyway, so there's no real staleness risk in skipping the resync.
+    if (!seededRef.current) {
+      seededRef.current = true;
       const loaded = {
-        ...(res.data.answers || {}),
-        phone: res.data.locked?.phone || '',
-        phoneCountryCode: res.data.locked?.phoneCountryCode || '+64',
-        photo: res.data.photo || null,
+        ...(profileData.answers || {}),
+        phone: profileData.locked?.phone || '',
+        phoneCountryCode: profileData.locked?.phoneCountryCode || '+64',
+        photo: profileData.photo || null,
       };
       setAnswers(loaded);
       setInitialAnswers(loaded);
-      setSubscription({ active: !!res.data.hasActiveSubscription, renewsAt: res.data.subscriptionRenewsAt || null });
-    })
-    .catch(() => toast.error('Failed to load your profile'));
-
-  useEffect(() => {
-    loadProfile().finally(() => setLoading(false));
-  }, []);
+    }
+  }, [profileData]);
 
   const handleRenew = async () => {
     setRenewing(true);
     try {
       await api.post('/portal/subscription/renew');
       toast.success('Subscription renewed for another month!');
-      loadProfile();
+      refetch();
       // Dashboard's own cached copy of this (subscription badge, renewal
       // date) would otherwise still show the pre-renewal state until its
       // own background refetch happened to catch up.
@@ -280,7 +293,7 @@ export default function EditProfile() {
     </div>
   );
 
-  if (!locked) return (
+  if (!profileData) return (
     <div className="quiz-bg min-h-screen flex items-center justify-center p-8 text-center">
       <div>
         <p className="font-serif text-2xl text-cream mb-3">Couldn't load your profile</p>
