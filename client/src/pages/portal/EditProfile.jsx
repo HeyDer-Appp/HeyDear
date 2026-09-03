@@ -84,7 +84,6 @@ function SaveButton({ onClick, saving, compact }) {
 export default function EditProfile() {
   const navigate = useNavigate();
   const { attendeeUser, logout, resetPassword } = useAuth();
-  const [locked, setLocked] = useState(null);
   const [answers, setAnswers] = useState({});
   const [initialAnswers, setInitialAnswers] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -112,9 +111,15 @@ export default function EditProfile() {
     if (loadError) toast.error('Failed to load your profile');
   }, [loadError]);
 
+  // Derived straight from profileData (not its own state) — a separate
+  // setLocked() in the effect below was one render behind profileData
+  // itself becoming non-null (state set in an effect always lags a tick),
+  // so the very first render after a cached copy resolved could hit
+  // locked.first_name etc. while locked was still null and crash.
+  const locked = profileData?.locked ?? null;
+
   useEffect(() => {
     if (!profileData) return;
-    setLocked(profileData.locked);
     setSubscription({ active: !!profileData.hasActiveSubscription, renewsAt: profileData.subscriptionRenewsAt || null });
     // The editable form is only ever seeded once per mount — a background
     // revalidation (or the cached copy resolving after the cache already

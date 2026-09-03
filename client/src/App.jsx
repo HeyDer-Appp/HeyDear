@@ -82,7 +82,16 @@ const ProfileRoute = PortalRoute;
 function HomeRoute() {
   const { attendeeUser, loading } = useAuth();
   if (Capacitor.isNativePlatform()) {
-    if (loading) return <div className="min-h-screen bg-navy" />;
+    // A plain navy div here read as broken/frozen rather than loading —
+    // same logo + spinner every other loading state in the app already
+    // uses (PortalRoute/AdminRoute included), so this brief moment looks
+    // intentional instead of blank.
+    if (loading) return (
+      <div className="min-h-screen bg-navy flex flex-col items-center justify-center gap-6">
+        <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-9" />
+        <div className="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
     if (attendeeUser) return <Navigate to="/portal/dashboard" replace />;
   }
   return <Home />;
