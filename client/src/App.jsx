@@ -81,7 +81,22 @@ const ProfileRoute = PortalRoute;
 function useResumeToDashboard() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { attendeeUser } = useAuth();
+  const { attendeeUser, loading } = useAuth();
+
+  // Same idea, but for a cold start rather than a resume — the native
+  // app's WebView loads the plain site root (the marketing homepage, hero
+  // video and all), same as any first-time visitor gets. An already
+  // signed-in attendee should land straight on their dashboard instead.
+  // Left alone on the actual website (isNativePlatform() gates it) — "/"
+  // staying the marketing page there for a logged-in browser session isn't
+  // this fix's problem to solve.
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform() || loading) return;
+    if (attendeeUser && location.pathname === '/') {
+      navigate('/portal/dashboard', { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [attendeeUser, loading]);
 
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;

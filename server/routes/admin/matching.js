@@ -27,6 +27,11 @@ router.get('/unmatched/:dinnerId', adminAuth, async (req, res) => {
 
     const unmatched = snap.docs
       .map(d => ({ doc: d, data: d.data() }))
+      // paid === false is a booking still sitting mid-checkout (or an
+      // abandoned one) — excluded so it can't be seated at a real table
+      // before anyone's actually paid for it. paid === undefined is a
+      // pre-existing booking from before this field existed, still shown.
+      .filter(({ data }) => data.paid !== false)
       .sort((a, b) => (a.data.submittedAt?.toMillis?.() || 0) - (b.data.submittedAt?.toMillis?.() || 0))
       .map(({ doc, data }) => bookingToPerson(doc.id, data));
     res.json({ unmatched, dinner: { id: dinnerSnap.id, ...dinnerSnap.data(), date: dinnerSnap.data().date.toDate().toISOString() } });
@@ -240,6 +245,9 @@ router.post('/tables/:tableId/assign', adminAuth, async (req, res) => {
     if (bookingSnap.empty) return res.status(404).json({ error: 'No pending booking found for this person on this date' });
 
     const bookingDoc = bookingSnap.docs[0];
+    if (bookingDoc.data().paid === false) {
+      return res.status(400).json({ error: "This booking hasn't been paid for yet — can't seat them until it is." });
+    }
     const person = bookingToPerson(bookingDoc.id, bookingDoc.data());
 
     await Promise.all([

@@ -156,9 +156,12 @@ export default function BookDinner() {
       // matching comment in Quiz.jsx's handlePayment for why: Stripe hands
       // off to a different browser context on native apps, which can't
       // finish anything that depends on this page's own state afterward.
+      // awaitingPayment marks the new booking unpaid until Stripe actually
+      // confirms it — see the matching comment in Quiz.jsx's handlePayment.
       await api.post('/profile/submit', {
         ...fullAnswers,
         field_OVB7lzEjSl7C: fullAnswers.field_OVB7lzEjSl7C || [],
+        awaitingPayment: true,
       });
 
       const stripe = await loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);

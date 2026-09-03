@@ -97,6 +97,19 @@ router.post('/create-checkout', attendeeAuth, async (req, res) => {
 
     const pricing = await getPricing();
 
+    // The booking this checkout is actually for was already created by the
+    // client's pre-redirect /profile/submit call (awaitingPayment: true,
+    // so it's sitting there unpaid) — carrying its id through lets the
+    // webhook mark that exact booking paid once Stripe confirms, instead of
+    // having to guess which of the user's bookings a payment belongs to.
+    const pendingBookingSnap = await db.collection('bookings')
+      .where('userId', '==', req.user.id)
+      .where('matched', '==', false)
+      .get();
+    const pendingBookingDocs = pendingBookingSnap.docs.slice()
+      .sort((a, b) => (b.data().submittedAt?.toMillis?.() || 0) - (a.data().submittedAt?.toMillis?.() || 0));
+    const bookingId = pendingBookingDocs[0]?.id || null;
+
     const session = await createCheckoutSession({
       plan: normalizedPlan,
       userId: req.user.id,
@@ -106,7 +119,7 @@ router.post('/create-checkout', attendeeAuth, async (req, res) => {
       subscriptionAmount: pricing.subscriptionAmount,
       successUrl: `${baseUrl}/profile/success?session_id={CHECKOUT_SESSION_ID}`,
       cancelUrl: `${baseUrl}/profile?step=payment&cancelled=true`,
-      metadata: { email, ...(appliedCoupon ? { couponCode: appliedCoupon } : {}) },
+      metadata: { email, ...(appliedCoupon ? { couponCode: appliedCoupon } : {}), ...(bookingId ? { bookingId } : {}) },
     });
 
     res.json({ sessionId: session.id, url: session.url, discountPercent });
@@ -130,7 +143,15 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
   try {
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
-      const { userId, couponCode } = session.metadata || {};
+      const { userId, couponCode, bookingId } = session.metadata || {};
+
+      // Flips the booking from unpaid (set when the pre-redirect
+      // /profile/submit created it with awaitingPayment: true) to paid —
+      // this is the only place that happens, so an abandoned checkout
+      // leaves the booking unpaid forever rather than looking reserved.
+      if (bookingId) {
+        db.collection('bookings').doc(bookingId).set({ paid: true }, { merge: true }).catch(() => {});
+      }
 
       // Record the redemption only once payment is actually confirmed (not
       // at checkout-session creation, since a user can abandon checkout

@@ -100,7 +100,7 @@ router.post('/submit', attendeeAuth, quizLimiter, async (req, res) => {
     const {
       field_CdZldwp5q09o,
       first_name, last_name, phone, dob, gender, country, photo, city,
-      referral_code, stripe_session_id, plan, skip_booking,
+      referral_code, stripe_session_id, plan, skip_booking, awaitingPayment,
     } = req.body;
 
     if (photo !== undefined && photo !== null) {
@@ -236,6 +236,12 @@ router.post('/submit', attendeeAuth, quizLimiter, async (req, res) => {
         bookingUpdate.matched = false;
         bookingUpdate.tableId = null;
         bookingUpdate.dinnerId = null;
+        // Set once at creation, then left alone — a booking created while
+        // heading to Stripe (awaitingPayment: true) stays unpaid until the
+        // webhook confirms the charge actually went through; every other
+        // caller (subscribed-confirm, test-mode, the post-redirect resubmit)
+        // needs no separate payment step, so it's paid immediately.
+        bookingUpdate.paid = !awaitingPayment;
       }
       tx.set(bookingRef, bookingUpdate, { merge: true });
 

@@ -280,8 +280,15 @@ router.get('/dinners', attendeeAuth, async (req, res) => {
         .where('userId', '==', req.user.id)
         .where('matched', '==', false)
         .get();
-      if (!pendingSnap.empty) {
-        const latestDoc = pendingSnap.docs.slice().sort((a, b) => (b.data().submittedAt?.toMillis?.() || 0) - (a.data().submittedAt?.toMillis?.() || 0))[0];
+      // paid === false means it's sitting there mid-checkout (or checkout
+      // was abandoned) — not shown as a real reservation until the Stripe
+      // webhook confirms it. paid === undefined covers bookings from before
+      // this field existed, which were never gated, so those still show.
+      const sortedPending = pendingSnap.docs.slice()
+        .filter((d) => d.data().paid !== false)
+        .sort((a, b) => (b.data().submittedAt?.toMillis?.() || 0) - (a.data().submittedAt?.toMillis?.() || 0));
+      const latestDoc = sortedPending[0];
+      if (latestDoc) {
         const booking = latestDoc.data();
         pendingDinners = [{
           table_id: null,

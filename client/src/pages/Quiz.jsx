@@ -928,9 +928,15 @@ export default function Quiz() {
       // at all. Saving first means the booking/profile exist regardless of
       // what happens after the redirect — payment success just links the
       // charge on top of a booking that's already there.
+      // awaitingPayment marks the new booking unpaid until Stripe actually
+      // confirms it — otherwise abandoning checkout entirely (closing the
+      // external browser tab without paying) still left a real-looking
+      // "booked" dinner on the dashboard, since this save happens before
+      // any payment attempt at all.
       await api.post('/profile/submit', {
         ...answers,
         field_OVB7lzEjSl7C: answers.field_OVB7lzEjSl7C || [],
+        awaitingPayment: true,
       });
 
       const stripe = await loadStripe(stripeKey);
