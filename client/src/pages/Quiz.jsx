@@ -401,7 +401,7 @@ export function isPhoneValid(phone) {
 // value); it only exists to own real pointer/touch/keyboard drag handling
 // and accessibility. The parent's onChange (which updates top-level answers
 // state and schedules an autosave) fires once on release, not per tick.
-function ScaleSlider({ q, value, onChange }) {
+export function ScaleSlider({ q, value, onChange }) {
   const inputRef = useRef(null);
   const fillRef = useRef(null);
   const thumbRef = useRef(null);

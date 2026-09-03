@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
-import { QUESTIONS, CHAPTERS, isPhoneValid } from '../Quiz';
+import { QUESTIONS, CHAPTERS, isPhoneValid, ScaleSlider } from '../Quiz';
 import { fileToDataUrl, cropAndResizeImage } from '../../utils/image';
 import { DIAL_CODES } from '../../utils/flags';
 import BottomNav from '../../components/BottomNav';
@@ -546,27 +546,7 @@ export default function EditProfile() {
                   )}
 
                   {q.type === 'scale' && (
-                    <div>
-                      <div className="flex justify-between mb-2">
-                        <span className="font-sans text-cream/35 text-xs">{q.labels?.[0]}</span>
-                        <span className="font-sans text-cream/35 text-xs">{q.labels?.[1]}</span>
-                      </div>
-                      <div className="flex gap-1.5 justify-between">
-                        {Array.from({ length: q.max - q.min + 1 }, (_, i) => i + q.min).map(n => (
-                          <button
-                            key={n}
-                            onClick={() => setValue(q.field, n)}
-                            className={`flex-1 aspect-square max-w-[36px] rounded-full font-sans text-xs font-medium transition-all ${
-                              answers[q.field] === n
-                                ? 'bg-gold text-navy scale-110'
-                                : 'border border-[#e7dcbd]/15 bg-[#e7dcbd]/[0.03] text-[#e7dcbd]/40 hover:border-[#e7dcbd]/40 hover:text-[#e7dcbd]/90'
-                            }`}
-                          >
-                            {n}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
+                    <ScaleSlider q={q} value={answers[q.field]} onChange={(n) => setValue(q.field, n)} />
                   )}
 
                   {q.type === 'text' && (
