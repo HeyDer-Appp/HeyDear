@@ -71,32 +71,34 @@ function PortalRoute({ children }) {
 // rest of the attendee portal, just aliased for clarity at the call site.
 const ProfileRoute = PortalRoute;
 
-// In the native app, coming back from minimised (or a cold relaunch after
-// Android killed the backgrounded process) landed wherever the WebView's
-// last URL happened to be, instead of the dashboard — jarring since that
-// could be several taps deep. Skipped for a pending Stripe checkout, since
-// Quiz.jsx/BookDinner.jsx's own resume listeners need to run on that exact
-// page to check whether the payment went through; forcing a navigate away
-// here would race and break that check.
+// The native app's WebView loads the plain site root — same marketing
+// homepage (hero video and all) any first-time visitor gets — every cold
+// start, before there's been any chance to check whether this is actually
+// a signed-in attendee reopening the app. A useEffect-after-render redirect
+// still let that homepage flash on screen for a moment first; blocking here
+// instead, before Home ever mounts, means an already-signed-in attendee
+// never sees it at all. Gated to native only — the actual website's "/"
+// showing the marketing page for a logged-in browser session is unrelated.
+function HomeRoute() {
+  const { attendeeUser, loading } = useAuth();
+  if (Capacitor.isNativePlatform()) {
+    if (loading) return <div className="min-h-screen bg-navy" />;
+    if (attendeeUser) return <Navigate to="/portal/dashboard" replace />;
+  }
+  return <Home />;
+}
+
+// In the native app, coming back from minimised (not a cold start — that's
+// HomeRoute's job above) landed wherever the WebView's last URL happened to
+// be, instead of the dashboard — jarring since that could be several taps
+// deep. Skipped for a pending Stripe checkout, since Quiz.jsx/BookDinner.jsx's
+// own resume listeners need to run on that exact page to check whether the
+// payment went through; forcing a navigate away here would race and break
+// that check.
 function useResumeToDashboard() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { attendeeUser, loading } = useAuth();
-
-  // Same idea, but for a cold start rather than a resume — the native
-  // app's WebView loads the plain site root (the marketing homepage, hero
-  // video and all), same as any first-time visitor gets. An already
-  // signed-in attendee should land straight on their dashboard instead.
-  // Left alone on the actual website (isNativePlatform() gates it) — "/"
-  // staying the marketing page there for a logged-in browser session isn't
-  // this fix's problem to solve.
-  useEffect(() => {
-    if (!Capacitor.isNativePlatform() || loading) return;
-    if (attendeeUser && location.pathname === '/') {
-      navigate('/portal/dashboard', { replace: true });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [attendeeUser, loading]);
+  const { attendeeUser } = useAuth();
 
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
@@ -115,7 +117,7 @@ function AppRoutes() {
   useResumeToDashboard();
   return (
     <Routes>
-      <Route path="/" element={<Home />} />
+      <Route path="/" element={<HomeRoute />} />
       <Route path="/about" element={<About />} />
       <Route path="/quiz" element={<Navigate to="/profile" replace />} />
       <Route path="/profile" element={<ProfileRoute><Quiz /></ProfileRoute>} />
