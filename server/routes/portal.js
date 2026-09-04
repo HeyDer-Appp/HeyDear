@@ -34,6 +34,25 @@ function fullRevealAt(dinnerDate) {
   return nzTime(dinnerDate, 20, 0);
 }
 
+// How many past dinners this attendee has actually sat at a confirmed,
+// already-revealed table for — mirrors connections.js's attendedTableCount
+// (used there for viewing someone else's profile), duplicated rather than
+// imported since these route files each keep their own copy of this kind
+// of small helper.
+async function attendedTableCount(uid) {
+  const snap = await db.collection('tableMembers').where('user_id', '==', uid).get();
+  const tableIds = [...new Set(snap.docs.map(d => d.data().tableId))];
+  const results = await Promise.all(tableIds.map(async (tableId) => {
+    const tableSnap = await db.collection('tables').doc(tableId).get();
+    const table = tableSnap.data();
+    if (!table || table.status !== 'confirmed') return false;
+    const dinnerSnap = await db.collection('dinners').doc(table.dinnerId).get();
+    const dinnerDate = toDate(dinnerSnap.data()?.date);
+    return !!dinnerDate && new Date() >= fullRevealAt(dinnerDate);
+  }));
+  return results.filter(Boolean).length;
+}
+
 router.get('/profile', attendeeAuth, async (req, res) => {
   try {
     const snap = await db.collection('users').doc(req.user.id).get();
@@ -98,6 +117,7 @@ router.get('/full-profile', attendeeAuth, async (req, res) => {
       .get();
     const now = new Date();
     const activeSub = subSnap.docs.find(d => toDate(d.data().currentPeriodEnd) > now);
+    const dinnersAttended = await attendedTableCount(req.user.id);
 
     res.json({
       locked: {
@@ -113,6 +133,7 @@ router.get('/full-profile', attendeeAuth, async (req, res) => {
       profileComplete: !!user.profileComplete,
       hasActiveSubscription: !!activeSub,
       subscriptionRenewsAt: activeSub ? toDate(activeSub.data().currentPeriodEnd)?.toISOString() || null : null,
+      dinnersAttended,
       photo: user.photo || null,
       answers,
     });

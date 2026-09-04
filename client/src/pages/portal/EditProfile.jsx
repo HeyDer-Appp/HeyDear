@@ -23,24 +23,34 @@ function getAge(dob) {
 
 const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
 
-// Badge + renewal date, with a Renew button that only shows up once there
-// are 3 days or fewer left — otherwise it'd just be a button sitting there
-// for weeks with nothing to actually do yet.
-function SubscriptionCard({ renewsAt, onRenew, renewing }) {
+// Badge + days-until-renewal + dinners-attended stat, with a Renew button
+// that only shows up once there are 3 days or fewer left — otherwise it'd
+// just be a button sitting there for weeks with nothing to actually do yet.
+function SubscriptionCard({ renewsAt, dinnersAttended, onRenew, renewing }) {
   const msLeft = Math.max(0, new Date(renewsAt).getTime() - Date.now());
+  const daysLeft = Math.max(0, Math.ceil(msLeft / (24 * 60 * 60 * 1000)));
   const showRenew = msLeft <= THREE_DAYS_MS;
 
   return (
     <div className="quiz-card">
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-4">
         <span className="inline-flex items-center gap-1.5 font-sans text-[10px] tracking-widest uppercase text-gold bg-gold/10 border border-gold/20 rounded-full px-2.5 py-0.5">
           ✦ Subscription active
         </span>
       </div>
-      <p className="font-sans text-cream/40 text-xs uppercase tracking-widest mb-1">Renews</p>
-      <p className="font-serif text-2xl text-cream mb-3">
-        {new Date(renewsAt).toLocaleDateString('en-NZ', { day: 'numeric', month: 'long', year: 'numeric' })}
-      </p>
+      <div className="grid grid-cols-2 gap-4 mb-4">
+        <div>
+          <p className="font-sans text-cream/40 text-xs uppercase tracking-widest mb-1">Renews in</p>
+          <p className="font-serif text-2xl text-cream leading-tight">{daysLeft} {daysLeft === 1 ? 'day' : 'days'}</p>
+          <p className="font-sans text-cream/30 text-xs mt-0.5">
+            {new Date(renewsAt).toLocaleDateString('en-NZ', { day: 'numeric', month: 'long', year: 'numeric' })}
+          </p>
+        </div>
+        <div>
+          <p className="font-sans text-cream/40 text-xs uppercase tracking-widest mb-1">Dinners attended</p>
+          <p className="font-serif text-2xl text-cream leading-tight">{dinnersAttended}</p>
+        </div>
+      </div>
       {showRenew && (
         <>
           <p className="font-sans text-cream/40 text-xs mb-3">Your membership is about to expire — renew now so your next dinner stays free.</p>
@@ -49,6 +59,29 @@ function SubscriptionCard({ renewsAt, onRenew, renewing }) {
           </button>
         </>
       )}
+    </div>
+  );
+}
+
+// Shown instead of SubscriptionCard when there's no active subscription —
+// otherwise "Manage subscription" led nowhere for anyone who didn't already
+// have one, with no way to actually get one from here.
+function NoSubscriptionCard({ dinnersAttended }) {
+  return (
+    <div className="quiz-card">
+      <span className="inline-flex items-center gap-1.5 font-sans text-[10px] tracking-widest uppercase text-cream/40 bg-white/[0.04] border border-white/10 rounded-full px-2.5 py-0.5 mb-4">
+        No active subscription
+      </span>
+      <div className="mb-4">
+        <p className="font-sans text-cream/40 text-xs uppercase tracking-widest mb-1">Dinners attended</p>
+        <p className="font-serif text-2xl text-cream leading-tight">{dinnersAttended}</p>
+      </div>
+      <p className="font-sans text-cream/40 text-sm mb-4 leading-relaxed">
+        Subscribe for unlimited HeyDer dinners every month instead of paying per dinner.
+      </p>
+      <Link to="/portal/book" className="quiz-cta w-full flex items-center justify-center">
+        Get a subscription →
+      </Link>
     </div>
   );
 }
@@ -88,7 +121,6 @@ export default function EditProfile() {
   const [initialAnswers, setInitialAnswers] = useState(null);
   const [saving, setSaving] = useState(false);
   const [photoUploading, setPhotoUploading] = useState(false);
-  const [subscription, setSubscription] = useState({ active: false, renewsAt: null });
   const [renewing, setRenewing] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [saveAttempted, setSaveAttempted] = useState(false);
@@ -117,10 +149,17 @@ export default function EditProfile() {
   // so the very first render after a cached copy resolved could hit
   // locked.first_name etc. while locked was still null and crash.
   const locked = profileData?.locked ?? null;
+  // Same reasoning as locked above — derived directly rather than mirrored
+  // into state via the effect, so there's no lagging render where an
+  // actually-subscribed user briefly sees the "no subscription" card.
+  const subscription = {
+    active: !!profileData?.hasActiveSubscription,
+    renewsAt: profileData?.subscriptionRenewsAt || null,
+  };
+  const dinnersAttended = profileData?.dinnersAttended ?? 0;
 
   useEffect(() => {
     if (!profileData) return;
-    setSubscription({ active: !!profileData.hasActiveSubscription, renewsAt: profileData.subscriptionRenewsAt || null });
     // The editable form is only ever seeded once per mount — a background
     // revalidation (or the cached copy resolving after the cache already
     // rendered) must never clobber answers/autosave that are already in
@@ -350,17 +389,15 @@ export default function EditProfile() {
               <>
                 <div className="fixed inset-0 z-20" onClick={() => setShowAccountMenu(false)} />
                 <div className="absolute right-0 top-full mt-2 w-52 bg-navy border border-white/10 rounded-xl shadow-xl overflow-hidden z-30">
-                  {subscription.active && (
-                    <button
-                      onClick={handleManageSubscription}
-                      className="w-full text-left px-4 py-3 font-sans text-sm text-cream/80 hover:bg-white/[0.06] transition-colors"
-                    >
-                      Manage subscription
-                    </button>
-                  )}
+                  <button
+                    onClick={handleManageSubscription}
+                    className="w-full text-left px-4 py-3 font-sans text-sm text-cream/80 hover:bg-white/[0.06] transition-colors"
+                  >
+                    Manage subscription
+                  </button>
                   <button
                     onClick={handleResetPassword}
-                    className={`w-full text-left px-4 py-3 font-sans text-sm text-cream/80 hover:bg-white/[0.06] transition-colors ${subscription.active ? 'border-t border-white/[0.06]' : ''}`}
+                    className="w-full text-left px-4 py-3 font-sans text-sm text-cream/80 hover:bg-white/[0.06] transition-colors border-t border-white/[0.06]"
                   >
                     Reset password
                   </button>
@@ -376,11 +413,13 @@ export default function EditProfile() {
           </div>
         </div>
 
-        {subscription.active && subscription.renewsAt && (
-          <div ref={subscriptionRef}>
-            <SubscriptionCard renewsAt={subscription.renewsAt} onRenew={handleRenew} renewing={renewing} />
-          </div>
-        )}
+        <div ref={subscriptionRef}>
+          {subscription.active && subscription.renewsAt ? (
+            <SubscriptionCard renewsAt={subscription.renewsAt} dinnersAttended={dinnersAttended} onRenew={handleRenew} renewing={renewing} />
+          ) : (
+            <NoSubscriptionCard dinnersAttended={dinnersAttended} />
+          )}
+        </div>
 
         {/* Profile photo — tapping an existing photo opens a big preview
             with the option to change it there, instead of jumping straight
