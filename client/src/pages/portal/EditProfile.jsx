@@ -130,7 +130,7 @@ export default function EditProfile() {
   const [deleting, setDeleting] = useState(false);
   const [showPhotoModal, setShowPhotoModal] = useState(false);
   const [cropSrc, setCropSrc] = useState(null);
-  const subscriptionRef = useRef(null);
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const photoInputRef = useRef(null);
   const seededRef = useRef(false);
 
@@ -197,7 +197,7 @@ export default function EditProfile() {
 
   const handleManageSubscription = () => {
     setShowAccountMenu(false);
-    subscriptionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setShowSubscriptionModal(true);
   };
 
   const handleResetPassword = async () => {
@@ -411,14 +411,6 @@ export default function EditProfile() {
               </>
             )}
           </div>
-        </div>
-
-        <div ref={subscriptionRef}>
-          {subscription.active && subscription.renewsAt ? (
-            <SubscriptionCard renewsAt={subscription.renewsAt} dinnersAttended={dinnersAttended} onRenew={handleRenew} renewing={renewing} />
-          ) : (
-            <NoSubscriptionCard dinnersAttended={dinnersAttended} />
-          )}
         </div>
 
         {/* Profile photo — tapping an existing photo opens a big preview
@@ -695,6 +687,24 @@ export default function EditProfile() {
 
       {cropSrc && (
         <PhotoCropModal imageSrc={cropSrc} cropShape="round" onConfirm={handleCropConfirm} onCancel={() => setCropSrc(null)} />
+      )}
+
+      {showSubscriptionModal && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-5" onClick={() => setShowSubscriptionModal(false)}>
+          <div className="w-full max-w-sm" onClick={e => e.stopPropagation()}>
+            {subscription.active && subscription.renewsAt ? (
+              <SubscriptionCard renewsAt={subscription.renewsAt} dinnersAttended={dinnersAttended} onRenew={handleRenew} renewing={renewing} />
+            ) : (
+              <NoSubscriptionCard dinnersAttended={dinnersAttended} />
+            )}
+            <button
+              onClick={() => setShowSubscriptionModal(false)}
+              className="w-full mt-3 font-sans text-cream/40 hover:text-cream text-xs transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        </div>
       )}
 
       <BottomNav />
