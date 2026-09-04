@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { loadStripe } from '@stripe/stripe-js';
 import toast from 'react-hot-toast';
 import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
@@ -939,13 +938,11 @@ export default function Quiz() {
         awaitingPayment: true,
       });
 
-      const stripe = await loadStripe(stripeKey);
       const res = await api.post('/payments/create-checkout', {
         email: attendeeUser?.email,
         plan,
         couponCode: appliedCoupon?.code,
         ...(applySignupDiscount && !appliedCoupon ? { context: 'signup' } : {}),
-        metadata: { quizData: JSON.stringify(answers) },
       });
       sessionStorage.setItem('heyder_quiz_answers', JSON.stringify(answers));
       // Stripe opens in the phone's own browser on native builds — this
@@ -955,7 +952,12 @@ export default function Quiz() {
       // listener below check whether that payment actually went through
       // instead of leaving the button frozen forever.
       sessionStorage.setItem('heyder_pending_session_id', res.data.sessionId);
-      await stripe.redirectToCheckout({ sessionId: res.data.sessionId });
+      // A plain redirect to the URL the server already returned, rather
+      // than loading the whole Stripe.js SDK just to call its (now legacy)
+      // redirectToCheckout — one less external script that can fail to
+      // load (slow network, an ad-blocker, a CSP quirk) and surface as a
+      // vague "Payment setup failed" with no useful detail behind it.
+      window.location.href = res.data.url;
     } catch (err) {
       toast.error(err.response?.data?.error || 'Payment setup failed. Please try again.');
       setSubmitting(false);

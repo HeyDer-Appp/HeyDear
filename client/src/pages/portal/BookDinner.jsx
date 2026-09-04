@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { loadStripe } from '@stripe/stripe-js';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
@@ -168,16 +167,18 @@ export default function BookDinner() {
         awaitingPayment: true,
       });
 
-      const stripe = await loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
       const res = await api.post('/payments/create-checkout', {
         email: attendeeUser?.email,
         plan,
         couponCode: appliedCoupon?.code,
-        metadata: { quizData: JSON.stringify(fullAnswers) },
       });
       sessionStorage.setItem('heyder_quiz_answers', JSON.stringify(fullAnswers));
       sessionStorage.setItem('heyder_pending_session_id', res.data.sessionId);
-      await stripe.redirectToCheckout({ sessionId: res.data.sessionId });
+      // A plain redirect to the URL the server already returned, rather
+      // than loading the whole Stripe.js SDK just to call its (now legacy)
+      // redirectToCheckout — see the matching comment in Quiz.jsx's
+      // handlePayment for why.
+      window.location.href = res.data.url;
     } catch (err) {
       toast.error(err.response?.data?.error || 'Payment setup failed. Please try again.');
       setSubmitting(false);
