@@ -1,6 +1,7 @@
 const { initializeApp, cert, applicationDefault, getApps } = require('firebase-admin/app');
 const { getFirestore, FieldValue, Timestamp } = require('firebase-admin/firestore');
 const { getAuth } = require('firebase-admin/auth');
+const { getMessaging } = require('firebase-admin/messaging');
 
 // Local dev / CI can point at the Firebase Local Emulator Suite via
 // FIRESTORE_EMULATOR_HOST / FIREBASE_AUTH_EMULATOR_HOST — the Admin SDK
@@ -27,10 +28,16 @@ const db = getFirestore(app);
 // would otherwise need its own undefined-scrubbing before every write.
 db.settings({ ignoreUndefinedProperties: true });
 const auth = getAuth(app);
+// For native app push (Android via FCM) — separate from the web-push
+// (VAPID) path in services/push.js, which is all that existed before and
+// doesn't work inside a Capacitor Android WebView at all (no PushManager
+// support there), so nobody using the actual Android app ever got a
+// notification regardless of what was sent.
+const messaging = getMessaging(app);
 
 // Shim so route files can keep using `admin.firestore.FieldValue.serverTimestamp()`
 // and `admin.firestore.Timestamp.fromMillis()` etc. without every call site
 // needing its own import from 'firebase-admin/firestore'.
 const admin = { firestore: { FieldValue, Timestamp } };
 
-module.exports = { admin, db, auth };
+module.exports = { admin, db, auth, messaging };

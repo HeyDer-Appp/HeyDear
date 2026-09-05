@@ -1,6 +1,6 @@
 const webpush = require('web-push');
 const crypto = require('crypto');
-const { admin, db } = require('../firebase');
+const { admin, db, messaging } = require('../firebase');
 
 function endpointKey(endpoint) {
   return crypto.createHash('sha1').update(endpoint).digest('hex');
@@ -34,13 +34,36 @@ async function sendToSubscription(subscription, payload) {
   }
 }
 
+// Send to a single native (Android/FCM) token — separate path from web-push
+// since Capacitor's Android WebView has no PushManager to hold a web
+// subscription at all.
+async function sendToFcmToken(fcmToken, payload) {
+  try {
+    await messaging.send({
+      token: fcmToken,
+      notification: { title: payload.title, body: payload.body },
+      data: { url: payload.url || '/', tag: payload.tag || '' },
+    });
+    return { sent: true };
+  } catch (err) {
+    if (err.code === 'messaging/registration-token-not-registered' || err.code === 'messaging/invalid-argument') {
+      // Token expired/uninstalled — clean it up
+      await db.collection('pushSubscriptions').doc(endpointKey(fcmToken)).delete().catch(() => {});
+      return { sent: false, expired: true };
+    }
+    throw err;
+  }
+}
+
 async function sendToDocs(docs, payload) {
   const results = await Promise.allSettled(
     docs.map((data) =>
-      sendToSubscription(
-        { endpoint: data.endpoint, keys: { p256dh: data.p256dh, auth: data.auth } },
-        payload
-      )
+      data.type === 'fcm'
+        ? sendToFcmToken(data.fcmToken, payload)
+        : sendToSubscription(
+            { endpoint: data.endpoint, keys: { p256dh: data.p256dh, auth: data.auth } },
+            payload
+          )
     )
   );
   return results.filter((r) => r.status === 'fulfilled' && r.value.sent).length;
@@ -137,4 +160,4 @@ const notifications = {
   }),
 };
 
-module.exports = { init, sendToUser, sendToTable, sendToAll, sendToSubscription, notifications, endpointKey };
+module.exports = { init, sendToUser, sendToTable, sendToAll, sendToSubscription, sendToFcmToken, notifications, endpointKey };

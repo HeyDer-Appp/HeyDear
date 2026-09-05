@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1005984282718",
+    "project_id": "heydear-9c0bc",
+    "storage_bucket": "heydear-9c0bc.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1005984282718:android:39ed9e46fbf48d5081dccf",
+        "android_client_info": {
+          "package_name": "nz.heyder.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDOc2XRyfdrqyCfmsFvGROtWPKFzm-rFSY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

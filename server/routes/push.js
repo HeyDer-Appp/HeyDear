@@ -39,6 +39,28 @@ router.post('/unsubscribe', async (req, res) => {
   }
 });
 
+// Native app (Android/FCM) device registers its token — separate path from
+// /subscribe since there's no PushManager subscription object inside
+// Capacitor's WebView, just a plain token from the OS.
+router.post('/register-fcm', async (req, res) => {
+  try {
+    const { userId, fcmToken } = req.body;
+    if (!fcmToken) return res.status(400).json({ error: 'Missing fcmToken' });
+
+    await db.collection('pushSubscriptions').doc(pushService.endpointKey(fcmToken)).set({
+      userId: userId || null,
+      fcmToken,
+      type: 'fcm',
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to save FCM token' });
+  }
+});
+
 // Handle subscription renewal (pushsubscriptionchange in SW)
 router.post('/resubscribe', async (req, res) => {
   try {

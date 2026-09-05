@@ -1,4 +1,5 @@
 import api from './api';
+import { Capacitor } from '@capacitor/core';
 
 function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
@@ -10,6 +11,9 @@ function urlBase64ToUint8Array(base64String) {
 }
 
 export function isPushSupported() {
+  // Capacitor's Android WebView has no PushManager at all — native push
+  // goes through FCM instead (see subscribeToPush's native branch below).
+  if (Capacitor.isNativePlatform()) return true;
   return (
     'serviceWorker' in navigator &&
     'PushManager' in window &&
@@ -18,8 +22,48 @@ export function isPushSupported() {
 }
 
 export function getPermissionState() {
+  if (Capacitor.isNativePlatform()) {
+    // Native permission checks are async, but callers here need a sync
+    // read — this flag is set once we've successfully registered an FCM
+    // token, so a returning user with notifications already on doesn't
+    // get re-prompted every session.
+    return localStorage.getItem('heyder_fcm_registered') === 'true' ? 'granted' : 'default';
+  }
   if (!('Notification' in window)) return 'unsupported';
   return Notification.permission; // 'default' | 'granted' | 'denied'
+}
+
+async function subscribeToPushNative(userId) {
+  const { PushNotifications } = await import('@capacitor/push-notifications');
+
+  let permStatus = await PushNotifications.checkPermissions();
+  if (permStatus.receive === 'prompt' || permStatus.receive === 'prompt-with-rationale') {
+    permStatus = await PushNotifications.requestPermissions();
+  }
+  if (permStatus.receive !== 'granted') return { error: 'denied' };
+
+  return new Promise((resolve) => {
+    let settled = false;
+    PushNotifications.addListener('registration', async (token) => {
+      if (settled) return;
+      settled = true;
+      try {
+        await api.post('/push/register-fcm', { userId, fcmToken: token.value });
+        localStorage.setItem('heyder_fcm_registered', 'true');
+        resolve({ success: true });
+      } catch (err) {
+        console.error('FCM token registration failed:', err);
+        resolve({ error: 'subscribe_failed' });
+      }
+    });
+    PushNotifications.addListener('registrationError', (err) => {
+      if (settled) return;
+      settled = true;
+      console.error('FCM registration failed:', err);
+      resolve({ error: 'subscribe_failed' });
+    });
+    PushNotifications.register();
+  });
 }
 
 export async function registerSW() {
@@ -35,6 +79,7 @@ export async function registerSW() {
 
 export async function subscribeToPush(userId) {
   if (!isPushSupported()) return { error: 'not_supported' };
+  if (Capacitor.isNativePlatform()) return subscribeToPushNative(userId);
 
   const permission = await Notification.requestPermission();
   if (permission !== 'granted') return { error: 'denied' };
@@ -68,6 +113,10 @@ export async function subscribeToPush(userId) {
 }
 
 export async function unsubscribeFromPush(userId) {
+  if (Capacitor.isNativePlatform()) {
+    localStorage.removeItem('heyder_fcm_registered');
+    return;
+  }
   if (!('serviceWorker' in navigator)) return;
   const reg = await navigator.serviceWorker.ready;
   const subscription = await reg.pushManager.getSubscription();
