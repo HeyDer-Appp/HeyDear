@@ -26,6 +26,7 @@ export default function PersonProfile() {
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
   const [showReport, setShowReport] = useState(false);
+  const [confirmUnconnect, setConfirmUnconnect] = useState(false);
 
   const fetchProfile = () => api.get(`/connections/profile/${userId}`)
     .then(res => { setData(res.data); setError(null); })
@@ -91,6 +92,20 @@ export default function PersonProfile() {
     }
   };
 
+  const handleUnconnect = async () => {
+    setBusy(true);
+    try {
+      await api.post(`/connections/${userId}/unconnect`);
+      toast.success('Unconnected.');
+      setConfirmUnconnect(false);
+      fetchProfile();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Could not unconnect.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="quiz-bg min-h-screen relative overflow-hidden pb-24">
       {header}
@@ -118,9 +133,28 @@ export default function PersonProfile() {
 
           <div className="mt-6 w-full max-w-[240px]">
             {data.connection_status === 'connected' && (
-              <Link to={`/portal/dm/${data.connection_id}`} className="quiz-cta w-full flex items-center justify-center gap-2">
-                💬 Message
-              </Link>
+              <>
+                <Link to={`/portal/dm/${data.connection_id}`} className="quiz-cta w-full flex items-center justify-center gap-2">
+                  💬 Message
+                </Link>
+                {confirmUnconnect ? (
+                  <div className="mt-3 text-center">
+                    <p className="font-sans text-cream/50 text-xs mb-2">Unconnect from {data.first_name || 'this person'}?</p>
+                    <div className="flex items-center justify-center gap-4">
+                      <button onClick={handleUnconnect} disabled={busy} className="font-sans text-red-400 text-xs hover:text-red-300 transition-colors disabled:opacity-60">
+                        {busy ? 'Unconnecting...' : 'Yes, unconnect'}
+                      </button>
+                      <button onClick={() => setConfirmUnconnect(false)} className="font-sans text-cream/40 text-xs hover:text-cream transition-colors">
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button onClick={() => setConfirmUnconnect(true)} className="mt-3 w-full font-sans text-cream/30 hover:text-cream/60 text-xs transition-colors">
+                    Unconnect
+                  </button>
+                )}
+              </>
             )}
             {data.connection_status === 'none' && (
               <button onClick={handleConnect} disabled={busy} className="quiz-cta w-full disabled:opacity-60">

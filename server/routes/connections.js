@@ -332,6 +332,26 @@ router.post('/request', attendeeAuth, async (req, res) => {
   }
 });
 
+// Either side can end a connection — deletes the shared doc outright so it
+// falls back to the normal 'none'/re-request flow rather than some
+// half-connected state. Existing DM messages are left as-is (tied to this
+// connectionId), they just become unreachable unless the two reconnect and
+// somehow get routed back to the same id, which they won't.
+router.post('/:userId/unconnect', attendeeAuth, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const uid = req.user.id;
+    const ref = db.collection('connections').doc(pairId(uid, userId));
+    const snap = await ref.get();
+    if (!snap.exists) return res.status(404).json({ error: 'Not connected' });
+    await ref.delete();
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 router.post('/requests/:requestId/accept', attendeeAuth, async (req, res) => {
   try {
     const { requestId } = req.params;
