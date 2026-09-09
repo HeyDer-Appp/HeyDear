@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
 import BottomNav from '../../components/BottomNav';
+import OnboardingTour from '../../components/OnboardingTour';
 import { flagUrl } from '../../utils/flags';
 import { useCachedFetch } from '../../utils/useCachedFetch';
 import { prefetchPortalData } from '../../utils/prefetch';
@@ -709,6 +710,7 @@ export default function PortalDashboard() {
         </div>
       )}
 
+      <OnboardingTour />
       <BottomNav />
     </div>
   );

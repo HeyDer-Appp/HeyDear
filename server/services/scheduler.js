@@ -15,8 +15,49 @@ function venueRevealAt(dinnerDate) {
 function rsvpPromptAt(dinnerDate) {
   return nzTime(dinnerDate, 18, 30);
 }
+// Thursday morning before the Tuesday dinner — the founder wanted a nudge
+// to people who booked but haven't been matched into a group yet, before
+// the Sunday-night glimpse reveal.
+function findGroupReminderAt(dinnerDate) {
+  const thursday = new Date(dinnerDate.getTime() - 5 * 24 * 60 * 60 * 1000);
+  return nzTime(thursday, 10, 0);
+}
 
 const CHECK_INTERVAL_MS = 5 * 60 * 1000;
+
+function dinnerDateKey(dinnerDate) {
+  return dinnerDate.toISOString().split('T')[0];
+}
+
+// Nudges everyone still unmatched for an upcoming dinner, once, on the
+// Thursday before it — mirrors admin/matching.js's own "unmatched" query
+// (tuesdayDate + matched:false, excluding paid:false abandoned checkouts).
+async function checkFindGroupReminders() {
+  const now = new Date();
+  const in3to6Days = new Date(now.getTime() + 6 * 24 * 60 * 60 * 1000);
+  const dinnersSnap = await db.collection('dinners')
+    .where('date', '>=', now)
+    .where('date', '<=', in3to6Days)
+    .get();
+
+  for (const dinnerDoc of dinnersSnap.docs) {
+    const dinnerDate = dinnerDoc.data().date.toDate();
+    if (now < findGroupReminderAt(dinnerDate)) continue;
+
+    const dateKey = dinnerDateKey(dinnerDate);
+    const bookingsSnap = await db.collection('bookings')
+      .where('tuesdayDate', '==', dateKey)
+      .where('matched', '==', false)
+      .get();
+
+    for (const bookingDoc of bookingsSnap.docs) {
+      const booking = bookingDoc.data();
+      if (booking.paid === false || booking.pushFindGroupReminderSent) continue;
+      await pushService.sendToUser(booking.userId, pushService.notifications.findGroupReminder()).catch(() => {});
+      await bookingDoc.ref.set({ pushFindGroupReminderSent: true }, { merge: true });
+    }
+  }
+}
 
 // Confirmed tables only get pushed once per reveal stage — pushGlimpseSent/
 // pushVenueSent on the table doc are the guard, checked and set in the same
@@ -59,9 +100,11 @@ async function checkReveals() {
 
 function start() {
   checkReveals().catch((err) => console.error('scheduler: initial checkReveals failed', err));
+  checkFindGroupReminders().catch((err) => console.error('scheduler: initial checkFindGroupReminders failed', err));
   setInterval(() => {
     checkReveals().catch((err) => console.error('scheduler: checkReveals failed', err));
+    checkFindGroupReminders().catch((err) => console.error('scheduler: checkFindGroupReminders failed', err));
   }, CHECK_INTERVAL_MS);
 }
 
-module.exports = { start, checkReveals };
+module.exports = { start, checkReveals, checkFindGroupReminders };

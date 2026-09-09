@@ -170,6 +170,29 @@ router.post('/subscription/renew', attendeeAuth, async (req, res) => {
   }
 });
 
+// Stripe's own hosted portal covers cancel, payment-method update, and
+// invoice history in one place — far safer than hand-building each of
+// those against the Stripe API. Only real (non-simulated/comp'd) Stripe
+// subscriptions have a stripeCustomerId to open a portal session for.
+router.post('/subscription/manage', attendeeAuth, async (req, res) => {
+  try {
+    const subSnap = await db.collection('subscriptions').where('userId', '==', req.user.id).get();
+    const latest = subSnap.docs.sort((a, b) => (b.data().updatedAt?.toMillis?.() || 0) - (a.data().updatedAt?.toMillis?.() || 0))[0];
+    const customerId = latest?.data().stripeCustomerId;
+    if (!customerId) return res.status(400).json({ error: 'No billing account on file for this subscription.' });
+
+    const baseUrl = (process.env.CLIENT_URL || 'http://localhost:5173').replace(/\/+$/, '');
+    const session = await stripe.billingPortal.sessions.create({
+      customer: customerId,
+      return_url: `${baseUrl}/portal/profile`,
+    });
+    res.json({ url: session.url });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Could not open the billing portal.' });
+  }
+});
+
 async function syncPendingBooking(uid, updates) {
   const pending = await db.collection('bookings')
     .where('userId', '==', uid)

@@ -27,7 +27,7 @@ const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
 // Badge + days-until-renewal + dinners-attended stat, with a Renew button
 // that only shows up once there are 3 days or fewer left — otherwise it'd
 // just be a button sitting there for weeks with nothing to actually do yet.
-function SubscriptionCard({ renewsAt, dinnersAttended, onRenew, renewing }) {
+function SubscriptionCard({ renewsAt, dinnersAttended, onRenew, renewing, onManageBilling, managingBilling }) {
   const msLeft = Math.max(0, new Date(renewsAt).getTime() - Date.now());
   const daysLeft = Math.max(0, Math.ceil(msLeft / (24 * 60 * 60 * 1000)));
   const showRenew = msLeft <= THREE_DAYS_MS;
@@ -55,11 +55,18 @@ function SubscriptionCard({ renewsAt, dinnersAttended, onRenew, renewing }) {
       {showRenew && (
         <>
           <p className="font-sans text-cream/40 text-xs mb-3">Your membership is about to expire — renew now so your next dinner stays free.</p>
-          <button onClick={onRenew} disabled={renewing} className="quiz-cta w-full disabled:opacity-60">
+          <button onClick={onRenew} disabled={renewing} className="quiz-cta w-full disabled:opacity-60 mb-2">
             {renewing ? 'Renewing...' : 'Renew for 1 more month'}
           </button>
         </>
       )}
+      <button
+        onClick={onManageBilling}
+        disabled={managingBilling}
+        className="w-full text-center py-2.5 rounded-xl border border-white/10 text-cream/60 hover:text-cream hover:border-white/25 font-sans text-sm transition-colors disabled:opacity-60"
+      >
+        {managingBilling ? 'Opening billing...' : 'Cancel or update payment method →'}
+      </button>
     </div>
   );
 }
@@ -134,6 +141,7 @@ export default function EditProfile() {
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [notifState, setNotifState] = useState(() => getPermissionState());
   const [notifBusy, setNotifBusy] = useState(false);
+  const [managingBilling, setManagingBilling] = useState(false);
   const photoInputRef = useRef(null);
   const seededRef = useRef(false);
 
@@ -195,6 +203,17 @@ export default function EditProfile() {
       toast.error(err.response?.data?.error || 'Could not renew right now.');
     } finally {
       setRenewing(false);
+    }
+  };
+
+  const handleManageBilling = async () => {
+    setManagingBilling(true);
+    try {
+      const res = await api.post('/portal/subscription/manage');
+      window.location.href = res.data.url;
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Could not open billing right now.');
+      setManagingBilling(false);
     }
   };
 
@@ -741,7 +760,7 @@ export default function EditProfile() {
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-5" onClick={() => setShowSubscriptionModal(false)}>
           <div className="w-full max-w-sm" onClick={e => e.stopPropagation()}>
             {subscription.active && subscription.renewsAt ? (
-              <SubscriptionCard renewsAt={subscription.renewsAt} dinnersAttended={dinnersAttended} onRenew={handleRenew} renewing={renewing} />
+              <SubscriptionCard renewsAt={subscription.renewsAt} dinnersAttended={dinnersAttended} onRenew={handleRenew} renewing={renewing} onManageBilling={handleManageBilling} managingBilling={managingBilling} />
             ) : (
               <NoSubscriptionCard dinnersAttended={dinnersAttended} />
             )}

@@ -97,6 +97,14 @@ async function sendToAll(payload) {
 
 // Pre-built notification payloads
 const notifications = {
+  findGroupReminder: () => ({
+    title: 'Just 3 more days 👀',
+    body: "We're still finding your group for Tuesday's dinner — hang tight, you'll hear from us soon.",
+    url: '/portal',
+    tag: 'find-group-reminder',
+    requireInteraction: false,
+  }),
+
   groupFound: (dinnerDate) => ({
     title: 'Your group is ready 🎉',
     body: `Your table is set for ${dinnerDate}. Check the app for details.`,
