@@ -20,7 +20,7 @@ function PersonRow({ person, onOpen, onConnect, onDismiss, onAccept, onDecline, 
       }`}
     >
       <div className="relative flex-shrink-0">
-        <img src={person.photo || AVATAR_FALLBACK} alt="" className="w-9 h-9 rounded-full object-cover border border-white/10" />
+        <img src={person.photo || AVATAR_FALLBACK} alt="" className="w-12 h-12 rounded-full object-cover border border-white/10" />
       </div>
       <p className={`font-sans text-cream text-sm font-medium flex items-center gap-1.5 truncate min-w-0 ${isNone ? 'flex-shrink' : 'flex-1'} ${person.has_unread ? 'font-semibold' : ''}`}>
         {person.first_name || 'Guest'}
@@ -135,7 +135,7 @@ export default function Chat() {
           <div className="space-y-2.5 animate-pulse">
             {[0, 1, 2, 3, 4].map(i => (
               <div key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-white/5 bg-white/[0.02]">
-                <div className="w-9 h-9 rounded-full bg-white/[0.06] flex-shrink-0" />
+                <div className="w-12 h-12 rounded-full bg-white/[0.06] flex-shrink-0" />
                 <div className="h-3.5 flex-1 rounded bg-white/[0.06]" style={{ maxWidth: `${60 - i * 6}%` }} />
               </div>
             ))}

@@ -44,23 +44,32 @@ async function subscribeToPushNative(userId) {
 
   return new Promise((resolve) => {
     let settled = false;
-    PushNotifications.addListener('registration', async (token) => {
+    const finish = (result) => {
       if (settled) return;
       settled = true;
+      clearTimeout(timer);
+      resolve(result);
+    };
+    // The OS registration event can silently never fire (missing Google
+    // Play Services, no network at that moment, flaky on some Android
+    // builds) — without this the "Enabling…" button spins forever, which
+    // is exactly what got reported.
+    const timer = setTimeout(() => finish({ error: 'timeout' }), 15000);
+
+    PushNotifications.addListener('registration', async (token) => {
+      if (settled) return;
       try {
         await api.post('/push/register-fcm', { userId, fcmToken: token.value });
         localStorage.setItem('heyder_fcm_registered', 'true');
-        resolve({ success: true });
+        finish({ success: true });
       } catch (err) {
         console.error('FCM token registration failed:', err);
-        resolve({ error: 'subscribe_failed' });
+        finish({ error: 'subscribe_failed' });
       }
     });
     PushNotifications.addListener('registrationError', (err) => {
-      if (settled) return;
-      settled = true;
       console.error('FCM registration failed:', err);
-      resolve({ error: 'subscribe_failed' });
+      finish({ error: 'subscribe_failed' });
     });
     PushNotifications.register();
   });

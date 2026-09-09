@@ -28,7 +28,23 @@ api.interceptors.request.use(async (config) => {
 
 api.interceptors.response.use(
   (res) => res,
-  (err) => {
+  async (err) => {
+    const config = err.config;
+    // A 401 can happen on a perfectly valid session — e.g. a request that
+    // raced Firebase's own background token refresh and picked up a token
+    // that expired a moment earlier. Retry once with a force-refreshed
+    // token before treating this as a real sign-out, so a brief timing
+    // hiccup doesn't boot someone out of the app for no reason.
+    if (err.response?.status === 401 && config && !config._retried && auth.currentUser) {
+      config._retried = true;
+      try {
+        const token = await auth.currentUser.getIdToken(true);
+        config.headers.Authorization = `Bearer ${token}`;
+        return api(config);
+      } catch {
+        // fall through to sign-out below
+      }
+    }
     if (err.response?.status === 401) {
       signOut(auth);
       if (window.location.pathname.startsWith('/admin')) {

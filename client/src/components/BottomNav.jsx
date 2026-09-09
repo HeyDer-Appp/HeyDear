@@ -8,7 +8,7 @@ import api from '../utils/api';
 // tints gold on the active tab.
 function PlateForkSpoonIcon() {
   return (
-    <svg width="27" height="22" viewBox="0 0 30 24" fill="currentColor">
+    <svg width="33" height="27" viewBox="0 0 30 24" fill="currentColor">
       <rect x="0.2" y="1.5" width="1" height="6.5" rx="0.5" />
       <rect x="1.7" y="1.5" width="1" height="6.5" rx="0.5" />
       <rect x="3.2" y="1.5" width="1" height="6.5" rx="0.5" />
@@ -62,12 +62,12 @@ export default function BottomNav() {
               }
             >
               <span className="relative">
-                <Icon size={22} strokeWidth={1.75} />
+                <Icon size={27} strokeWidth={1.75} />
                 {item.to === '/portal/chat' && pendingCount > 0 && (
                   <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-[#16181d]" />
                 )}
               </span>
-              <span className="font-sans text-[10px] tracking-wide">{item.label}</span>
+              <span className="font-sans text-[11px] tracking-wide">{item.label}</span>
             </NavLink>
           );
         })}

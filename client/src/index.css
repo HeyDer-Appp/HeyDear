@@ -10,6 +10,10 @@
   html {
     scroll-behavior: smooth;
     overflow-x: hidden;
+    /* Tailwind's default text-* classes are rem-based, so this scales all
+       of them together — bumped up from the 16px default since the app
+       read noticeably smaller than everyday chat apps like WhatsApp. */
+    font-size: 18px;
   }
 
   body {

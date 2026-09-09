@@ -10,6 +10,7 @@ import { useCachedFetch } from '../../utils/useCachedFetch';
 import { DIAL_CODES } from '../../utils/flags';
 import BottomNav from '../../components/BottomNav';
 import PhotoCropModal from '../../components/PhotoCropModal';
+import { isPushSupported, getPermissionState, subscribeToPush, unsubscribeFromPush } from '../../utils/push';
 
 const choiceIdle =
   'border-[#e7dcbd]/18 bg-[#e7dcbd]/[0.04] text-[#e7dcbd]/65 hover:border-[#e7dcbd]/40 hover:bg-[#e7dcbd]/[0.08] hover:text-[#e7dcbd]/95';
@@ -131,6 +132,8 @@ export default function EditProfile() {
   const [showPhotoModal, setShowPhotoModal] = useState(false);
   const [cropSrc, setCropSrc] = useState(null);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const [notifState, setNotifState] = useState(() => getPermissionState());
+  const [notifBusy, setNotifBusy] = useState(false);
   const photoInputRef = useRef(null);
   const seededRef = useRef(false);
 
@@ -198,6 +201,30 @@ export default function EditProfile() {
   const handleManageSubscription = () => {
     setShowAccountMenu(false);
     setShowSubscriptionModal(true);
+  };
+
+  const handleToggleNotifications = async () => {
+    setNotifBusy(true);
+    try {
+      if (notifState === 'granted') {
+        await unsubscribeFromPush(attendeeUser.uid);
+        setNotifState('default');
+        toast.success('Notifications turned off.');
+      } else {
+        const result = await subscribeToPush(attendeeUser.uid);
+        if (result.success) {
+          setNotifState('granted');
+          toast.success('Notifications turned on.');
+        } else if (result.error === 'denied') {
+          setNotifState('denied');
+          toast.error('Notifications are blocked — enable them in your device settings.');
+        } else {
+          toast.error('Could not turn on notifications. Please try again.');
+        }
+      }
+    } finally {
+      setNotifBusy(false);
+    }
   };
 
   const handleResetPassword = async () => {
@@ -388,22 +415,43 @@ export default function EditProfile() {
             {showAccountMenu && (
               <>
                 <div className="fixed inset-0 z-20" onClick={() => setShowAccountMenu(false)} />
-                <div className="absolute right-0 top-full mt-2 w-52 bg-navy border border-white/10 rounded-xl shadow-xl overflow-hidden z-30">
+                <div className="absolute right-0 top-full mt-2 w-56 bg-navy border border-white/10 rounded-xl shadow-xl overflow-hidden z-30">
                   <button
                     onClick={handleManageSubscription}
-                    className="w-full text-left px-4 py-3 font-sans text-sm text-cream/80 hover:bg-white/[0.06] transition-colors"
+                    className="w-full text-left px-4 py-3 font-sans text-base text-cream/80 hover:bg-white/[0.06] transition-colors"
                   >
                     Manage subscription
                   </button>
                   <button
                     onClick={handleResetPassword}
-                    className="w-full text-left px-4 py-3 font-sans text-sm text-cream/80 hover:bg-white/[0.06] transition-colors border-t border-white/[0.06]"
+                    className="w-full text-left px-4 py-3 font-sans text-base text-cream/80 hover:bg-white/[0.06] transition-colors border-t border-white/[0.06]"
                   >
                     Reset password
                   </button>
+                  {isPushSupported() && (
+                    <button
+                      onClick={handleToggleNotifications}
+                      disabled={notifBusy}
+                      className="w-full text-left px-4 py-3 font-sans text-base text-cream/80 hover:bg-white/[0.06] transition-colors border-t border-white/[0.06] flex items-center justify-between gap-2 disabled:opacity-60"
+                    >
+                      <span>Notifications</span>
+                      <span className={`font-sans text-xs ${notifState === 'granted' ? 'text-gold' : 'text-cream/30'}`}>
+                        {notifBusy ? '...' : notifState === 'granted' ? 'On' : 'Off'}
+                      </span>
+                    </button>
+                  )}
+                  <a
+                    href="https://www.instagram.com/heyder.nz"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => setShowAccountMenu(false)}
+                    className="block w-full text-left px-4 py-3 font-sans text-base text-cream/80 hover:bg-white/[0.06] transition-colors border-t border-white/[0.06]"
+                  >
+                    Follow Heyder
+                  </a>
                   <button
                     onClick={() => { setShowAccountMenu(false); setShowDeleteConfirm(true); }}
-                    className="w-full text-left px-4 py-3 font-sans text-sm text-red-400 hover:bg-red-500/10 transition-colors border-t border-white/[0.06]"
+                    className="w-full text-left px-4 py-3 font-sans text-base text-red-400 hover:bg-red-500/10 transition-colors border-t border-white/[0.06]"
                   >
                     Delete account
                   </button>
