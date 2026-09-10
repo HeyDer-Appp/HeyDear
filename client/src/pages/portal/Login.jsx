@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
@@ -59,86 +60,90 @@ export default function PortalLogin() {
   };
 
   return (
-    <div className="quiz-bg min-h-screen flex flex-col items-center justify-center px-6 relative overflow-hidden">
+    <motion.div
+      className="min-h-screen flex flex-col items-center justify-center px-6 relative overflow-hidden"
+      style={{ background: '#E7DFC5' }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 1.1, ease: 'easeInOut' }}
+    >
       <div className="relative z-10 w-full max-w-sm">
         <div className="text-center mb-10">
           <Link to="/">
-            <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-9 mx-auto mb-4" />
+            {/* The source asset is solid white with no dark variant — brightness-0
+                recolors it to black to work on this light background instead of
+                needing a separate logo file. */}
+            <img
+              src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png"
+              alt="HeyDer"
+              className="h-9 mx-auto brightness-0"
+            />
           </Link>
-          <p className="font-sans text-cream/40 text-sm">My Account</p>
         </div>
 
-        <div className="quiz-card">
-          <div className="flex gap-2 mb-6">
-            <button
-              type="button"
-              onClick={() => setMode('signin')}
-              className={`flex-1 py-2 rounded-xl text-sm font-sans transition-all ${mode === 'signin' ? 'bg-gold text-navy font-semibold' : 'text-cream/50 hover:text-cream/80'}`}
-            >
-              Sign in
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode('signup')}
-              className={`flex-1 py-2 rounded-xl text-sm font-sans transition-all ${mode === 'signup' ? 'bg-gold text-navy font-semibold' : 'text-cream/50 hover:text-cream/80'}`}
-            >
-              Create account
-            </button>
-          </div>
+        <div className="flex gap-2 mb-6">
+          <button
+            type="button"
+            onClick={() => setMode('signin')}
+            className={`flex-1 py-2 rounded-xl text-sm font-sans transition-all border ${mode === 'signin' ? 'border-navy text-navy font-semibold' : 'border-transparent text-navy/45 hover:text-navy/75'}`}
+          >
+            Sign in
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode('signup')}
+            className={`flex-1 py-2 rounded-xl text-sm font-sans transition-all border ${mode === 'signup' ? 'border-navy text-navy font-semibold' : 'border-transparent text-navy/45 hover:text-navy/75'}`}
+          >
+            Create account
+          </button>
+        </div>
 
-          <h1 className={`font-serif text-2xl text-cream mb-2 ${mode === 'signin' ? 'mb-6' : ''}`}>
-            {mode === 'signin' ? 'Welcome back' : 'Create your account'}
-          </h1>
+        <h1
+          className={`text-3xl text-navy mb-2 ${mode === 'signin' ? 'mb-6' : ''}`}
+          style={{ fontFamily: "'Permanent Marker', cursive" }}
+        >
+          {mode === 'signin' ? 'Welcome back' : 'Create your account'}
+        </h1>
+        <form onSubmit={handleSubmit} className="space-y-4">
           {mode === 'signup' && (
-            <p className="font-sans text-cream/50 text-sm mb-6">
-              We'll use this to build your HeyDer profile next.
-            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <input type="text" placeholder="First name" required className="portal-login-input" value={form.firstName} onChange={set('firstName')} />
+              <input type="text" placeholder="Last name" required className="portal-login-input" value={form.lastName} onChange={set('lastName')} />
+            </div>
           )}
+          <input
+            type="email"
+            placeholder="Your email address"
+            required
+            className="portal-login-input"
+            value={form.email}
+            onChange={set('email')}
+          />
+          <input
+            type="password"
+            placeholder="Password"
+            required
+            minLength={8}
+            className="portal-login-input"
+            value={form.password}
+            onChange={set('password')}
+          />
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full inline-flex items-center justify-center gap-2 bg-transparent border-2 border-navy text-navy font-sans font-semibold text-sm tracking-widest uppercase px-8 py-4 rounded-2xl transition-all duration-200 hover:bg-navy hover:text-cream active:scale-[0.98] disabled:opacity-60"
+          >
+            {loading ? 'Please wait...' : mode === 'signin' ? 'Sign In' : 'Build Profile'}
+          </button>
+        </form>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {mode === 'signup' && (
-              <div className="grid grid-cols-2 gap-3">
-                <input type="text" placeholder="First name" required className="quiz-input" value={form.firstName} onChange={set('firstName')} />
-                <input type="text" placeholder="Last name" required className="quiz-input" value={form.lastName} onChange={set('lastName')} />
-              </div>
-            )}
-            <input
-              type="email"
-              placeholder="Your email address"
-              required
-              className="quiz-input"
-              value={form.email}
-              onChange={set('email')}
-            />
-            <input
-              type="password"
-              placeholder="Password"
-              required
-              minLength={8}
-              className="quiz-input"
-              value={form.password}
-              onChange={set('password')}
-            />
-            <button type="submit" disabled={loading} className="quiz-cta w-full">
-              {loading ? 'Please wait...' : mode === 'signin' ? 'Sign In' : 'Build Profile'}
-            </button>
-          </form>
-        </div>
-
-        <p className="text-center mt-6 font-sans text-cream/40 text-sm">
-          {mode === 'signin' ? (
-            <button onClick={handleForgotPassword} className="text-gold hover:text-yellow transition-colors">Forgot password?</button>
-          ) : (
-            <>Already have an account?{' '}
-              <button onClick={() => setMode('signin')} className="text-gold hover:text-yellow transition-colors">Sign in →</button>
-            </>
-          )}
-        </p>
-        <p className="text-center mt-4">
-          <Link to="/" className="font-sans text-cream/30 text-xs hover:text-cream/60">← Back to HeyDer</Link>
-        </p>
+        {mode === 'signin' && (
+          <p className="text-center mt-6 font-sans text-navy/50 text-sm">
+            <button onClick={handleForgotPassword} className="text-navy underline hover:text-navy/60 transition-colors">Forgot password?</button>
+          </p>
+        )}
       </div>
-    </div>
+    </motion.div>
   );
 }
 

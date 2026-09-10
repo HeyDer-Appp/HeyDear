@@ -130,12 +130,16 @@
     cursor: pointer;
   }
 
-  /* Short linear interpolation so rapid ref-driven style updates (one per
-     native 'input' tick) read as one continuous motion instead of discrete
-     steps — this is what makes the drag feel native rather than jumpy. */
+  /* No transition here on purpose — this updates on every native 'input'
+     tick during an active drag (very high frequency), so any transition
+     duration makes the visual thumb trail behind the real finger/cursor
+     position instead of tracking it 1:1. A previous version added a 0.09s
+     ease here to try to look "smoother" and it did the opposite — it read
+     as lag. Direct, transition-free ref updates are what make this feel
+     native. */
   .quiz-slider-fill,
   .quiz-slider-thumb-visual {
-    transition: left 0.06s linear, width 0.06s linear;
+    transition: none;
     will-change: left, width;
   }
 
@@ -159,6 +163,31 @@
   .quiz-bg {
     background: #16181d;
     background-image: radial-gradient(circle at 100% 0%, rgba(232, 168, 84, 0.08), transparent 45%);
+  }
+
+  /* Light-themed input, scoped to the portal login/signup card and the
+     redesigned quiz screens — .quiz-input is styled for the dark quiz-bg
+     pages and shared across them, so this stays separate rather than
+     risking that. Matches the frosted-glass look of the Location dropdown
+     on the pre-profile screen (same blur/border/shadow recipe). */
+  .portal-login-input {
+    @apply w-full border rounded-2xl px-5 py-3.5 font-sans text-base focus:outline-none transition-all;
+    background: rgba(255, 255, 255, 0.35);
+    backdrop-filter: blur(10px) saturate(140%);
+    -webkit-backdrop-filter: blur(10px) saturate(140%);
+    border-color: rgba(22, 24, 29, 0.12);
+    box-shadow: 0 6px 18px rgba(22, 24, 29, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    color: #16181d;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .portal-login-input::placeholder {
+    color: rgba(22, 24, 29, 0.35);
+  }
+  .portal-login-input:focus {
+    border-color: rgba(22, 24, 29, 0.35);
+    background: rgba(255, 255, 255, 0.45);
+    outline: none;
   }
 
   .quiz-card {

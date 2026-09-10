@@ -238,7 +238,6 @@ export const QUESTIONS = [
     id: 'budget',
     type: 'choice',
     title: "What's your budget for the set menu?",
-    description: 'All restaurants are rated 4.3+ and cater to allergen requirements',
     field: 'field_Ar4xQbXT6CLh',
     chapter: 'practical',
     required: true,
@@ -307,6 +306,37 @@ export const choiceActive =
   'border-gold bg-gold text-navy shadow-[0_4px_16px_rgba(232,168,84,0.2)]';
 
 export const DATE_Q = QUESTIONS.find(q => q.id === 'date');
+
+function ordinal(n) {
+  const v = n % 100;
+  if (v >= 11 && v <= 13) return `${n}th`;
+  switch (n % 10) {
+    case 1: return `${n}st`;
+    case 2: return `${n}nd`;
+    case 3: return `${n}rd`;
+    default: return `${n}th`;
+  }
+}
+
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+// The next `count` upcoming Tuesdays from today, formatted to match the
+// admin-configured choices' own style (e.g. "30th June 2026") — used as the
+// displayed date options directly, rather than whatever was last fetched
+// from /profile/questions, which can go stale if the admin-set availability
+// isn't kept current.
+function getNextTuesdays(count) {
+  const results = [];
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  const daysUntilTuesday = (2 - d.getDay() + 7) % 7;
+  d.setDate(d.getDate() + daysUntilTuesday);
+  for (let i = 0; i < count; i++) {
+    results.push(`${ordinal(d.getDate())} ${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`);
+    d.setDate(d.getDate() + 7);
+  }
+  return results;
+}
 // Mirrors payments.js's SIGNUP_INSTANT_PAY_DISCOUNT_PERCENT — display-only
 // here, the server re-applies the real discount independently at checkout.
 export const SIGNUP_DISCOUNT_PERCENT = 10;
@@ -315,55 +345,27 @@ const CHAPTER_QUESTIONS = CHAPTERS.map(chap => ({
   questions: QUESTIONS.filter(q => q.chapter === chap.id),
 }));
 
-// Splits a chapter's questions into pages of 2-3 so no single page feels
-// crowded — as even a split as possible, never more than 3 per page.
-function chunkInto2or3(items) {
-  if (items.length <= 3) return [items];
-  const numGroups = Math.ceil(items.length / 3);
-  const base = Math.floor(items.length / numGroups);
-  let remainder = items.length % numGroups;
-  const groups = [];
-  let idx = 0;
-  for (let g = 0; g < numGroups; g++) {
-    const size = base + (remainder > 0 ? 1 : 0);
-    if (remainder > 0) remainder--;
-    groups.push(items.slice(idx, idx + size));
-    idx += size;
-  }
-  return groups;
-}
-
-// Explicit page sizes for chapters where the grouping matters (e.g. the
-// personal details + phone number pair belongs on its own page). Chapters
-// not listed here fall back to the automatic 2-3 split above.
-const MANUAL_CHAPTER_PAGE_SIZES = {
-  basics: [2, 3], // personal + contact | intent + relationship + lifestage
-};
-
-function chunkChapterQuestions(chapterId, items) {
-  const manualSizes = MANUAL_CHAPTER_PAGE_SIZES[chapterId];
-  if (!manualSizes) return chunkInto2or3(items);
-  const groups = [];
-  let idx = 0;
-  for (const size of manualSizes) {
-    groups.push(items.slice(idx, idx + size));
-    idx += size;
-  }
-  return groups;
-}
-
-// Every "box" is its own page in the profile flow — each chapter split into
-// short 2-3 question pages (untitled, no chapter name shown), then the date
-// pick and payment as the final two pages. The profile photo isn't a page
-// at all anymore — it's a persistent avatar button in the header (opens a
-// dialog) so it stays reachable throughout the whole flow.
+// Typeform-style pacing: one question per screen, moving forward linearly.
+// The profile photo isn't a page at all — it's a persistent avatar button in
+// the header (opens a dialog) so it stays reachable throughout the flow.
 const STEPS = [
-  ...CHAPTER_QUESTIONS.flatMap(({ chapter, questions }) =>
-    chunkChapterQuestions(chapter.id, questions).map(qs => ({ type: 'chapter', chapterId: chapter.id, questions: qs }))
-  ),
+  ...QUESTIONS.filter(q => q.id !== 'date' && q.id !== 'payment').map(q => ({ type: 'question', question: q })),
   { type: 'date' },
   { type: 'payment' },
 ];
+
+const LETTERS = 'ABCDEFGHIJ';
+
+// Local-only light-theme palette for the redesigned question screens —
+// deliberately NOT exported, unlike choiceIdle/choiceActive above, since
+// those two are shared with BookDinner.jsx and EditProfile.jsx which still
+// use the original dark quiz-bg theme. Changing those would reskin pages
+// nobody's reviewed yet.
+const lightChoiceIdle =
+  'border-transparent bg-navy/[0.04] text-navy/70 hover:bg-navy/[0.08] hover:text-navy';
+const lightChoiceActive =
+  'border-navy bg-transparent text-navy font-semibold';
+const QUIZ_CREAM_BG = '#E7DFC5';
 
 // Every field that has to be filled in before the profile counts as "done" —
 // drives both the completion % and the final submit validation.
@@ -400,17 +402,81 @@ export function isPhoneValid(phone) {
 // value); it only exists to own real pointer/touch/keyboard drag handling
 // and accessibility. The parent's onChange (which updates top-level answers
 // state and schedules an autosave) fires once on release, not per tick.
-export function ScaleSlider({ q, value, onChange }) {
+export function ScaleSlider({ q, value, onChange, theme = 'dark' }) {
   const inputRef = useRef(null);
   const fillRef = useRef(null);
   const thumbRef = useRef(null);
   const numberRef = useRef(null);
+  const trackRef = useRef(null);
+  const draggingRef = useRef(false);
+
+  // pct is continuous (0..1) — the thumb glides with the raw pointer
+  // position, pixel for pixel, instead of jumping between the 11 discrete
+  // step positions. Only the displayed number snaps to the nearest integer;
+  // the visual position never does. This is what actually reads as smooth —
+  // a CSS transition on a value that updates every drag frame just adds a
+  // fixed delay behind the real finger/cursor position, which is lag, not
+  // smoothness (tried that, made it worse).
+  const applyVisualPct = (pct) => {
+    const clamped = Math.min(1, Math.max(0, pct));
+    if (fillRef.current) fillRef.current.style.width = `${clamped * 100}%`;
+    if (thumbRef.current) thumbRef.current.style.left = `${clamped * 100}%`;
+  };
 
   const applyVisual = (v) => {
-    const pct = ((v - q.min) / (q.max - q.min)) * 100;
-    if (fillRef.current) fillRef.current.style.width = `${pct}%`;
-    if (thumbRef.current) thumbRef.current.style.left = `${pct}%`;
+    applyVisualPct((v - q.min) / (q.max - q.min));
     if (numberRef.current) numberRef.current.textContent = v;
+  };
+
+  // A short pulse each time the drag crosses into a new integer step — reads
+  // as a tick per notch rather than a continuous buzz. Silently does nothing
+  // on browsers/devices without the Vibration API (iOS Safari, desktop).
+  const lastVibrateValue = useRef(null);
+  const maybeVibrate = (v) => {
+    if (lastVibrateValue.current === v) return;
+    lastVibrateValue.current = v;
+    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(8);
+  };
+
+  // Bypasses the native <input type="range">'s own drag handling entirely —
+  // its onInput cadence isn't reliably high-frequency enough across
+  // browsers/devices to look fluid when driving a separate visual element.
+  // Reading the pointer position directly on every pointermove (which does
+  // fire at full frequency) removes that dependency completely. The native
+  // input stays underneath, pointer-events disabled, purely so Tab +
+  // arrow-key access still works for keyboard users.
+  const pctFromClientX = (clientX) => {
+    const rect = trackRef.current.getBoundingClientRect();
+    return (clientX - rect.left) / rect.width;
+  };
+
+  const handlePointerDown = (e) => {
+    draggingRef.current = true;
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    const pct = pctFromClientX(e.clientX);
+    applyVisualPct(pct);
+    const snapped = Math.round(q.min + pct * (q.max - q.min));
+    if (numberRef.current) numberRef.current.textContent = snapped;
+    maybeVibrate(snapped);
+  };
+
+  const handlePointerMove = (e) => {
+    if (!draggingRef.current) return;
+    const pct = pctFromClientX(e.clientX);
+    applyVisualPct(pct);
+    const snapped = Math.round(q.min + pct * (q.max - q.min));
+    if (numberRef.current) numberRef.current.textContent = snapped;
+    maybeVibrate(snapped);
+  };
+
+  const commit = (e) => {
+    if (!draggingRef.current) return;
+    draggingRef.current = false;
+    const pct = pctFromClientX(e.clientX);
+    const snapped = Math.round(q.min + pct * (q.max - q.min));
+    applyVisual(snapped);
+    if (inputRef.current) inputRef.current.value = snapped;
+    onChange(snapped);
   };
 
   useEffect(() => {
@@ -431,24 +497,42 @@ export function ScaleSlider({ q, value, onChange }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const light = theme === 'light';
   return (
     <div>
       <div className="flex justify-between mb-3">
-        <span className="font-sans text-cream/35 text-xs">{q.labels?.[0]}</span>
-        <span className="font-sans text-cream/35 text-xs">{q.labels?.[1]}</span>
+        <span className={`font-sans text-xs ${light ? 'text-navy/50' : 'text-cream/35'}`}>{q.labels?.[0]}</span>
+        <span className={`font-sans text-xs ${light ? 'text-navy/50' : 'text-cream/35'}`}>{q.labels?.[1]}</span>
       </div>
-      <div className="relative h-8">
-        <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-2 rounded-full bg-[#e7dcbd]/10" />
+      <div
+        ref={trackRef}
+        className="relative h-8 cursor-pointer"
+        style={{ touchAction: 'none' }}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={commit}
+        onPointerCancel={commit}
+      >
+        {light ? (
+          <div
+            className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-2 rounded-full backdrop-blur-sm"
+            style={{ background: 'rgba(255,255,255,0.35)', border: '1px solid rgba(22,24,29,0.15)' }}
+          />
+        ) : (
+          <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-2 rounded-full bg-[#e7dcbd]/10" />
+        )}
         <div
           ref={fillRef}
-          className="quiz-slider-fill absolute left-0 top-1/2 -translate-y-1/2 h-2 rounded-full bg-gold pointer-events-none"
+          className={`quiz-slider-fill absolute left-0 top-1/2 -translate-y-1/2 h-2 rounded-full pointer-events-none ${light ? 'bg-navy' : 'bg-gold'}`}
         />
         <div
           ref={thumbRef}
-          className="quiz-slider-thumb-visual absolute top-1/2 w-8 h-8 -translate-y-1/2 -translate-x-1/2 rounded-full bg-gold flex items-center justify-center pointer-events-none"
+          className={`quiz-slider-thumb-visual absolute top-1/2 w-8 h-8 -translate-y-1/2 -translate-x-1/2 rounded-full flex items-center justify-center pointer-events-none ${light ? 'bg-navy' : 'bg-gold'}`}
         >
-          <span ref={numberRef} className="font-sans text-xs font-bold text-black leading-none select-none" />
+          <span ref={numberRef} className={`font-sans text-xs font-bold leading-none select-none ${light ? 'text-cream' : 'text-black'}`} />
         </div>
+        {/* Kept for keyboard access only (Tab + arrow keys) — pointer
+            interaction is fully handled above instead of relying on this. */}
         <input
           ref={inputRef}
           type="range"
@@ -456,11 +540,10 @@ export function ScaleSlider({ q, value, onChange }) {
           max={q.max}
           step={1}
           defaultValue={value ?? q.min}
-          onInput={e => applyVisual(Number(e.target.value))}
-          onPointerUp={e => onChange(Number(e.target.value))}
-          onTouchEnd={e => onChange(Number(e.target.value))}
+          onInput={e => { const v = Number(e.target.value); applyVisual(v); maybeVibrate(v); }}
           onKeyUp={e => onChange(Number(e.target.value))}
-          className="quiz-slider absolute inset-0 w-full h-full"
+          className="quiz-slider absolute inset-0 w-full h-full pointer-events-none"
+          style={{ pointerEvents: 'none' }}
           aria-label={q.title}
         />
       </div>
@@ -468,103 +551,138 @@ export function ScaleSlider({ q, value, onChange }) {
   );
 }
 
-// One question's answer widget — reused across every chapter section.
-// Title fades up on mount; its options then fade in from the left, one by
-// one, every time this question is freshly mounted (i.e. a new page opens).
-function QuestionField({ q, value, onChange, error, otherValue, onOtherChange }) {
+// Typeform's shell for a single screen: a numbered badge beside the
+// question, both centered as one unit within the viewport, with the answer
+// widget indented to sit under the title rather than under the badge.
+export function QuestionShell({ number, title, required, description, error, children, titleFont = 'serif' }) {
   return (
     <motion.div
-      id={`q-${q.id}`}
-      className={`py-4 ${error ? 'rounded-xl -mx-3 px-3 bg-red-500/5' : ''}`}
+      className={`w-full ${error ? 'rounded-2xl -mx-4 px-4 py-4 bg-red-500/5' : ''}`}
       initial="hidden"
       animate="visible"
     >
-      <motion.p variants={fadeUpVariant} className="font-sans text-cream text-base mb-3 leading-snug">
-        {q.title}
-        {/* Non-breaking space so the asterisk can't wrap onto its own line,
-            orphaned below the title on narrow screens. */}
-        {q.required && <span className="text-gold/60">{' *'}</span>}
-      </motion.p>
-
-      {q.type === 'yes_no' && (
-        <motion.div variants={staggerContainerVariant} className="flex gap-2.5">
-          {[{ label: 'Yes', v: true }, { label: 'No', v: false }].map(opt => (
-            <motion.button
-              key={opt.label}
-              variants={fadeLeftVariant}
-              type="button"
-              onClick={() => onChange(opt.v)}
-              className={`flex-1 py-2.5 rounded-xl border font-sans text-base transition-colors ${value === opt.v ? choiceActive : choiceIdle}`}
-            >
-              {opt.label}
-            </motion.button>
-          ))}
+      <div className="flex items-start gap-4 mb-3">
+        <motion.span
+          variants={fadeUpVariant}
+          className="flex-shrink-0 w-9 h-9 rounded-lg bg-navy text-cream font-sans font-bold text-sm flex items-center justify-center mt-0.5"
+        >
+          {number}
+        </motion.span>
+        <motion.div variants={fadeUpVariant}>
+          <p
+            className={titleFont === 'marker' ? 'text-3xl md:text-4xl text-navy leading-snug' : 'font-serif font-bold text-2xl md:text-3xl text-navy leading-snug'}
+            style={titleFont === 'marker' ? { fontFamily: "'Permanent Marker', cursive" } : undefined}
+          >
+            {title}
+            {/* Non-breaking space so the asterisk can't wrap onto its own
+                line, orphaned below the title on narrow screens. */}
+            {required && <span className="text-navy/50 align-super text-base">{' *'}</span>}
+          </p>
+          {description && <p className="font-sans text-navy/45 text-sm mt-2">{description}</p>}
         </motion.div>
+      </div>
+      <div className="pl-[52px]">{children}</div>
+    </motion.div>
+  );
+}
+
+// Typeform's lettered circular badge (A, B, C...) before each pill-shaped
+// choice -- content-width, never stretched, stacked vertically.
+function ChoicePills({ choices, selected, onSelect, multi }) {
+  return (
+    <motion.div variants={staggerContainerVariant} className="flex flex-col items-start gap-2.5">
+      {choices.map((choice, i) => {
+        const isSelected = multi ? (selected || []).includes(choice) : selected === choice;
+        return (
+          <motion.button
+            key={choice}
+            variants={fadeLeftVariant}
+            type="button"
+            onClick={() => onSelect(choice)}
+            className={`flex items-center gap-3 ${choiceBase} ${isSelected ? lightChoiceActive : lightChoiceIdle}`}
+          >
+            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-navy text-cream flex items-center justify-center text-[11px] font-sans font-semibold">
+              {LETTERS[i]}
+            </span>
+            {choice}
+          </motion.button>
+        );
+      })}
+    </motion.div>
+  );
+}
+
+// A small, visually distinct pill -- deliberately unlike the answer-choice
+// buttons above -- so "confirm and move on" never reads as just another
+// option in the list.
+export function OkButton({ onClick, disabled, children = 'OK' }) {
+  return (
+    <motion.button
+      variants={fadeUpVariant}
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="inline-flex items-center gap-2 bg-transparent border-2 border-navy text-navy font-sans font-semibold text-sm px-6 py-2.5 rounded-full mt-5 transition-colors hover:bg-navy hover:text-cream disabled:opacity-50"
+    >
+      {children} <span aria-hidden="true">↵</span>
+    </motion.button>
+  );
+}
+
+// One question's answer widget -- reused across every question screen.
+function QuestionField({ q, value, onChange, otherValue, onOtherChange }) {
+  return (
+    <>
+      {q.type === 'yes_no' && (
+        <ChoicePills
+          choices={['Yes', 'No']}
+          selected={value === true ? 'Yes' : value === false ? 'No' : undefined}
+          onSelect={choice => onChange(choice === 'Yes')}
+        />
       )}
 
       {q.type === 'choice' && (
-        <motion.div variants={staggerContainerVariant} className="flex flex-wrap gap-2">
-          {q.choices.map(choice => (
-            <motion.button
-              key={choice}
-              variants={fadeLeftVariant}
-              type="button"
-              onClick={() => onChange(choice)}
-              className={`${choiceBase} ${value === choice ? choiceActive : choiceIdle}`}
-            >
-              {choice}
-            </motion.button>
-          ))}
-        </motion.div>
+        <ChoicePills choices={q.choices} selected={value} onSelect={onChange} />
       )}
 
       {q.type === 'multi_choice' && (
         <>
-          <motion.div variants={staggerContainerVariant} className="flex flex-wrap gap-2">
-            {q.choices.map(choice => {
+          <ChoicePills
+            choices={q.choices}
+            selected={value}
+            multi
+            onSelect={choice => {
               const cur = value || [];
+              if (choice === 'Not Applicable') { onChange(['Not Applicable']); return; }
+              const filtered = cur.filter(c => c !== 'Not Applicable');
               const selected = cur.includes(choice);
-              return (
-                <motion.button
-                  key={choice}
-                  variants={fadeLeftVariant}
-                  type="button"
-                  onClick={() => {
-                    if (choice === 'Not Applicable') { onChange(['Not Applicable']); return; }
-                    const filtered = cur.filter(c => c !== 'Not Applicable');
-                    onChange(selected ? filtered.filter(c => c !== choice) : [...filtered, choice]);
-                  }}
-                  className={`${choiceBase} ${selected ? choiceActive : choiceIdle}`}
-                >
-                  {choice}
-                </motion.button>
-              );
-            })}
-          </motion.div>
+              onChange(selected ? filtered.filter(c => c !== choice) : [...filtered, choice]);
+            }}
+          />
           {q.allowOther && (value || []).includes('Other') && (
             <input
               type="text"
               value={otherValue || ''}
               onChange={e => onOtherChange(e.target.value)}
               placeholder="Tell us what we should know..."
-              className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-3 mt-3 text-cream placeholder-cream/25 font-sans text-sm focus:outline-none focus:border-gold/50"
+              className="w-full bg-navy/[0.03] border border-navy/15 rounded-xl px-4 py-3 mt-3 text-navy placeholder-navy/35 font-sans text-sm focus:outline-none focus:border-navy/40"
             />
           )}
         </>
       )}
 
-      {q.type === 'scale' && <ScaleSlider q={q} value={value} onChange={onChange} />}
+      {q.type === 'scale' && <ScaleSlider q={q} value={value} onChange={onChange} theme="light" />}
 
       {q.type === 'text' && (
         <textarea
           value={value || ''}
           onChange={e => onChange(e.target.value)}
           placeholder={q.placeholder}
-          rows={2}
-          className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-3 text-cream placeholder-cream/25 font-sans text-sm focus:outline-none focus:border-gold/50 resize-none"
+          rows={3}
+          className="w-full bg-navy/[0.03] border border-navy/15 rounded-xl px-4 py-3 text-navy placeholder-navy/35 font-sans text-sm focus:outline-none focus:border-navy/40 resize-none"
         />
       )}
-    </motion.div>
+    </>
   );
 }
 
@@ -589,9 +707,10 @@ export default function Quiz() {
   const [couponError, setCouponError] = useState('');
   const [validatingCoupon, setValidatingCoupon] = useState(false);
   const [showSkipDiscountModal, setShowSkipDiscountModal] = useState(false);
+  const [dateOptionsOpen, setDateOptionsOpen] = useState(false);
   const [photoUploading, setPhotoUploading] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(true);
-  const [dateChoices, setDateChoices] = useState(DATE_Q.choices);
+  const [dateChoices, setDateChoices] = useState(() => getNextTuesdays(3));
   const [savedAt, setSavedAt] = useState(null);
   const [stepIndex, setStepIndex] = useState(0);
   const [showPhotoBubble, setShowPhotoBubble] = useState(true);
@@ -691,13 +810,6 @@ export default function Quiz() {
         // straight back (harmless, but a wasted round-trip on every visit).
         hasLoadedRef.current = true;
       });
-
-    api.get('/profile/questions')
-      .then(res => {
-        const dateQuestion = res.data.questions?.find(q => q.id === 'CdZldwp5q09o');
-        if (dateQuestion?.choices?.length) setDateChoices(dateQuestion.choices);
-      })
-      .catch(() => {});
   }, []);
 
   const answersRef = useRef(answers);
@@ -749,35 +861,28 @@ export default function Quiz() {
 
     let underage = false;
 
-    if (s.type === 'chapter') {
-      for (const q of s.questions) {
-        if (q.type === 'contact') {
-          // Required by default, but explicitly skippable via the "Skip
-          // this" link — phoneSkipped bypasses the required check, while a
-          // half-typed number (whether required or skipped) still isn't
-          // allowed to silently save.
-          if (!isPhoneValid(answers.phone)) {
-            newErrors.phone = true;
-            missingIds.push('contact');
-          } else if (q.required && !answers.phoneSkipped && !isAnswered(answers.phone)) {
-            newErrors.phone = true;
-            missingIds.push('contact');
-          }
-          continue;
+    if (s.type === 'question') {
+      const q = s.question;
+      if (q.type === 'contact') {
+        // No longer skippable — a phone number is mandatory to proceed.
+        if (!isPhoneValid(answers.phone)) {
+          newErrors.phone = true;
+          missingIds.push('contact');
+        } else if (q.required && !isAnswered(answers.phone)) {
+          newErrors.phone = true;
+          missingIds.push('contact');
         }
-        if (!q.required) continue;
-        if (q.type === 'personal') {
-          if (!isDobValid(answers.dob)) {
-            newErrors.dob = true;
-            missingIds.push('personal');
-            if (answers.dob) underage = true;
-          }
-          if (!answers.gender) { newErrors.gender = true; missingIds.push('personal'); }
-          if (!answers.country) { newErrors.country = true; missingIds.push('personal'); }
-        } else if (q.field && !isAnswered(answers[q.field])) {
-          newErrors[q.field] = true;
-          missingIds.push(q.id);
+      } else if (q.type === 'personal') {
+        if (!isDobValid(answers.dob)) {
+          newErrors.dob = true;
+          missingIds.push('personal');
+          if (answers.dob) underage = true;
         }
+        if (!answers.gender) { newErrors.gender = true; missingIds.push('personal'); }
+        if (!answers.country) { newErrors.country = true; missingIds.push('personal'); }
+      } else if (q.required && q.field && !isAnswered(answers[q.field])) {
+        newErrors[q.field] = true;
+        missingIds.push(q.id);
       }
     } else if (s.type === 'date') {
       if (!isAnswered(answers.field_CdZldwp5q09o)) {
@@ -809,7 +914,7 @@ export default function Quiz() {
   // only the current page's fields are ever in the DOM.
   const stepIndexForQuestionId = (qid) => {
     if (qid === 'date') return STEPS.findIndex(s => s.type === 'date');
-    return STEPS.findIndex(s => s.type === 'chapter' && s.questions.some(q => q.id === qid));
+    return STEPS.findIndex(s => s.type === 'question' && s.question.id === qid);
   };
 
   const handlePhotoSelect = async (file) => {
@@ -891,7 +996,7 @@ export default function Quiz() {
     if (!isPhoneValid(answers.phone)) {
       newErrors.phone = true;
       missingIds.push('contact');
-    } else if (!answers.phoneSkipped && !isAnswered(answers.phone)) {
+    } else if (!isAnswered(answers.phone)) {
       newErrors.phone = true;
       missingIds.push('contact');
     }
@@ -899,7 +1004,13 @@ export default function Quiz() {
     setErrors(newErrors);
     if (missingIds.length) {
       toast.error(underage ? 'You must be 18 or older to join HeyDer.' : 'Please fill in the highlighted fields.');
-      scrollToFirstError(missingIds);
+      // missingIds is built in field-check order (generic fields, then
+      // personal, then contact), not the order those questions actually
+      // appear in the flow — sorting by real step index before jumping
+      // makes sure "Skip for now" always lands on the *first* incomplete
+      // screen rather than whichever category happened to be checked first.
+      const sortedMissingIds = [...missingIds].sort((a, b) => stepIndexForQuestionId(a) - stepIndexForQuestionId(b));
+      scrollToFirstError(sortedMissingIds);
       return false;
     }
     return true;
@@ -1028,44 +1139,55 @@ export default function Quiz() {
   };
 
   if (loadingProfile) {
+    // No fade here on purpose — this screen and the arriving-from screen
+    // (Home's post-video navy) are the same exact color, so an instant,
+    // un-animated swap into this state is invisible. Fading it in AND then
+    // fading the real content in separately right after is what caused the
+    // double-fade stutter this replaced.
     return (
-      <div className="quiz-bg min-h-screen flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen flex items-center justify-center" style={{ background: QUIZ_CREAM_BG }}>
+        <div className="w-8 h-8 border-2 border-navy border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   if (disqualified) {
     return (
-      <div className="quiz-bg min-h-screen flex flex-col items-center justify-center px-6 text-center relative overflow-hidden">
+      <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center relative overflow-hidden" style={{ background: QUIZ_CREAM_BG }}>
         <div className="relative z-10">
-          <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-10 mb-10 mx-auto" />
-          <p className="text-gold/60 text-xs tracking-[0.2em] uppercase font-sans mb-4">Not available yet</p>
-          <h1 className="font-serif text-4xl text-cream mb-4">Not in Auckland yet?</h1>
-          <p className="font-sans text-cream/50 max-w-md mb-8 leading-relaxed">
+          <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-10 mb-10 mx-auto brightness-0" />
+          <p className="text-navy/50 text-xs tracking-[0.2em] uppercase font-sans mb-4">Not available yet</p>
+          <h1 className="font-serif text-4xl text-navy mb-4">Not in Auckland yet?</h1>
+          <p className="font-sans text-navy/60 max-w-md mb-8 leading-relaxed">
             We are currently curating dinners only in Auckland. Drop your email and we'll let you know when we expand to your city.
           </p>
-          <a href="/" className="btn-primary">Back to HeyDer</a>
+          <a href="/" className="inline-block border-2 border-navy text-navy font-sans font-semibold text-sm tracking-widest uppercase px-8 py-4 rounded-2xl transition-all duration-200 hover:bg-navy hover:text-cream">Back to HeyDer</a>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="quiz-bg min-h-screen relative overflow-hidden">
+    <motion.div
+      className="min-h-screen relative overflow-hidden"
+      style={{ background: QUIZ_CREAM_BG }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 1.1, ease: 'easeInOut' }}
+    >
       {/* Header */}
-      <div className="relative z-20 flex items-center justify-between px-6 py-5 border-b border-white/[0.06]">
-        <a href="/"><img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-8" /></a>
+      <div className="relative z-20 flex items-center justify-between px-6 py-5 border-b border-navy/10">
+        <a href="/"><img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-8 brightness-0" /></a>
         <div className="flex items-center gap-3">
           {savedAt && (
-            <span key={savedAt} className="font-sans text-cream/25 text-[11px] tracking-wide animate-[fadeOut_2.5s_ease-in-out_forwards]">
+            <span key={savedAt} className="font-sans text-navy/40 text-[11px] tracking-wide animate-[fadeOut_2.5s_ease-in-out_forwards]">
               ✓ Saved
             </span>
           )}
-          <span className="font-sans text-cream/40 text-xs tracking-widest uppercase">{completionPct}% complete</span>
+          <span className="font-sans text-navy/50 text-xs tracking-widest uppercase">{completionPct}% complete</span>
           <div className="relative flex-shrink-0">
             <label
-              className="relative w-9 h-9 rounded-full border-2 border-dashed border-gold/30 bg-gold/5 flex items-center justify-center overflow-hidden hover:border-gold/60 transition-colors cursor-pointer"
+              className="relative w-9 h-9 rounded-full border-2 border-dashed border-navy/30 bg-navy/5 flex items-center justify-center overflow-hidden hover:border-navy/60 transition-colors cursor-pointer"
               aria-label="Add profile photo"
             >
               <input
@@ -1075,7 +1197,7 @@ export default function Quiz() {
                 onChange={e => handlePhotoSelect(e.target.files?.[0])}
               />
               {photoUploading ? (
-                <div className="w-4 h-4 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+                <div className="w-4 h-4 border-2 border-navy border-t-transparent rounded-full animate-spin" />
               ) : answers.photo ? (
                 <img src={answers.photo} alt="Your profile" className="w-full h-full object-cover" />
               ) : (
@@ -1095,15 +1217,15 @@ export default function Quiz() {
                   transition={{ type: 'spring', stiffness: 450, damping: 18 }}
                   className="absolute top-full right-0 mt-3 z-50 origin-top-right"
                 >
-                  <div className="relative bg-[#1f2228] border-2 border-gold/50 rounded-xl pl-4 pr-9 py-2.5 shadow-[0_10px_30px_rgba(0,0,0,0.5)] whitespace-nowrap">
-                    <div className="absolute -top-[7px] right-5 w-3 h-3 bg-[#1f2228] border-t-2 border-l-2 border-gold/50 rotate-45" />
-                    <span className="font-sans text-cream text-sm">
+                  <div className="relative bg-white border-2 border-navy/30 rounded-xl pl-4 pr-9 py-2.5 shadow-[0_10px_30px_rgba(0,0,0,0.15)] whitespace-nowrap">
+                    <div className="absolute -top-[7px] right-5 w-3 h-3 bg-white border-t-2 border-l-2 border-navy/30 rotate-45" />
+                    <span className="font-sans text-navy text-sm">
                       {answers.photo ? 'Change profile pic' : 'Upload a profile pic'}
                     </span>
                     <button
                       type="button"
                       onClick={() => setShowPhotoBubble(false)}
-                      className="absolute top-1 right-1 text-cream/50 hover:text-cream text-xl leading-none w-6 h-6 flex items-center justify-center"
+                      className="absolute top-1 right-1 text-navy/50 hover:text-navy text-xl leading-none w-6 h-6 flex items-center justify-center"
                       aria-label="Close"
                     >
                       ×
@@ -1115,242 +1237,230 @@ export default function Quiz() {
           </div>
         </div>
       </div>
-      <div className="relative z-10 h-[2px] bg-white/[0.05]">
+      <div className="relative z-10 h-[2px] bg-navy/10">
         <div
-          className="h-full transition-all duration-500 ease-out"
-          style={{ width: `${completionPct}%`, background: 'linear-gradient(90deg, #E8A854 0%, #f0c040 100%)' }}
+          className="h-full bg-navy transition-all duration-500 ease-out"
+          style={{ width: `${completionPct}%` }}
         />
       </div>
 
       <AnimatePresence mode="wait">
       <motion.div
         key={stepIndex}
-        initial={{ opacity: 0, x: 16 }}
+        // The very first screen (arriving fresh from Home's fade-out) gets a
+        // slow, plain opacity blend that matches the page-level fade above
+        // it — no horizontal slide, so it reads as one continuous reveal
+        // rather than a quick slide-in landing on top of a slower fade.
+        // Every step after that keeps the snappier slide used for moving
+        // through the questions.
+        initial={stepIndex === 0 ? { opacity: 0 } : { opacity: 0, x: 16 }}
         animate={{ opacity: 1, x: 0 }}
         exit={{ opacity: 0, x: -16 }}
-        transition={{ duration: 0.22, ease: 'easeOut' }}
+        transition={stepIndex === 0 ? { duration: 1, ease: 'easeInOut' } : { duration: 0.22, ease: 'easeOut' }}
         className="relative z-10 max-w-xl mx-auto px-6 py-10 space-y-8"
       >
-        {/* Chapter marker — chapter 1 gets its own line, others get a generic "Chapter N" */}
-        {step.type === 'chapter' && (
-          <div className="text-center">
-            <motion.h1
-              key={stepIndex}
-              initial="hidden"
-              animate="visible"
-              variants={fadeUpVariant}
-              className="font-serif text-3xl md:text-4xl text-cream"
-            >
-              {step.chapterId === 'basics'
-                ? 'Chapter 1 — Let\'s get started'
-                : `Chapter ${CHAPTERS.findIndex(c => c.id === step.chapterId) + 1}`}
-            </motion.h1>
-          </div>
-        )}
+        {step.type === 'question' && (
+          <div className="min-h-[55vh] flex items-center">
+            {(() => {
+              const q = step.question;
+              const qNumber = stepIndex + 1;
+              const chapterTitle = q.chapter ? CHAPTERS.find(c => c.id === q.chapter)?.title : null;
+              const ChapterLabel = () => chapterTitle ? (
+                <p
+                  className="text-navy/70 text-lg mb-4"
+                  style={{ fontFamily: "'Permanent Marker', cursive" }}
+                >
+                  {chapterTitle}
+                </p>
+              ) : null;
 
-        {profileChips.length > 0 && (
-          <div className="flex flex-wrap gap-2 justify-center">
-            {profileChips.map((c, i) => (
-              <span key={i} className="text-xs px-3 py-1 rounded-full border border-gold/20 bg-gold/5 text-cream/60 flex items-center gap-1.5">
-                <span>{c.icon}</span>{c.label}
-              </span>
-            ))}
-          </div>
-        )}
+              if (q.type === 'contact') {
+                return (
+                  <div id="q-contact" className="w-full">
+                    <QuestionShell number={qNumber} title={q.title} required={q.required} error={errors.phone} titleFont="marker">
+                      <div className="flex gap-2 max-w-sm">
+                        <select
+                          value={answers.phoneCountryCode || '+64'}
+                          onChange={e => setValue('phoneCountryCode', e.target.value)}
+                          className="portal-login-input w-24 flex-shrink-0 px-2"
+                        >
+                          {DIAL_CODES.map(([name, code]) => (
+                            <option key={name} value={code}>{code}</option>
+                          ))}
+                        </select>
+                        <input
+                          type="tel"
+                          inputMode="numeric"
+                          placeholder="Phone number"
+                          value={answers.phone || ''}
+                          onChange={e => setValue('phone', e.target.value.replace(/\D/g, '').slice(0, 10))}
+                          maxLength={10}
+                          className={`portal-login-input flex-1 ${errors.phone ? 'border-red-400/60' : ''}`}
+                        />
+                      </div>
+                      {errors.phone && (
+                        <p className="font-sans text-red-400/80 text-xs mt-1.5">
+                          {answers.phone ? 'Enter a valid phone number.' : 'A phone number is required.'}
+                        </p>
+                      )}
+                      <OkButton onClick={goNext} />
+                    </QuestionShell>
+                  </div>
+                );
+              }
 
-        {/* One page per step — each chapter's questions (untitled), then date, then payment */}
-        {step.type === 'chapter' && (() => {
-          const questions = step.questions;
-          return (
-            <div className="quiz-card">
-              <div className="divide-y divide-white/[0.05]">
-                {questions.map(q => {
-                  if (q.type === 'contact') {
-                    return (
-                      <div key="contact" id="q-contact" className="py-4">
-                        <div className="flex items-center justify-between mb-3">
-                          <motion.p initial="hidden" animate="visible" variants={fadeUpVariant} className="font-sans text-cream text-base">
-                            {q.title}
-                            {q.required && !answers.phoneSkipped && <span className="text-gold/60">{' *'}</span>}
-                          </motion.p>
-                          {answers.phoneSkipped ? (
-                            <button
-                              type="button"
-                              onClick={() => setValue('phoneSkipped', false)}
-                              className="font-sans text-gold/60 hover:text-gold text-xs transition-colors flex-shrink-0"
-                            >
-                              Add number instead
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => { setValue('phoneSkipped', true); setValue('phone', ''); }}
-                              className="font-sans text-cream/30 hover:text-cream/60 text-xs transition-colors flex-shrink-0"
-                            >
-                              Skip this
-                            </button>
+              if (q.type === 'personal') {
+                return (
+                  // Each sub-field gets its own red border + asterisk instead
+                  // of tinting the whole card red on any single error — an
+                  // invalid DOB was visually flagging gender/country too even
+                  // though they were filled in correctly.
+                  <div id="q-personal" className="w-full">
+                    <QuestionShell number={qNumber} title={q.title} required error={errors.dob || errors.gender || errors.country} titleFont="marker">
+                      <div className="space-y-3 max-w-sm">
+                        <div>
+                          <label className="font-sans text-navy/50 text-xs tracking-[0.1em] uppercase mb-1.5 block">Date of birth <span className="text-navy/40">*</span></label>
+                          <input
+                            type="date"
+                            value={answers.dob || ''}
+                            onChange={e => setValue('dob', e.target.value)}
+                            min={MIN_DOB}
+                            max={MAX_DOB}
+                            className={`portal-login-input ${errors.dob ? 'border-red-400/60' : ''}`}
+                          />
+                          {errors.dob && answers.dob && (
+                            <p className="font-sans text-red-400/80 text-xs mt-1.5">You must be 18 or older to join HeyDer.</p>
                           )}
                         </div>
-                        {answers.phoneSkipped ? (
-                          <p className="font-sans text-cream/25 text-xs italic">No contact number — you can add one later from your profile.</p>
-                        ) : (
-                          <>
-                            <div className="flex gap-2">
-                              <select
-                                value={answers.phoneCountryCode || '+64'}
-                                onChange={e => setValue('phoneCountryCode', e.target.value)}
-                                className="quiz-input w-24 flex-shrink-0 px-2"
-                              >
-                                {DIAL_CODES.map(([name, code]) => (
-                                  <option key={name} value={code} className="bg-navy text-cream">{code}</option>
-                                ))}
-                              </select>
-                              <input
-                                type="tel"
-                                inputMode="numeric"
-                                placeholder="Phone number"
-                                value={answers.phone || ''}
-                                onChange={e => setValue('phone', e.target.value.replace(/\D/g, '').slice(0, 10))}
-                                maxLength={10}
-                                className={`quiz-input flex-1 ${errors.phone ? 'border-red-400/60' : ''}`}
-                              />
-                            </div>
-                            {errors.phone && (
-                              <p className="font-sans text-red-400/80 text-xs mt-1.5">
-                                {answers.phone ? 'Enter a valid phone number.' : 'Add a number, or tap "Skip this".'}
-                              </p>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    );
-                  }
-                  if (q.type === 'personal') {
-                    return (
-                      // Each sub-field gets its own red border + asterisk instead
-                      // of tinting the whole card red on any single error — an
-                      // invalid DOB was visually flagging gender/country too even
-                      // though they were filled in correctly.
-                      <div key="personal" id="q-personal" className="py-4">
-                        <motion.p initial="hidden" animate="visible" variants={fadeUpVariant} className="font-sans text-cream text-base mb-3">{q.title}</motion.p>
-                        <div className="space-y-3">
-                          <div>
-                            <label className="font-sans text-cream/40 text-xs tracking-[0.1em] uppercase mb-1.5 block">Date of birth <span className="text-gold/60">*</span></label>
-                            <input
-                              type="date"
-                              value={answers.dob || ''}
-                              onChange={e => setValue('dob', e.target.value)}
-                              min={MIN_DOB}
-                              max={MAX_DOB}
-                              className={`quiz-input ${errors.dob ? 'border-red-400/60' : ''}`}
-                            />
-                            {errors.dob && answers.dob && (
-                              <p className="font-sans text-red-400/80 text-xs mt-1.5">You must be 18 or older to join HeyDer.</p>
-                            )}
-                          </div>
-                          <div>
-                            <label className="font-sans text-cream/40 text-xs tracking-[0.1em] uppercase mb-1.5 block">Gender <span className="text-gold/60">*</span></label>
-                            <select value={answers.gender || ''} onChange={e => setValue('gender', e.target.value)} className={`quiz-input ${errors.gender ? 'border-red-400/60' : ''}`}>
-                              <option value="">Select gender</option>
-                              {['Female', 'Male', 'Non-binary', 'Other', 'Prefer not to say'].map(g => <option key={g} value={g}>{g}</option>)}
-                            </select>
-                          </div>
-                          <div>
-                            <label className="font-sans text-cream/40 text-xs tracking-[0.1em] uppercase mb-1.5 block">Country of origin <span className="text-gold/60">*</span></label>
-                            <select value={answers.country || ''} onChange={e => setValue('country', e.target.value)} className={`quiz-input ${errors.country ? 'border-red-400/60' : ''}`}>
-                              <option value="">Select country</option>
-                              {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
-                            </select>
-                          </div>
+                        <div>
+                          <label className="font-sans text-navy/50 text-xs tracking-[0.1em] uppercase mb-1.5 block">Gender <span className="text-navy/40">*</span></label>
+                          <select value={answers.gender || ''} onChange={e => setValue('gender', e.target.value)} className={`portal-login-input ${errors.gender ? 'border-red-400/60' : ''}`}>
+                            <option value="">Select gender</option>
+                            {['Female', 'Male', 'Non-binary', 'Other', 'Prefer not to say'].map(g => <option key={g} value={g}>{g}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="font-sans text-navy/50 text-xs tracking-[0.1em] uppercase mb-1.5 block">Country of origin <span className="text-navy/40">*</span></label>
+                          <select value={answers.country || ''} onChange={e => setValue('country', e.target.value)} className={`portal-login-input ${errors.country ? 'border-red-400/60' : ''}`}>
+                            <option value="">Select country</option>
+                            {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
+                          </select>
                         </div>
                       </div>
-                    );
-                  }
-                  return (
+                      <OkButton onClick={goNext} />
+                    </QuestionShell>
+                  </div>
+                );
+              }
+
+              return (
+                <div id={`q-${q.id}`} className="w-full">
+                  <ChapterLabel />
+                  <QuestionShell number={qNumber} title={q.title} required={q.required} description={q.description} error={errors[q.field]}>
                     <QuestionField
-                      key={q.id}
                       q={q}
                       value={answers[q.field]}
                       onChange={(v) => handleFieldAnswer(q, v)}
-                      error={errors[q.field]}
                       otherValue={q.otherField ? answers[q.otherField] : undefined}
                       onOtherChange={q.otherField ? (v) => setValue(q.otherField, v) : undefined}
                     />
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })()}
+                    <OkButton onClick={goNext} />
+                  </QuestionShell>
+                </div>
+              );
+            })()}
+          </div>
+        )}
 
         {step.type === 'date' && (
-          <>
-            {profileReady && (
-              <div className="rounded-2xl border border-gold/25 bg-gradient-to-br from-gold/[0.1] to-white/[0.02] p-5 text-center">
-                <p className="font-serif text-lg text-cream">🎉 Your profile is ready</p>
-                <p className="font-sans text-cream/50 text-xs mt-1">Just pick a Tuesday and you're booked in.</p>
-              </div>
-            )}
+          <div className="min-h-[40vh] flex flex-col justify-center gap-8">
+            <div id="q-date" className={`${errors.field_CdZldwp5q09o ? 'rounded-2xl -mx-4 px-4 py-4 bg-red-500/5' : ''}`}>
+              <motion.p initial="hidden" animate="visible" variants={fadeUpVariant} className="font-serif font-bold text-xl text-navy mb-6">{DATE_Q.title}</motion.p>
 
-            <div id="q-date" className={`quiz-card ${errors.field_CdZldwp5q09o ? 'bg-red-500/5 border-red-400/30' : ''}`}>
-              <motion.p initial="hidden" animate="visible" variants={fadeUpVariant} className="font-serif text-xl text-cream mb-1">{DATE_Q.title}</motion.p>
-              <p className="font-sans text-cream/35 text-xs mb-3">Your reservation covers one Tuesday dinner.</p>
-              <motion.div initial="hidden" animate="visible" variants={staggerContainerVariant} className="flex flex-wrap gap-2 justify-center">
-                {dateChoices.map(choice => (
-                  <motion.button
-                    key={choice}
-                    variants={fadeLeftVariant}
-                    type="button"
-                    onClick={() => setValue('field_CdZldwp5q09o', choice)}
-                    className={`${choiceBase} text-center ${answers.field_CdZldwp5q09o === choice ? choiceActive : choiceIdle}`}
-                  >
-                    {choice}
-                  </motion.button>
-                ))}
-                {/* Same box styling as the real dates, but dashed to read as
-                    "not a date" rather than a fifth Tuesday option. */}
-                <motion.button
-                  variants={fadeLeftVariant}
+              <div className="relative">
+                <button
                   type="button"
-                  onClick={() => skipPayment(true)}
-                  disabled={submitting}
-                  className="text-left px-4 py-2.5 rounded-xl border border-dashed border-[#e7dcbd]/25 bg-transparent text-[#e7dcbd]/45 font-sans text-base text-center transition-colors duration-150 hover:border-[#e7dcbd]/50 hover:text-[#e7dcbd]/80 disabled:opacity-50"
+                  onClick={() => setDateOptionsOpen(o => !o)}
+                  className="w-full flex items-center justify-between rounded-2xl px-5 py-3.5 font-sans text-base text-navy transition-all"
+                  style={{
+                    background: 'rgba(255,255,255,0.35)',
+                    backdropFilter: 'blur(10px) saturate(140%)',
+                    WebkitBackdropFilter: 'blur(10px) saturate(140%)',
+                    border: '1px solid rgba(22,24,29,0.12)',
+                    boxShadow: '0 6px 18px rgba(22,24,29,0.08), inset 0 1px 0 rgba(255,255,255,0.6)',
+                  }}
                 >
-                  Not sure yet — I'll choose later
-                </motion.button>
-              </motion.div>
-              <p className="font-sans text-cream/25 text-[11px] text-center mt-3">
+                  <span className={answers.field_CdZldwp5q09o ? 'text-navy' : 'text-navy/40'}>
+                    {answers.field_CdZldwp5q09o || 'Select a Tuesday'}
+                  </span>
+                  <span
+                    className="text-navy/50 transition-transform duration-200"
+                    style={{ transform: dateOptionsOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
+                  >
+                    ▾
+                  </span>
+                </button>
+                {dateOptionsOpen && (
+                  <div
+                    className="absolute left-0 right-0 mt-1.5 rounded-2xl overflow-hidden z-10"
+                    style={{
+                      background: 'rgba(231,223,197,0.9)',
+                      backdropFilter: 'blur(10px) saturate(140%)',
+                      WebkitBackdropFilter: 'blur(10px) saturate(140%)',
+                      border: '1px solid rgba(22,24,29,0.12)',
+                      boxShadow: '0 10px 28px rgba(22,24,29,0.12)',
+                    }}
+                  >
+                    {dateChoices.map(choice => (
+                      <button
+                        key={choice}
+                        type="button"
+                        onClick={() => { setValue('field_CdZldwp5q09o', choice); setDateOptionsOpen(false); }}
+                        className="w-full text-left px-5 py-3 font-sans text-sm text-navy hover:bg-navy/5 transition-colors"
+                      >
+                        {choice}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => { setDateOptionsOpen(false); setStepIndex(i => Math.min(i + 1, STEPS.length - 1)); }}
+                      disabled={submitting}
+                      className="w-full text-left px-5 py-3 font-sans text-sm text-navy/55 hover:bg-navy/5 transition-colors border-t border-navy/10 disabled:opacity-50"
+                    >
+                      Not sure yet — I'll choose later
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <p className="font-sans text-navy/40 text-[11px] text-center mt-3">
                 Your profile is saved — book a Tuesday whenever you're ready.
               </p>
+
+              {answers.field_CdZldwp5q09o && (
+                <div className="flex justify-center mt-6">
+                  <button onClick={goNext} className="border-2 border-navy text-navy font-sans font-semibold text-sm tracking-widest uppercase px-8 py-3 rounded-2xl transition-all duration-200 hover:bg-navy hover:text-cream">
+                    Continue to payment →
+                  </button>
+                </div>
+              )}
             </div>
-          </>
+          </div>
         )}
 
         {step.type === 'payment' && (
-          <div className="quiz-card">
-            <div className="flex items-center gap-2 mb-1">
-              <motion.p initial="hidden" animate="visible" variants={fadeUpVariant} className="font-serif text-xl text-cream">Reserve your spot</motion.p>
-              {!stripeConfigured && (
-                <span className="text-[10px] font-sans font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full bg-yellow/15 text-yellow">
-                  Test mode
-                </span>
-              )}
-            </div>
-            <p className="font-sans text-cream/35 text-xs mb-4">
-              {stripeConfigured
-                ? "Choose how you'd like to join."
-                : 'Payments are not connected yet — booking will be simulated, no card required.'}
-            </p>
+          <div>
+            <motion.p initial="hidden" animate="visible" variants={fadeUpVariant} className="font-serif font-bold text-xl text-navy mb-4">Reserve your spot</motion.p>
 
             {hasActiveSubscription ? (
               <div>
-                <div className="rounded-xl border border-gold/25 bg-gold/[0.06] p-4 mb-4 text-center">
-                  <p className="font-sans text-cream/70 text-sm">✓ You're covered by your monthly membership — no extra charge.</p>
+                <div className="rounded-xl border border-navy/20 bg-navy/5 p-4 mb-4 text-center">
+                  <p className="font-sans text-navy/70 text-sm">✓ You're covered by your monthly membership — no extra charge.</p>
                 </div>
                 <button
                   onClick={() => submitQuizWithoutPayment()}
                   disabled={submitting}
-                  className="quiz-cta w-full flex items-center justify-center gap-2 disabled:opacity-60"
+                  className="w-full inline-flex items-center justify-center gap-2 border-2 border-navy text-navy font-sans font-semibold text-sm tracking-widest uppercase px-8 py-4 rounded-2xl transition-all duration-200 hover:bg-navy hover:text-cream disabled:opacity-60"
                 >
                   {submitting ? 'Confirming...' : 'Confirm Booking'}
                 </button>
@@ -1372,36 +1482,38 @@ export default function Quiz() {
                       variants={fadeLeftVariant}
                       type="button"
                       onClick={() => setSelectedPlan('one_time')}
-                      className={`w-full text-left rounded-2xl border p-4 transition-colors duration-200 ${selectedPlan === 'one_time' ? choiceActive : choiceIdle}`}
+                      className="portal-login-input w-full text-left block transition-all duration-200"
+                      style={selectedPlan === 'one_time' ? { borderColor: '#16181d', background: 'rgba(255,255,255,0.5)' } : undefined}
                     >
                       <div className="flex items-center justify-between mb-1">
                         <span className="font-sans font-semibold text-base">One-time reservation</span>
                         <span className="flex items-baseline gap-1.5">
                           {discountPercent > 0 && (
-                            <span className={`font-sans text-xs line-through ${selectedPlan === 'one_time' ? 'text-navy/40' : 'text-cream/25'}`}>${baseOneTime.toFixed(2).replace(/\.00$/, '')}</span>
+                            <span className="font-sans text-xs line-through text-navy/35">${baseOneTime.toFixed(2).replace(/\.00$/, '')}</span>
                           )}
                           <span className="font-serif text-2xl">${oneTimePrice}</span>
                         </span>
                       </div>
-                      <p className={`font-sans text-sm ${selectedPlan === 'one_time' ? 'text-navy/60' : 'text-cream/40'}`}>Reserve just this Tuesday's dinner. Refundable up to 48hrs before.</p>
+                      <p className="font-sans text-sm text-navy/55">Reserve just this Tuesday's dinner. Refundable up to 48hrs before.</p>
                     </motion.button>
                     <motion.button
                       variants={fadeLeftVariant}
                       type="button"
                       onClick={() => setSelectedPlan('subscription')}
-                      className={`w-full text-left rounded-2xl border p-4 transition-colors duration-200 relative ${selectedPlan === 'subscription' ? choiceActive : choiceIdle}`}
+                      className="portal-login-input w-full text-left block relative transition-all duration-200"
+                      style={selectedPlan === 'subscription' ? { borderColor: '#16181d', background: 'rgba(255,255,255,0.5)' } : undefined}
                     >
-                      <span className="absolute -top-2.5 right-5 bg-yellow text-navy text-[10px] font-sans font-bold uppercase tracking-widest px-2.5 py-1 rounded-full">Best value</span>
+                      <span className="absolute -top-2.5 right-5 bg-navy text-cream text-[10px] font-sans font-bold uppercase tracking-widest px-2.5 py-1 rounded-full">Best value</span>
                       <div className="flex items-center justify-between mb-1">
                         <span className="font-sans font-semibold text-base">Monthly membership</span>
                         <span className="flex items-baseline gap-1.5">
                           {discountPercent > 0 && (
-                            <span className={`font-sans text-xs line-through ${selectedPlan === 'subscription' ? 'text-navy/40' : 'text-cream/25'}`}>${baseSub.toFixed(2).replace(/\.00$/, '')}</span>
+                            <span className="font-sans text-xs line-through text-navy/35">${baseSub.toFixed(2).replace(/\.00$/, '')}</span>
                           )}
                           <span className="font-serif text-2xl">${subPrice}<span className="text-sm">/mo</span></span>
                         </span>
                       </div>
-                      <p className={`font-sans text-sm ${selectedPlan === 'subscription' ? 'text-navy/60' : 'text-cream/40'}`}>Unlimited HeyDer dinners this month.</p>
+                      <p className="font-sans text-sm text-navy/55">Unlimited HeyDer dinners this month.</p>
                     </motion.button>
                   </motion.div>
 
@@ -1409,33 +1521,33 @@ export default function Quiz() {
                       pay-now discount above rather than stacking with it. */}
                   <div className="mb-4">
                     {appliedCoupon ? (
-                      <div className="flex items-center justify-between rounded-xl border border-emerald-400/25 bg-emerald-400/[0.06] px-3 py-2.5">
-                        <span className="font-sans text-emerald-400 text-xs">
+                      <div className="flex items-center justify-between rounded-xl border border-emerald-600/30 bg-emerald-600/[0.08] px-3 py-2.5">
+                        <span className="font-sans text-emerald-700 text-xs">
                           ✓ Code <span className="font-mono">{appliedCoupon.code}</span> applied — {appliedCoupon.discountPercent}% off
                         </span>
-                        <button type="button" onClick={removeCoupon} className="font-sans text-cream/40 hover:text-cream text-xs transition-colors">Remove</button>
+                        <button type="button" onClick={removeCoupon} className="font-sans text-navy/50 hover:text-navy text-xs transition-colors">Remove</button>
                       </div>
                     ) : (
                       <div>
-                        <label className="font-sans text-cream/40 text-xs tracking-[0.1em] uppercase mb-1.5 block">Coupon code</label>
+                        <label className="font-sans text-navy/50 text-xs tracking-[0.1em] uppercase mb-1.5 block">Coupon code</label>
                         <div className="flex gap-2">
                           <input
                             type="text"
                             value={couponInput}
                             onChange={e => { setCouponInput(e.target.value.toUpperCase()); setCouponError(''); }}
                             placeholder="Enter code"
-                            className="quiz-input flex-1"
+                            className="flex-1 w-full border rounded-2xl px-5 py-3.5 font-sans text-base focus:outline-none transition-colors bg-transparent border-navy/30 text-navy placeholder-navy/35 focus:border-navy/60"
                           />
                           <button
                             type="button"
                             onClick={applyCoupon}
                             disabled={validatingCoupon || !couponInput.trim()}
-                            className="btn-outline text-xs px-4 disabled:opacity-50"
+                            className="border-2 border-navy text-navy font-sans font-semibold text-xs tracking-widest uppercase px-4 rounded-2xl transition-all duration-200 hover:bg-navy hover:text-cream disabled:opacity-50"
                           >
                             {validatingCoupon ? '...' : 'Apply'}
                           </button>
                         </div>
-                        {couponError && <p className="font-sans text-red-400/80 text-xs mt-1.5">{couponError}</p>}
+                        {couponError && <p className="font-sans text-red-500 text-xs mt-1.5">{couponError}</p>}
                       </div>
                     )}
                   </div>
@@ -1443,7 +1555,7 @@ export default function Quiz() {
                   <button
                     onClick={() => handlePayment(selectedPlan)}
                     disabled={submitting}
-                    className="quiz-cta w-full flex items-center justify-center gap-2 disabled:opacity-60"
+                    className="w-full inline-flex items-center justify-center gap-2 border-2 border-navy text-navy font-sans font-semibold text-sm tracking-widest uppercase px-8 py-4 rounded-2xl transition-all duration-200 hover:bg-navy hover:text-cream disabled:opacity-60"
                   >
                     {submitting
                       ? 'Processing...'
@@ -1457,23 +1569,20 @@ export default function Quiz() {
                       type="button"
                       onClick={() => setShowSkipDiscountModal(true)}
                       disabled={submitting}
-                      className="font-sans text-cream/40 hover:text-cream text-xs transition-colors disabled:opacity-50"
+                      className="font-sans text-navy/50 hover:text-navy text-xs transition-colors disabled:opacity-50"
                     >
                       Skip for now — set up my account
                     </button>
-                    <p className="font-sans text-cream/25 text-[11px] mt-1">
-                      No dinner gets booked — you'll pay when you actually reserve one.
-                    </p>
                   </div>
                 </div>
               );
             })()}
 
-            <p className="font-sans text-cream/25 text-[11px] text-center mt-5">
+            <p className="font-sans text-navy/40 text-[11px] text-center mt-5">
               By proceeding you are accepting our{' '}
-              <a href="/terms-conditions" target="_blank" rel="noopener noreferrer" className="text-gold/50 hover:text-gold underline">terms &amp; conditions</a>
+              <a href="/terms-conditions" target="_blank" rel="noopener noreferrer" className="text-navy underline hover:text-navy/60">terms &amp; conditions</a>
               {' '}/{' '}
-              <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-gold/50 hover:text-gold underline">privacy policy</a>.
+              <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-navy underline hover:text-navy/60">privacy policy</a>.
             </p>
           </div>
         )}
@@ -1518,18 +1627,13 @@ export default function Quiz() {
         {/* Page navigation */}
         <div className="flex items-center justify-between gap-3 pt-2">
           {stepIndex > 0 ? (
-            <button onClick={goBack} className="font-sans text-cream/50 hover:text-cream text-sm px-2 py-3 transition-colors">
+            <button onClick={goBack} className="font-sans text-navy/60 hover:text-navy text-sm px-2 py-3 transition-colors">
               ← Back
             </button>
           ) : <span />}
-          {step.type !== 'payment' && (
-            <button onClick={goNext} className="quiz-cta px-8 py-3">
-              {step.type === 'date' ? 'Continue to payment →' : 'Next →'}
-            </button>
-          )}
         </div>
       </motion.div>
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 }

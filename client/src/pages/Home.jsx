@@ -1,11 +1,19 @@
-import React, { useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
-import Navbar from '../components/layout/Navbar';
+import React, { useEffect, useRef, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+
+// How long the fade-out plays before we actually change route — has to
+// match the CSS transition duration below, or the swap happens mid-fade and
+// looks like a cut. The profile builder's own arrival then takes a full
+// second to reveal itself on top of that same navy, so together this reads
+// as one slow, deliberate motion rather than a snap-cut.
+const EXIT_DURATION = 550;
 
 export default function Home() {
   const videoRef = useRef(null);
+  const navigate = useNavigate();
   const { attendeeUser } = useAuth();
+  const [exiting, setExiting] = useState(false);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -20,9 +28,28 @@ export default function Home() {
     if (playPromise) playPromise.catch(() => {});
   }, []);
 
+  const handleEnter = (e) => {
+    e.preventDefault();
+    setExiting(true);
+    setTimeout(() => navigate(attendeeUser ? '/portal/dashboard' : '/profile'), EXIT_DURATION);
+  };
+
   return (
-    <div className="h-screen overflow-hidden relative bg-navy">
-      <Navbar />
+    <div className="h-screen overflow-hidden relative bg-navy cursor-pointer" onClick={handleEnter}>
+      {/* Logo only — no login/account link on this screen. Stops the click
+          from also bubbling up into the whole-page "click anywhere to
+          continue" handler, since this has its own destination (home). */}
+      <Link
+        to="/"
+        onClick={e => e.stopPropagation()}
+        className={`fixed top-0 left-0 z-50 px-6 py-5 transition-opacity duration-200 ${exiting ? 'opacity-0' : 'opacity-100'}`}
+      >
+        <img
+          src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png"
+          alt="HeyDer"
+          className="h-8 w-auto"
+        />
+      </Link>
 
       {/* Full-screen hero */}
       <div className="absolute inset-0">
@@ -40,44 +67,23 @@ export default function Home() {
         <div className="absolute inset-0 bg-navy/60" />
         <div className="absolute inset-0 bg-gradient-to-t from-navy via-navy/20 to-transparent" />
         <div className="absolute inset-0 bg-gradient-to-r from-navy/50 via-transparent to-transparent" />
+        {/* Fades the whole hero to navy on exit, so the route swap lands on
+            a solid color instead of cutting mid-video. */}
+        <div
+          className={`absolute inset-0 bg-navy transition-opacity ease-in duration-[550ms] ${exiting ? 'opacity-100' : 'opacity-0'}`}
+        />
       </div>
 
-      {/* Content — positioned in the lower third */}
-      <div className="relative z-10 h-full flex flex-col justify-end px-6 md:px-12 pb-14 md:pb-16">
-        <div className="max-w-xl">
-          <h1 className="font-serif text-3xl md:text-4xl lg:text-5xl text-cream leading-[1.1] mb-6">
-            Weekly dinners with people looking for someone like{' '}
-            <em className="text-gold not-italic">YOU.</em>
-          </h1>
-
-          <div className="flex flex-col sm:flex-row items-start gap-2">
-            <Link
-              to={attendeeUser ? '/portal/dashboard' : '/profile'}
-              className="btn-primary text-xs tracking-widest"
-            >
-              {attendeeUser ? 'GO TO MY DASHBOARD' : 'BUILD MY PROFILE'}
-            </Link>
-            <Link
-              to={attendeeUser ? '/portal/dashboard' : '/portal/login'}
-              className="font-sans text-xs text-cream/50 hover:text-cream transition-colors px-2 py-3 tracking-wide"
-            >
-              {attendeeUser ? 'View my bookings →' : 'Already signed up? →'}
-            </Link>
-          </div>
-
-          <p className="font-sans text-cream/35 text-[11px] leading-relaxed mt-4 max-w-sm">
-            By tapping Build My Profile or Sign Up you agree to our{' '}
-            <a
-              href="https://heyder.nz/terms-conditions/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline hover:text-cream/60 transition-colors"
-            >
-              Terms &amp; Conditions
-            </a>
-            .
-          </p>
-        </div>
+      {/* No button — the entire screen is clickable (see the outer div's
+          onClick above); this is just a text hint, left-aligned in the same
+          spot the button used to sit. */}
+      <div className="relative z-10 h-full flex flex-col items-start justify-end px-6 md:px-12 pb-28 md:pb-32">
+        <p
+          className={`font-poppins font-medium text-sm tracking-wide transition-opacity duration-200 ${exiting ? 'opacity-0' : 'opacity-100'}`}
+          style={{ color: '#E7DFC5' }}
+        >
+          Click anywhere to continue
+        </p>
       </div>
     </div>
   );

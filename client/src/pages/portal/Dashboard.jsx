@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
@@ -10,6 +11,62 @@ import { useCachedFetch } from '../../utils/useCachedFetch';
 import { prefetchPortalData } from '../../utils/prefetch';
 
 const AVATAR = 'https://heyder.nz/wp-content/uploads/2026/06/account-2.png';
+
+const PRE_PROFILE_CITIES = ['Auckland', 'Wellington', 'Sydney', 'Melbourne', 'Brisbane'];
+
+// Frosted-glass dropdown for the pre-profile city picker — a native <select>
+// can't get this look (backdrop-filter on its open option list isn't
+// stylable cross-browser), so this is a plain button + panel instead.
+function CityDropdown({ value, onChange }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between rounded-2xl px-5 py-3.5 font-sans text-base text-navy transition-all"
+        style={{
+          background: 'rgba(255,255,255,0.35)',
+          backdropFilter: 'blur(10px) saturate(140%)',
+          WebkitBackdropFilter: 'blur(10px) saturate(140%)',
+          border: '1px solid rgba(22,24,29,0.12)',
+          boxShadow: '0 6px 18px rgba(22,24,29,0.08), inset 0 1px 0 rgba(255,255,255,0.6)',
+        }}
+      >
+        <span className={value ? 'text-navy' : 'text-navy/40'}>{value || 'Select your city'}</span>
+        <span
+          className="text-navy/50 transition-transform duration-200"
+          style={{ transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }}
+        >
+          ▾
+        </span>
+      </button>
+      {open && (
+        <div
+          className="absolute left-0 right-0 mt-1.5 rounded-2xl overflow-hidden z-10"
+          style={{
+            background: 'rgba(231,223,197,0.9)',
+            backdropFilter: 'blur(10px) saturate(140%)',
+            WebkitBackdropFilter: 'blur(10px) saturate(140%)',
+            border: '1px solid rgba(22,24,29,0.12)',
+            boxShadow: '0 10px 28px rgba(22,24,29,0.12)',
+          }}
+        >
+          {PRE_PROFILE_CITIES.map(city => (
+            <button
+              key={city}
+              type="button"
+              onClick={() => { onChange(city); setOpen(false); }}
+              className="w-full text-left px-5 py-3 font-sans text-sm text-navy hover:bg-navy/5 transition-colors"
+            >
+              {city}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const STATUS_CONFIG = {
   pending: {
@@ -397,6 +454,7 @@ export default function PortalDashboard() {
   const { attendeeUser, logout } = useAuth();
   const navigate = useNavigate();
   const [location, setLocation] = useState('');
+  const [howItWorksOpen, setHowItWorksOpen] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
 
   // Cached (stale-while-revalidate): a repeat visit shows what was here last
@@ -515,80 +573,93 @@ export default function PortalDashboard() {
   );
 
   if (needsProfile || (profile && !profile.profileComplete)) return (
-    <div className="quiz-bg min-h-screen relative overflow-hidden">
-      <nav className="relative z-10 flex items-center justify-between px-6 py-5 border-b border-white/[0.06] backdrop-blur">
+    <motion.div
+      className="min-h-screen relative overflow-hidden"
+      style={{ background: '#E7DFC5' }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 1.1, ease: 'easeInOut' }}
+    >
+      <nav className="relative z-10 flex items-center justify-between px-6 py-5 border-b border-navy/10">
         <Link to="/">
-          <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-7" />
+          <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-7 brightness-0" />
         </Link>
-        <button onClick={async () => { await logout(); navigate('/'); }} className="font-sans text-cream/40 text-xs hover:text-cream transition-colors">
+        <button onClick={async () => { await logout(); navigate('/'); }} className="font-sans text-navy/50 text-xs hover:text-navy transition-colors">
           Sign out
         </button>
       </nav>
 
       <div className="relative z-10 max-w-lg mx-auto px-5 py-10 space-y-8">
         <div className="text-center">
-          <p className="font-sans text-gold/70 text-xs tracking-[0.2em] uppercase mb-3">Welcome to HeyDer</p>
+          <p className="font-sans text-navy/50 text-xs tracking-[0.2em] uppercase mb-3">Welcome to HeyDer</p>
         </div>
 
-        <div className="quiz-card space-y-3">
-          <label className="font-sans text-cream/70 text-sm font-medium block">Location</label>
-          <select
-            value={location}
-            onChange={e => setLocation(e.target.value)}
-            className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-3 text-cream font-sans text-sm focus:outline-none focus:border-gold/50"
-          >
-            <option value="" disabled className="bg-navy text-cream/40">Select your city</option>
-            {['Auckland', 'Wellington', 'Sydney', 'Melbourne', 'Brisbane'].map(city => (
-              <option key={city} value={city} className="bg-navy text-cream">{city}</option>
-            ))}
-          </select>
+        <div className="space-y-1">
+          <label className="text-navy text-3xl block pl-2" style={{ fontFamily: "'Permanent Marker', cursive" }}>Location</label>
+          <CityDropdown value={location} onChange={setLocation} />
         </div>
 
         {location && location !== 'Auckland' && (
-          <div className="quiz-card text-center">
-            <p className="font-sans text-cream/50 text-sm leading-relaxed">
+          <div className="text-center">
+            <p className="font-sans text-navy/60 text-sm leading-relaxed">
               We're currently curating dinners only in Auckland. We'll let you know when we expand to {location}.
             </p>
           </div>
         )}
 
-        <Link
-          to="/profile"
-          onClick={e => {
-            if (location !== 'Auckland') { e.preventDefault(); return; }
-            // Quiz.jsx (mounted at /profile) picks this up and includes it
-            // in the submission — this selector used to be purely cosmetic,
-            // the picked city never actually reached the server.
-            sessionStorage.setItem('heyder_signup_city', location);
-          }}
-          className={`quiz-cta w-full flex items-center justify-center text-base py-4 ${location !== 'Auckland' ? 'opacity-40 pointer-events-none' : ''}`}
-        >
-          Build My Profile →
-        </Link>
+        {location === 'Auckland' && (
+          <Link
+            to="/profile"
+            onClick={() => {
+              // Quiz.jsx (mounted at /profile) picks this up and includes it
+              // in the submission — this selector used to be purely cosmetic,
+              // the picked city never actually reached the server.
+              sessionStorage.setItem('heyder_signup_city', location);
+            }}
+            className="w-full inline-flex items-center justify-center gap-2 border-2 border-navy text-navy font-sans font-semibold text-base tracking-wide px-8 py-4 rounded-2xl transition-all duration-200 hover:bg-navy hover:text-cream"
+          >
+            Build My Profile →
+          </Link>
+        )}
 
-        <div className="quiz-card space-y-5">
-          <p className="font-sans font-semibold text-cream text-sm">How HeyDer works</p>
-          {[
-            ['①', 'Build your profile', 'A few quick questions about you and who you want to meet.'],
-            ['②', 'Book your spot', 'Reserve your seat at this week\'s dinner.'],
-            ['③', "We'll find your group", 'A curated table of people who wanted to meet someone like you.'],
-            ['④', 'Just show up', 'Every Tuesday, 7pm, Auckland. Food & drinks paid at the venue.'],
-          ].map(([num, title, body]) => (
-            <div key={title} className="flex items-start gap-3">
-              <span className="font-serif text-gold text-lg leading-none mt-0.5">{num}</span>
-              <div>
-                <p className="font-sans text-cream text-sm font-medium">{title}</p>
-                <p className="font-sans text-cream/45 text-xs mt-0.5 leading-relaxed">{body}</p>
-              </div>
+        <div className="border-t border-navy/10 pt-8">
+          <button
+            type="button"
+            onClick={() => setHowItWorksOpen(o => !o)}
+            className="w-full flex items-center justify-between font-sans font-semibold text-navy text-sm"
+          >
+            How HeyDer works
+            <span
+              className="text-navy/50 transition-transform duration-200"
+              style={{ transform: howItWorksOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
+            >
+              ▾
+            </span>
+          </button>
+          <div
+            className="overflow-hidden transition-all duration-300 ease-out"
+            style={{ maxHeight: howItWorksOpen ? '500px' : '0px', opacity: howItWorksOpen ? 1 : 0 }}
+          >
+            <div className="space-y-5 pt-5">
+              {[
+                ['①', 'Build your profile', 'A few quick questions about you and who you want to meet.'],
+                ['②', 'Book your spot', 'Reserve your seat at this week\'s dinner.'],
+                ['③', "We'll find your group", 'A curated table of people who wanted to meet someone like you.'],
+                ['④', 'Just show up', 'Every Tuesday, 7pm, Auckland. Food & drinks paid at the venue.'],
+              ].map(([num, title, body]) => (
+                <div key={title} className="flex items-start gap-3">
+                  <span className="font-serif text-navy/70 text-lg leading-none mt-0.5">{num}</span>
+                  <div>
+                    <p className="font-sans text-navy text-sm font-medium">{title}</p>
+                    <p className="font-sans text-navy/50 text-xs mt-0.5 leading-relaxed">{body}</p>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
         </div>
-
-        <p className="font-sans text-cream/25 text-xs text-center">
-          Questions? <a href="mailto:info@heyder.nz" className="text-gold/60 hover:text-gold transition-colors">info@heyder.nz</a>
-        </p>
       </div>
-    </div>
+    </motion.div>
   );
 
   const upcoming = dinners.filter(d => d.is_pending || !d.date || new Date(d.date) >= new Date());

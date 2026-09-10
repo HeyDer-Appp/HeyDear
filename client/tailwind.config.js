@@ -15,10 +15,12 @@ export default {
       fontFamily: {
         serif: ['"Cormorant Garamond"', 'Georgia', 'serif'],
         sans: ['Jost', 'Arial', 'sans-serif'],
+        poppins: ['Poppins', 'Arial', 'sans-serif'],
+        dmsans: ['"DM Sans"', 'Arial', 'sans-serif'],
       },
       animation: {
         'ticker': 'ticker 30s linear infinite',
-        'fade-in': 'fadeIn 0.5s ease-in-out',
+        'fade-in': 'fadeIn 0.4s ease-out',
         'slide-up': 'slideUp 0.5s ease-out',
       },
       keyframes: {
