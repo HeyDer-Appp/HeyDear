@@ -34,45 +34,61 @@ export function getPermissionState() {
 }
 
 async function subscribeToPushNative(userId) {
-  const { PushNotifications } = await import('@capacitor/push-notifications');
-
-  let permStatus = await PushNotifications.checkPermissions();
-  if (permStatus.receive === 'prompt' || permStatus.receive === 'prompt-with-rationale') {
-    permStatus = await PushNotifications.requestPermissions();
-  }
-  if (permStatus.receive !== 'granted') return { error: 'denied' };
-
-  return new Promise((resolve) => {
-    let settled = false;
-    const finish = (result) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      resolve(result);
-    };
-    // The OS registration event can silently never fire (missing Google
-    // Play Services, no network at that moment, flaky on some Android
-    // builds) — without this the "Enabling…" button spins forever, which
-    // is exactly what got reported.
-    const timer = setTimeout(() => finish({ error: 'timeout' }), 15000);
-
-    PushNotifications.addListener('registration', async (token) => {
-      if (settled) return;
-      try {
-        await api.post('/push/register-fcm', { userId, fcmToken: token.value });
-        localStorage.setItem('heyder_fcm_registered', 'true');
-        finish({ success: true });
-      } catch (err) {
-        console.error('FCM token registration failed:', err);
-        finish({ error: 'subscribe_failed' });
-      }
-    });
-    PushNotifications.addListener('registrationError', (err) => {
-      console.error('FCM registration failed:', err);
-      finish({ error: 'subscribe_failed' });
-    });
-    PushNotifications.register();
+  // Everything below is a Capacitor native-bridge call. If the installed
+  // app build doesn't actually have the push-notifications plugin compiled
+  // in yet (an older APK from before it was added), or the OS side just
+  // never answers, ANY of these awaits — not just the final registration
+  // listener — can hang forever with no rejection. A single overall race
+  // wraps the whole flow so the UI always recovers instead of spinning on
+  // "Enabling…" indefinitely, which is exactly what got reported.
+  let timer;
+  const timeout = new Promise((resolve) => {
+    timer = setTimeout(() => resolve({ error: 'timeout' }), 15000);
   });
+
+  const flow = (async () => {
+    const { PushNotifications } = await import('@capacitor/push-notifications');
+
+    let permStatus = await PushNotifications.checkPermissions();
+    if (permStatus.receive === 'prompt' || permStatus.receive === 'prompt-with-rationale') {
+      permStatus = await PushNotifications.requestPermissions();
+    }
+    if (permStatus.receive !== 'granted') return { error: 'denied' };
+
+    return new Promise((resolve) => {
+      let settled = false;
+      const finish = (result) => {
+        if (settled) return;
+        settled = true;
+        resolve(result);
+      };
+      PushNotifications.addListener('registration', async (token) => {
+        if (settled) return;
+        try {
+          await api.post('/push/register-fcm', { userId, fcmToken: token.value });
+          localStorage.setItem('heyder_fcm_registered', 'true');
+          finish({ success: true });
+        } catch (err) {
+          console.error('FCM token registration failed:', err);
+          finish({ error: 'subscribe_failed' });
+        }
+      });
+      PushNotifications.addListener('registrationError', (err) => {
+        console.error('FCM registration failed:', err);
+        finish({ error: 'subscribe_failed' });
+      });
+      PushNotifications.register();
+    });
+  })().catch((err) => {
+    console.error('Native push subscribe failed:', err);
+    return { error: 'subscribe_failed' };
+  });
+
+  try {
+    return await Promise.race([flow, timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export async function registerSW() {
