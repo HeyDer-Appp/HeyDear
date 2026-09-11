@@ -34,12 +34,13 @@ function CityDropdown({ value, onChange }) {
         }}
       >
         <span className={value ? 'text-navy' : 'text-navy/40'}>{value || 'Select your city'}</span>
-        <span
-          className="text-navy/50 transition-transform duration-200"
+        <svg
+          width="12" height="12" viewBox="0 0 12 12" fill="none"
+          className="text-navy/50 transition-transform duration-200 flex-shrink-0"
           style={{ transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }}
         >
-          ▾
-        </span>
+          <path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
       </button>
       {open && (
         <div
@@ -737,12 +738,13 @@ export default function PortalDashboard() {
             className="w-full flex items-center justify-between font-sans font-semibold text-navy text-sm"
           >
             How HeyDer works
-            <span
-              className="text-navy/50 transition-transform duration-200"
+            <svg
+              width="12" height="12" viewBox="0 0 12 12" fill="none"
+              className="text-navy/50 transition-transform duration-200 flex-shrink-0"
               style={{ transform: howItWorksOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
             >
-              ▾
-            </span>
+              <path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
           </button>
           <div
             className="overflow-hidden transition-all duration-300 ease-out"

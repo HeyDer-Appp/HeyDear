@@ -165,7 +165,7 @@ export const QUESTIONS = [
     field: 'social_recharge',
     chapter: 'drawn_to',
     required: true,
-    min: 0, max: 10,
+    min: 1, max: 10,
     labels: ['Wiped out', 'Recharged'],
   },
 
@@ -177,7 +177,7 @@ export const QUESTIONS = [
     field: 'field_PyYcCusA8b74',
     chapter: 'conversation',
     required: true,
-    min: 0, max: 10,
+    min: 1, max: 10,
     labels: ['Disagree', 'Strongly agree'],
   },
   {
@@ -187,7 +187,7 @@ export const QUESTIONS = [
     field: 'field_Y8VLrSMSZLmb',
     chapter: 'conversation',
     required: true,
-    min: 0, max: 10,
+    min: 1, max: 10,
     labels: ['Not at all', 'Very much so'],
   },
   {
@@ -197,7 +197,7 @@ export const QUESTIONS = [
     field: 'field_H4KwwtKh8sYF',
     chapter: 'conversation',
     required: true,
-    min: 0, max: 10,
+    min: 1, max: 10,
     labels: ['Never', 'Always'],
   },
   {
@@ -207,7 +207,7 @@ export const QUESTIONS = [
     field: 'field_OqnhJdRIytBz',
     chapter: 'conversation',
     required: true,
-    min: 0, max: 10,
+    min: 1, max: 10,
     labels: ['No, I wait', 'Yes, immediately'],
   },
 
@@ -219,7 +219,7 @@ export const QUESTIONS = [
     field: 'field_1NDB7q3CaeDQ',
     chapter: 'matters',
     required: true,
-    min: 0, max: 10,
+    min: 1, max: 10,
     labels: ['Not important', 'Critical'],
   },
   {
@@ -229,7 +229,7 @@ export const QUESTIONS = [
     field: 'field_heE41fid4m48',
     chapter: 'matters',
     required: true,
-    min: 0, max: 10,
+    min: 1, max: 10,
     labels: ['Disagree', 'Strongly agree'],
   },
 
@@ -586,6 +586,66 @@ export function QuestionShell({ number, title, required, description, error, chi
   );
 }
 
+// Same frosted-glass dropdown as the Location screen's CityDropdown
+// (Dashboard.jsx) -- replaces the plain native <select> look (browser's
+// own default arrow, no glass) for gender/country/dial-code here, so
+// every dropdown in the signup flow reads as one consistent style.
+// `options` is either an array of strings, or [value, label] pairs.
+function GlassSelect({ value, onChange, options, placeholder, className = '', error }) {
+  const [open, setOpen] = useState(false);
+  const normalized = options.map(o => Array.isArray(o) ? { value: o[0], label: o[1] } : { value: o, label: o });
+  const selectedOption = normalized.find(o => o.value === value);
+
+  return (
+    <div className={`relative ${className}`}>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between rounded-2xl px-5 py-3.5 font-sans text-base text-navy transition-all"
+        style={{
+          background: 'rgba(255,255,255,0.35)',
+          backdropFilter: 'blur(10px) saturate(140%)',
+          WebkitBackdropFilter: 'blur(10px) saturate(140%)',
+          border: error ? '1px solid rgba(248,113,113,0.6)' : '1px solid rgba(22,24,29,0.12)',
+          boxShadow: '0 6px 18px rgba(22,24,29,0.08), inset 0 1px 0 rgba(255,255,255,0.6)',
+        }}
+      >
+        <span className={`truncate ${value ? 'text-navy' : 'text-navy/40'}`}>{selectedOption?.label || placeholder}</span>
+        <svg
+          width="12" height="12" viewBox="0 0 12 12" fill="none"
+          className="text-navy/50 transition-transform duration-200 flex-shrink-0 ml-2"
+          style={{ transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }}
+        >
+          <path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+      {open && (
+        <div
+          className="absolute left-0 right-0 mt-1.5 rounded-2xl overflow-hidden z-10 max-h-60 overflow-y-auto"
+          style={{
+            background: 'rgba(231,223,197,0.95)',
+            backdropFilter: 'blur(10px) saturate(140%)',
+            WebkitBackdropFilter: 'blur(10px) saturate(140%)',
+            border: '1px solid rgba(22,24,29,0.12)',
+            boxShadow: '0 10px 28px rgba(22,24,29,0.12)',
+          }}
+        >
+          {normalized.map((opt, i) => (
+            <button
+              key={`${opt.value}-${i}`}
+              type="button"
+              onClick={() => { onChange(opt.value); setOpen(false); }}
+              className="w-full text-left px-5 py-3 font-sans text-sm text-navy hover:bg-navy/5 transition-colors"
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Typeform's lettered circular badge (A, B, C...) before each pill-shaped
 // choice -- content-width, never stretched, stacked vertically.
 function ChoicePills({ choices, selected, onSelect, multi }) {
@@ -624,7 +684,7 @@ export function OkButton({ onClick, disabled, children = 'OK' }) {
       disabled={disabled}
       className="inline-flex items-center gap-2 bg-transparent border-2 border-navy text-navy font-sans font-semibold text-sm px-6 py-2.5 rounded-full mt-5 transition-colors hover:bg-navy hover:text-cream disabled:opacity-50"
     >
-      {children} <span aria-hidden="true">↵</span>
+      {children}
     </motion.button>
   );
 }
@@ -1279,15 +1339,13 @@ export default function Quiz() {
                   <div id="q-contact" className="w-full">
                     <QuestionShell number={qNumber} title={q.title} required={q.required} error={errors.phone} titleFont="marker">
                       <div className="flex gap-2 max-w-sm">
-                        <select
+                        <GlassSelect
                           value={answers.phoneCountryCode || '+64'}
-                          onChange={e => setValue('phoneCountryCode', e.target.value)}
-                          className="portal-login-input w-24 flex-shrink-0 px-2"
-                        >
-                          {DIAL_CODES.map(([name, code]) => (
-                            <option key={name} value={code}>{code}</option>
-                          ))}
-                        </select>
+                          onChange={v => setValue('phoneCountryCode', v)}
+                          options={DIAL_CODES.map(([, code]) => code)}
+                          placeholder="+64"
+                          className="w-24 flex-shrink-0"
+                        />
                         <input
                           type="tel"
                           inputMode="numeric"
@@ -1334,17 +1392,23 @@ export default function Quiz() {
                         </div>
                         <div>
                           <label className="font-sans text-navy/50 text-xs tracking-[0.1em] uppercase mb-1.5 block">Gender <span className="text-navy/40">*</span></label>
-                          <select value={answers.gender || ''} onChange={e => setValue('gender', e.target.value)} className={`portal-login-input ${errors.gender ? 'border-red-400/60' : ''}`}>
-                            <option value="">Select gender</option>
-                            {['Female', 'Male', 'Non-binary', 'Other', 'Prefer not to say'].map(g => <option key={g} value={g}>{g}</option>)}
-                          </select>
+                          <GlassSelect
+                            value={answers.gender || ''}
+                            onChange={v => setValue('gender', v)}
+                            options={['Female', 'Male', 'Non-binary', 'Other', 'Prefer not to say']}
+                            placeholder="Select gender"
+                            error={errors.gender}
+                          />
                         </div>
                         <div>
                           <label className="font-sans text-navy/50 text-xs tracking-[0.1em] uppercase mb-1.5 block">Country of origin <span className="text-navy/40">*</span></label>
-                          <select value={answers.country || ''} onChange={e => setValue('country', e.target.value)} className={`portal-login-input ${errors.country ? 'border-red-400/60' : ''}`}>
-                            <option value="">Select country</option>
-                            {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
-                          </select>
+                          <GlassSelect
+                            value={answers.country || ''}
+                            onChange={v => setValue('country', v)}
+                            options={COUNTRIES}
+                            placeholder="Select country"
+                            error={errors.country}
+                          />
                         </div>
                       </div>
                       <OkButton onClick={goNext} />
@@ -1393,12 +1457,13 @@ export default function Quiz() {
                   <span className={answers.field_CdZldwp5q09o ? 'text-navy' : 'text-navy/40'}>
                     {answers.field_CdZldwp5q09o || 'Select a Tuesday'}
                   </span>
-                  <span
-                    className="text-navy/50 transition-transform duration-200"
+                  <svg
+                    width="12" height="12" viewBox="0 0 12 12" fill="none"
+                    className="text-navy/50 transition-transform duration-200 flex-shrink-0"
                     style={{ transform: dateOptionsOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
                   >
-                    ▾
-                  </span>
+                    <path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
                 </button>
                 {dateOptionsOpen && (
                   <div
