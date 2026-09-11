@@ -14,3 +14,4 @@ build/
 client/android-signing/
 *.jks
 *.keystore
+.tools/

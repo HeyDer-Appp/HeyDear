@@ -17,6 +17,7 @@ export default {
         sans: ['Jost', 'Arial', 'sans-serif'],
         poppins: ['Poppins', 'Arial', 'sans-serif'],
         dmsans: ['"DM Sans"', 'Arial', 'sans-serif'],
+        typewriter: ['"Special Elite"', '"Courier New"', 'monospace'],
       },
       animation: {
         'ticker': 'ticker 30s linear infinite',

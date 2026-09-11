@@ -450,12 +450,50 @@ function DinnerCard({ dinner, onCancel, onRsvpUpdate }) {
   );
 }
 
+const DASHBOARD_INTRO_TEXT = 'Meet people who are looking to meet someone like you.';
+// Held for a beat after typing finishes (rather than cutting to the
+// dashboard the instant data resolves) so a fast, already-cached load never
+// clips the sentence mid-type — it always gets to sit, finished, for a
+// moment before the real screen replaces it.
+const DASHBOARD_INTRO_HOLD_MS = 1200;
+
+function TypewriterText({ text, speed = 45, onDone, className }) {
+  const [shown, setShown] = useState('');
+  const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    setShown('');
+    setDone(false);
+    let i = 0;
+    const id = setInterval(() => {
+      i += 1;
+      setShown(text.slice(0, i));
+      if (i >= text.length) {
+        clearInterval(id);
+        setDone(true);
+        onDone?.();
+      }
+    }, speed);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [text]);
+
+  return (
+    <p className={className}>
+      {shown}
+      {!done && <span className="typewriter-caret inline-block w-[2px] h-[0.9em] align-middle ml-1 bg-navy" />}
+    </p>
+  );
+}
+
 export default function PortalDashboard() {
   const { attendeeUser, logout } = useAuth();
   const navigate = useNavigate();
   const [location, setLocation] = useState('');
   const [howItWorksOpen, setHowItWorksOpen] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
+  const [introTyped, setIntroTyped] = useState(false);
+  const [introHoldDone, setIntroHoldDone] = useState(false);
 
   // Cached (stale-while-revalidate): a repeat visit shows what was here last
   // time instantly, while a fresh copy loads quietly in the background — see
@@ -486,6 +524,7 @@ export default function PortalDashboard() {
   );
 
   const loading = profileLoading || dinnersLoading;
+  const showIntro = loading || !introHoldDone;
   const loadError = profileLoadError;
   const needsProfile = profileData?.needsProfile ?? false;
   const profile = profileData?.user ?? null;
@@ -501,6 +540,12 @@ export default function PortalDashboard() {
     if (!loading && !needsProfile) prefetchPortalData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, needsProfile]);
+
+  useEffect(() => {
+    if (!introTyped) return;
+    const t = setTimeout(() => setIntroHoldDone(true), DASHBOARD_INTRO_HOLD_MS);
+    return () => clearTimeout(t);
+  }, [introTyped]);
 
   // A dinner's own RSVP response happens inside DinnerCard (its own local
   // state, since each card ticks its own countdown) — this is how that
@@ -533,32 +578,18 @@ export default function PortalDashboard() {
     }
   };
 
-  // A blank screen + spinner reads as "stuck" — showing the real chrome
-  // (nav, bottom nav) immediately plus a placeholder shaped like the actual
-  // content feels instant even though the fetch hasn't resolved yet.
-  if (loading) return (
-    <div className="quiz-bg min-h-screen relative overflow-hidden pb-24">
-      <nav className="relative z-10 flex items-center justify-between px-6 py-5 border-b border-white/[0.06] backdrop-blur">
-        <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-7" />
-        <div className="w-8 h-8 rounded-full bg-white/[0.06] animate-pulse" />
-      </nav>
-      <div className="relative z-10 max-w-lg mx-auto px-5 py-8 space-y-6 animate-pulse">
-        <div className="flex items-center gap-3">
-          <div className="w-14 h-14 rounded-full bg-white/[0.06] flex-shrink-0" />
-          <div className="flex-1 space-y-2">
-            <div className="h-5 w-32 rounded bg-white/[0.06]" />
-            <div className="h-3 w-24 rounded bg-white/[0.04]" />
-          </div>
-        </div>
-        {[0, 1].map(i => (
-          <div key={i} className="quiz-card space-y-3">
-            <div className="h-4 w-40 rounded bg-white/[0.06]" />
-            <div className="h-3 w-full rounded bg-white/[0.04]" />
-            <div className="h-3 w-2/3 rounded bg-white/[0.04]" />
-          </div>
-        ))}
-      </div>
-      <BottomNav />
+  // Replaces the old dark loading skeleton, which visually read as "the
+  // dashboard" flashing up before snapping to the light pre-profile screen.
+  // This holds on a light, on-brand line instead, regardless of which
+  // screen (dashboard or pre-profile) is about to follow.
+  if (showIntro) return (
+    <div className="min-h-screen flex items-center justify-center px-10 text-center" style={{ background: '#E7DFC5' }}>
+      <TypewriterText
+        text={DASHBOARD_INTRO_TEXT}
+        speed={95}
+        onDone={() => setIntroTyped(true)}
+        className="font-typewriter text-xl md:text-2xl text-navy leading-relaxed max-w-md"
+      />
     </div>
   );
 

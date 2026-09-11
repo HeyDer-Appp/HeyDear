@@ -79,8 +79,8 @@ export default function Home() {
           spot the button used to sit. */}
       <div className="relative z-10 h-full flex flex-col items-start justify-end px-6 md:px-12 pb-28 md:pb-32">
         <p
-          className={`font-poppins font-medium text-sm tracking-wide transition-opacity duration-200 ${exiting ? 'opacity-0' : 'opacity-100'}`}
-          style={{ color: '#E7DFC5' }}
+          className={`font-poppins font-light text-sm tracking-wide transition-opacity duration-200 ${exiting ? 'opacity-0' : 'home-enter-hint'}`}
+          style={{ color: '#F7F2E0' }}
         >
           Click anywhere to continue
         </p>
