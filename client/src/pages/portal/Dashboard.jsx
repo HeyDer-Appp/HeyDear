@@ -492,7 +492,7 @@ const INTRO_TEXT_HOLD_MS = 700;
 // typed; the caller reveals the real screen immediately at that point,
 // letting that screen's own elements fade in around the already-visible
 // word instead of the whole thing cross-fading.
-function IntroText({ line1, line2, finalWord, start, speed = INTRO_TEXT_SPEED_MS, eraseSpeed = INTRO_TEXT_ERASE_SPEED_MS, holdMs = INTRO_TEXT_HOLD_MS, onDone, className, style }) {
+function IntroText({ line1, line2, finalWord, finalWordSize = '1.875rem', start, speed = INTRO_TEXT_SPEED_MS, eraseSpeed = INTRO_TEXT_ERASE_SPEED_MS, holdMs = INTRO_TEXT_HOLD_MS, onDone, className, style }) {
   const [shown1, setShown1] = useState('');
   const [shown2, setShown2] = useState('');
   const [phase, setPhase] = useState('idle');
@@ -588,14 +588,24 @@ function IntroText({ line1, line2, finalWord, start, speed = INTRO_TEXT_SPEED_MS
   const caret = <span className="inline-block w-[2px] h-[0.9em] align-middle ml-1 bg-navy animate-pulse" />;
 
   // nowrap so a line can never wrap onto an extra sub-line as it grows —
-  // that would change this block's total height, which (since it's
-  // vertically centered by the screen's own flex layout) would shift both
-  // lines up or down as a unit even though each line's own top/left stays
-  // fixed.
+  // that would change this block's total height and shift both lines up
+  // or down as a unit even though each line's own top/left stays fixed.
+  //
+  // The sentence itself gets a fluid clamp() size instead of a fixed one:
+  // at the real heading's text-3xl size, a 20+ character line comfortably
+  // fits a desktop test viewport but overflows off the edge of an actual
+  // narrow phone screen (nowrap means it can't wrap to compensate — it
+  // just runs off). clamp() scales it down on narrow screens while still
+  // reaching text-3xl-ish on wider ones. Once typingFinal/done starts
+  // ("Location" itself, always short), line one switches to the fixed
+  // finalWordSize so it matches the real heading exactly.
+  const sentenceSize = 'clamp(1.1rem, 6vw, 1.875rem)';
+  const isFinalPhase = phase === 'typingFinal' || phase === 'done';
+
   return (
     <div className={className} style={style}>
-      <p style={{ whiteSpace: 'nowrap' }}>{shown1}{caretOn1 && caret}</p>
-      <p style={{ whiteSpace: 'nowrap' }}>{shown2}{caretOn2 && caret}</p>
+      <p style={{ whiteSpace: 'nowrap', fontSize: isFinalPhase ? finalWordSize : sentenceSize }}>{shown1}{caretOn1 && caret}</p>
+      <p style={{ whiteSpace: 'nowrap', fontSize: sentenceSize }}>{shown2}{caretOn2 && caret}</p>
     </div>
   );
 }
@@ -746,15 +756,22 @@ export default function PortalDashboard() {
         className="absolute inset-0 flex items-center justify-center transition-opacity ease-in-out"
         style={{ transitionDuration: `${PHOTO_FADE_MS}ms`, opacity: round1Done ? 0 : 1 }}
       >
+        {/* Only the already-revealed photos are ever mounted — rendering
+            all 40 up front (even hidden ones, toggling opacity) meant a
+            phone's WebView had to keep every rotated, shadowed layer
+            composited at once from the very first frame, which is what
+            was showing up as glitching. A lighter shadow than shadow-lg
+            (also one of the pricier properties to repaint at this count)
+            eases that further. */}
         <div className="relative" style={{ width: 'min(98vw, 540px)', height: 'min(86vh, 660px)' }}>
-          {Array.from({ length: STACK_PHOTO_COUNT * STACK_ROUNDS }, (_, i) => {
+          {Array.from({ length: revealedCount }, (_, i) => {
             const src = STACK_PHOTOS[i % STACK_PHOTO_COUNT];
             const t = STACK_TRANSFORMS[i % STACK_TRANSFORMS.length];
             return (
               <motion.div
                 key={i}
-                className="absolute inset-0 rounded-sm bg-white p-2.5 shadow-lg"
-                style={{ zIndex: i, rotate: t.rotate, x: t.x * 2, y: t.y * 2, opacity: i < revealedCount ? 1 : 0 }}
+                className="absolute inset-0 rounded-sm bg-white p-2.5"
+                style={{ zIndex: i, rotate: t.rotate, x: t.x * 2, y: t.y * 2, boxShadow: '0 4px 10px rgba(22,24,29,0.18)' }}
               >
                 <img src={src} alt="" className="w-full h-full object-cover" draggable={false} />
               </motion.div>
@@ -779,7 +796,7 @@ export default function PortalDashboard() {
             finalWord="Location"
             start={round1Done}
             onDone={() => setIntroHoldDone(true)}
-            className="text-3xl text-navy leading-snug"
+            className="text-navy leading-snug"
             style={{ fontFamily: "'Permanent Marker', cursive" }}
           />
         </div>
