@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -455,7 +455,17 @@ const DASHBOARD_INTRO_TEXT = 'Meet people who are looking to meet someone like y
 // dashboard the instant data resolves) so a fast, already-cached load never
 // clips the sentence mid-type — it always gets to sit, finished, for a
 // moment before the real screen replaces it.
-const DASHBOARD_INTRO_HOLD_MS = 1200;
+const DASHBOARD_INTRO_HOLD_MS = 2400;
+// Then eased out over this long rather than cut instantly, so the handoff
+// to the next screen reads as a deliberate fade instead of a jump cut.
+const DASHBOARD_INTRO_FADE_MS = 600;
+
+// Vibration ramps from barely-there to a firmer buzz across the
+// sentence — the Vibration API only exposes pulse duration (no amplitude
+// control), so "increasing intensity" is expressed as a longer pulse the
+// further through the text a word lands.
+const VIBRATE_MIN_MS = 4;
+const VIBRATE_MAX_MS = 30;
 
 function TypewriterText({ text, speed = 45, onDone, className }) {
   const [shown, setShown] = useState('');
@@ -464,19 +474,56 @@ function TypewriterText({ text, speed = 45, onDone, className }) {
   useEffect(() => {
     setShown('');
     setDone(false);
-    let i = 0;
-    const id = setInterval(() => {
-      i += 1;
-      setShown(text.slice(0, i));
-      if (i >= text.length) {
-        clearInterval(id);
-        setDone(true);
-        onDone?.();
-      }
-    }, speed);
-    return () => clearInterval(id);
+    let cancelled = false;
+    let id;
+
+    const start = () => {
+      if (cancelled) return;
+      let i = 0;
+      id = setInterval(() => {
+        i += 1;
+        setShown(text.slice(0, i));
+        if (i >= text.length) clearInterval(id);
+      }, speed);
+    };
+
+    // Typing used to start immediately, in whatever fallback font was
+    // available — then Special Elite would finish loading a moment later
+    // and swap in with different metrics, visibly shifting the
+    // already-typed text down. Waiting for the font to actually be ready
+    // first means the first character types in its final font, not a
+    // placeholder one.
+    const fontReady = document.fonts?.load
+      ? document.fonts.load('1.25rem "Special Elite"').catch(() => {})
+      : Promise.resolve();
+    fontReady.then(start);
+
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [text]);
+
+  // Fires the vibration as a reaction to `shown` actually landing on
+  // screen (useLayoutEffect runs right after the DOM commits, just before
+  // paint) rather than from inside the interval above, which fired it
+  // before React had even scheduled that update.
+  useLayoutEffect(() => {
+    if (!shown) return;
+    const lastChar = shown[shown.length - 1];
+    const wordBoundary = lastChar === ' ' || shown.length >= text.length;
+    if (wordBoundary && typeof navigator !== 'undefined' && navigator.vibrate) {
+      const progress = shown.length / text.length;
+      const duration = Math.round(VIBRATE_MIN_MS + (VIBRATE_MAX_MS - VIBRATE_MIN_MS) * progress);
+      navigator.vibrate(duration);
+    }
+    if (shown.length >= text.length) {
+      setDone(true);
+      onDone?.();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shown]);
 
   return (
     <p className={className}>
@@ -493,6 +540,7 @@ export default function PortalDashboard() {
   const [howItWorksOpen, setHowItWorksOpen] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
   const [introTyped, setIntroTyped] = useState(false);
+  const [introLeaving, setIntroLeaving] = useState(false);
   const [introHoldDone, setIntroHoldDone] = useState(false);
 
   // Cached (stale-while-revalidate): a repeat visit shows what was here last
@@ -543,9 +591,15 @@ export default function PortalDashboard() {
 
   useEffect(() => {
     if (!introTyped) return;
-    const t = setTimeout(() => setIntroHoldDone(true), DASHBOARD_INTRO_HOLD_MS);
+    const t = setTimeout(() => setIntroLeaving(true), DASHBOARD_INTRO_HOLD_MS);
     return () => clearTimeout(t);
   }, [introTyped]);
+
+  useEffect(() => {
+    if (!introLeaving) return;
+    const t = setTimeout(() => setIntroHoldDone(true), DASHBOARD_INTRO_FADE_MS);
+    return () => clearTimeout(t);
+  }, [introLeaving]);
 
   // A dinner's own RSVP response happens inside DinnerCard (its own local
   // state, since each card ticks its own countdown) — this is how that
@@ -582,14 +636,37 @@ export default function PortalDashboard() {
   // dashboard" flashing up before snapping to the light pre-profile screen.
   // This holds on a light, on-brand line instead, regardless of which
   // screen (dashboard or pre-profile) is about to follow.
+  // Mirrors the needsProfile screen's exact chrome (nav, eyebrow, container)
+  // and puts the sentence in the same left-aligned slot the "Location"
+  // heading sits in below — so the fade-out/fade-in handoff reads as that
+  // text settling into place, not two unrelated screens swapping.
   if (showIntro) return (
-    <div className="min-h-screen flex items-center justify-center px-10 text-center" style={{ background: '#E7DFC5' }}>
-      <TypewriterText
-        text={DASHBOARD_INTRO_TEXT}
-        speed={95}
-        onDone={() => setIntroTyped(true)}
-        className="font-typewriter text-xl md:text-2xl text-navy leading-relaxed max-w-md"
-      />
+    <div
+      className="min-h-screen relative overflow-hidden transition-opacity ease-in-out"
+      style={{ background: '#E7DFC5', transitionDuration: `${DASHBOARD_INTRO_FADE_MS}ms`, opacity: introLeaving ? 0 : 1 }}
+    >
+      <nav className="relative z-10 flex items-center justify-between px-6 py-5 border-b border-navy/10">
+        <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-7 brightness-0" />
+      </nav>
+
+      <div className="relative z-10 max-w-lg mx-auto px-5 py-10 space-y-8">
+        {/* Invisible but present — reserves the exact height of the
+            Location screen's "Welcome to HeyDer" eyebrow above it, so the
+            typewriter sentence still lands in that screen's same slot
+            without this one showing the text. */}
+        <div className="text-center" aria-hidden="true">
+          <p className="font-sans text-xs tracking-[0.2em] uppercase mb-3 opacity-0">Welcome to HeyDer</p>
+        </div>
+
+        <div className="pl-2">
+          <TypewriterText
+            text={DASHBOARD_INTRO_TEXT}
+            speed={95}
+            onDone={() => setIntroTyped(true)}
+            className="font-typewriter text-left text-lg md:text-xl text-navy leading-relaxed"
+          />
+        </div>
+      </div>
     </div>
   );
 
