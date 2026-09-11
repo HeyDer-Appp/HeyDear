@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -451,105 +451,171 @@ function DinnerCard({ dinner, onCancel, onRsvpUpdate }) {
   );
 }
 
-const DASHBOARD_INTRO_TEXT = 'Meet people who are looking to meet someone like you.';
-// Held for a beat after typing finishes (rather than cutting to the
-// dashboard the instant data resolves) so a fast, already-cached load never
-// clips the sentence mid-type — it always gets to sit, finished, for a
-// moment before the real screen replaces it.
-const DASHBOARD_INTRO_HOLD_MS = 2400;
-// Then eased out over this long rather than cut instantly, so the handoff
-// to the next screen reads as a deliberate fade instead of a jump cut.
-const DASHBOARD_INTRO_FADE_MS = 600;
+const STACK_PHOTO_COUNT = 20;
+const STACK_PHOTOS = Array.from(
+  { length: STACK_PHOTO_COUNT },
+  (_, i) => `/photos/stack/stack-${String(i + 1).padStart(2, '0')}.jpg`
+);
+// The same set stacks almost all the way through round one; the fade (and
+// the intro text typing) starts right as its last two photos are landing,
+// not from the beginning of round one.
+const STACK_ROUNDS = 2;
+const STACK_ITEM_DELAY_MS = 350;
+const TEXT_START_COUNT = STACK_PHOTO_COUNT - 2;
 
-// Vibration ramps from barely-there to a firmer buzz across the
-// sentence — the Vibration API only exposes pulse duration (no amplitude
-// control), so "increasing intensity" is expressed as a longer pulse the
-// further through the text a word lands.
-const VIBRATE_MIN_MS = 4;
-const VIBRATE_MAX_MS = 30;
+// Two fixed lines, each its own always-mounted block, rather than one
+// flowing string broken with \n — that still risked a visible jump right
+// at the instant the trailing newline entered or left the string (the <p>
+// flipping between a 1-line and 2-line box). With both lines permanently
+// present (line two just empty until its turn), neither line's DOM node
+// ever appears/disappears, so neither can shift position while typing or
+// erasing.
+const INTRO_LINE_1 = 'Meet people who want to';
+const INTRO_LINE_2 = 'meet someone like you.';
+const INTRO_TEXT_SPEED_MS = 130;
+const INTRO_TEXT_ERASE_SPEED_MS = 40;
+// The photo layer's fade is timed to take exactly as long as line one
+// takes to type, so by the moment line two ("meet someone like you.")
+// starts, every photo has completely faded away rather than the fade
+// finishing early or still being mid-flight into line two.
+const PHOTO_FADE_MS = INTRO_LINE_1.length * INTRO_TEXT_SPEED_MS;
+// Held for a beat once the sentence finishes typing, before it reverse-
+// erases back to nothing.
+const INTRO_TEXT_HOLD_MS = 700;
+// Then held blank for a beat before the whole screen fades into the real
+// dashboard/pre-profile content.
 
-function TypewriterText({ text, speed = 45, onDone, className }) {
-  const [shown, setShown] = useState('');
-  const [done, setDone] = useState(false);
-  // A fresh Audio() per character rather than rewinding one shared element
-  // — resetting currentTime on an element whose previous play() hadn't
-  // resolved yet aborts that pending play, so only the last, uninterrupted
-  // character ever finished playing. Independent instances can overlap
-  // freely instead. Autoplay may still block this until a user gesture has
-  // happened somewhere on the page; it just stays silent until then, same
-  // as the vibrate fallback below.
-  const playKeyClick = () => {
-    try {
-      const audio = new Audio('/sounds/typewriter-key.mp3');
-      audio.volume = 0.45;
-      audio.play().catch(() => {});
-    } catch {
-      // Playback unavailable — typing continues silently.
-    }
-  };
+// Types line one, then line two, holds, reverse-erases both back to
+// nothing, then types finalWord ("Location") into line one's same spot —
+// which is also exactly where the real Location heading sits next, so the
+// handoff needs no fade of its own. onDone fires once finalWord is fully
+// typed; the caller reveals the real screen immediately at that point,
+// letting that screen's own elements fade in around the already-visible
+// word instead of the whole thing cross-fading.
+function IntroText({ line1, line2, finalWord, start, speed = INTRO_TEXT_SPEED_MS, eraseSpeed = INTRO_TEXT_ERASE_SPEED_MS, holdMs = INTRO_TEXT_HOLD_MS, onDone, className, style }) {
+  const [shown1, setShown1] = useState('');
+  const [shown2, setShown2] = useState('');
+  const [phase, setPhase] = useState('idle');
 
   useEffect(() => {
-    setShown('');
-    setDone(false);
-    let cancelled = false;
-    let id;
-
-    const start = () => {
-      if (cancelled) return;
-      let i = 0;
-      id = setInterval(() => {
-        i += 1;
-        setShown(text.slice(0, i));
-        if (i >= text.length) clearInterval(id);
-      }, speed);
-    };
-
-    // Typing used to start immediately, in whatever fallback font was
-    // available — then Special Elite would finish loading a moment later
-    // and swap in with different metrics, visibly shifting the
-    // already-typed text down. Waiting for the font to actually be ready
-    // first means the first character types in its final font, not a
-    // placeholder one.
-    const fontReady = document.fonts?.load
-      ? document.fonts.load('1.25rem "Special Elite"').catch(() => {})
-      : Promise.resolve();
-    fontReady.then(start);
-
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
+    if (!start) return;
+    setPhase('typing1');
+    let i = 0;
+    const id = setInterval(() => {
+      i += 1;
+      setShown1(line1.slice(0, i));
+      if (i >= line1.length) {
+        clearInterval(id);
+        setPhase('typing2');
+      }
+    }, speed);
+    return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [text]);
+  }, [start, line1]);
 
-  // Fires the vibration as a reaction to `shown` actually landing on
-  // screen (useLayoutEffect runs right after the DOM commits, just before
-  // paint) rather than from inside the interval above, which fired it
-  // before React had even scheduled that update.
-  useLayoutEffect(() => {
-    if (!shown) return;
-    playKeyClick();
-    const lastChar = shown[shown.length - 1];
-    const wordBoundary = lastChar === ' ' || shown.length >= text.length;
-    if (wordBoundary && typeof navigator !== 'undefined' && navigator.vibrate) {
-      const progress = shown.length / text.length;
-      const duration = Math.round(VIBRATE_MIN_MS + (VIBRATE_MAX_MS - VIBRATE_MIN_MS) * progress);
-      navigator.vibrate(duration);
-    }
-    if (shown.length >= text.length) {
-      setDone(true);
-      onDone?.();
-    }
+  useEffect(() => {
+    if (phase !== 'typing2') return;
+    let i = 0;
+    const id = setInterval(() => {
+      i += 1;
+      setShown2(line2.slice(0, i));
+      if (i >= line2.length) {
+        clearInterval(id);
+        setPhase('holding');
+      }
+    }, speed);
+    return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shown]);
+  }, [phase, line2, speed]);
 
+  useEffect(() => {
+    if (phase !== 'holding') return;
+    const t = setTimeout(() => setPhase('erasing2'), holdMs);
+    return () => clearTimeout(t);
+  }, [phase, holdMs]);
+
+  useEffect(() => {
+    if (phase !== 'erasing2') return;
+    let i = line2.length;
+    const id = setInterval(() => {
+      i -= 1;
+      setShown2(line2.slice(0, Math.max(i, 0)));
+      if (i <= 0) {
+        clearInterval(id);
+        setPhase('erasing1');
+      }
+    }, eraseSpeed);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, line2, eraseSpeed]);
+
+  useEffect(() => {
+    if (phase !== 'erasing1') return;
+    let i = line1.length;
+    const id = setInterval(() => {
+      i -= 1;
+      setShown1(line1.slice(0, Math.max(i, 0)));
+      if (i <= 0) {
+        clearInterval(id);
+        setPhase(finalWord ? 'typingFinal' : 'done');
+        if (!finalWord) onDone?.();
+      }
+    }, eraseSpeed);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, line1, eraseSpeed, finalWord]);
+
+  useEffect(() => {
+    if (phase !== 'typingFinal') return;
+    let i = 0;
+    const id = setInterval(() => {
+      i += 1;
+      setShown1(finalWord.slice(0, i));
+      if (i >= finalWord.length) {
+        clearInterval(id);
+        setPhase('done');
+        onDone?.();
+      }
+    }, speed);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, finalWord, speed]);
+
+  if (!start) return null;
+
+  const caretOn1 = phase === 'typing1' || phase === 'erasing1' || phase === 'typingFinal';
+  const caretOn2 = phase === 'typing2' || phase === 'holding' || phase === 'erasing2';
+  const caret = <span className="inline-block w-[2px] h-[0.9em] align-middle ml-1 bg-navy animate-pulse" />;
+
+  // nowrap so a line can never wrap onto an extra sub-line as it grows —
+  // that would change this block's total height, which (since it's
+  // vertically centered by the screen's own flex layout) would shift both
+  // lines up or down as a unit even though each line's own top/left stays
+  // fixed.
   return (
-    <p className={className}>
-      {shown}
-      {!done && <span className="typewriter-caret inline-block w-[2px] h-[0.9em] align-middle ml-1 bg-navy" />}
-    </p>
+    <div className={className} style={style}>
+      <p style={{ whiteSpace: 'nowrap' }}>{shown1}{caretOn1 && caret}</p>
+      <p style={{ whiteSpace: 'nowrap' }}>{shown2}{caretOn2 && caret}</p>
+    </div>
   );
 }
+// Fixed per-photo rotation/offset (not randomized on each render, which
+// would make the pile reshuffle on every re-render) so it reads as a
+// tossed stack of prints rather than a perfectly centered grid.
+// Kept to a narrow +-6deg range on purpose — a full-bleed cover needs to be
+// scaled up enough that its rotated edge still runs off-screen on every
+// side, and wider angles demand a much heavier (visibly zoomed-in) scale to
+// avoid corner gaps. A tighter range keeps the cover close to its native
+// framing while still reading as a loosely tossed stack.
+const STACK_TRANSFORMS = [
+  { rotate: -4, x: -6, y: 4 }, { rotate: 3, x: 8, y: -3 }, { rotate: -2, x: 4, y: 6 },
+  { rotate: 5, x: -10, y: -5 }, { rotate: -5.5, x: 2, y: 8 }, { rotate: 2.5, x: -7, y: -8 },
+  { rotate: -3, x: 9, y: 2 }, { rotate: 4.5, x: -3, y: -6 }, { rotate: -1.5, x: 6, y: 9 },
+  { rotate: 3.5, x: -9, y: 3 }, { rotate: -4.5, x: 3, y: -4 }, { rotate: 2, x: -5, y: 7 },
+  { rotate: -3.5, x: 7, y: -9 }, { rotate: 5.5, x: -4, y: 5 }, { rotate: -2.5, x: 5, y: -7 },
+  { rotate: 4, x: -8, y: -2 }, { rotate: -5, x: 10, y: 4 }, { rotate: 1.5, x: -2, y: -9 },
+  { rotate: -6, x: 6, y: 6 }, { rotate: 3, x: -6, y: -5 },
+];
 
 export default function PortalDashboard() {
   const { attendeeUser, logout } = useAuth();
@@ -557,8 +623,8 @@ export default function PortalDashboard() {
   const [location, setLocation] = useState('');
   const [howItWorksOpen, setHowItWorksOpen] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
-  const [introTyped, setIntroTyped] = useState(false);
-  const [introLeaving, setIntroLeaving] = useState(false);
+  const [round1Done, setRound1Done] = useState(false);
+  const [revealedCount, setRevealedCount] = useState(0);
   const [introHoldDone, setIntroHoldDone] = useState(false);
 
   // Cached (stale-while-revalidate): a repeat visit shows what was here last
@@ -607,17 +673,25 @@ export default function PortalDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, needsProfile]);
 
+  // Drives the stack's pacing directly off a real timer rather than
+  // Framer Motion's own per-item `delay` — with `duration: 0` that delay
+  // isn't reliably honored (onAnimationComplete can fire almost
+  // immediately regardless of the delay set), which was making every
+  // photo land in a rush instead of one every 350ms.
   useEffect(() => {
-    if (!introTyped) return;
-    const t = setTimeout(() => setIntroLeaving(true), DASHBOARD_INTRO_HOLD_MS);
-    return () => clearTimeout(t);
-  }, [introTyped]);
-
-  useEffect(() => {
-    if (!introLeaving) return;
-    const t = setTimeout(() => setIntroHoldDone(true), DASHBOARD_INTRO_FADE_MS);
-    return () => clearTimeout(t);
-  }, [introLeaving]);
+    const total = STACK_PHOTO_COUNT * STACK_ROUNDS;
+    let count = 0;
+    const id = setInterval(() => {
+      count += 1;
+      setRevealedCount(count);
+      // Fires well before round one's own 20 photos finish landing — the
+      // photo layer's fade and the text typing both start partway through
+      // round one instead of waiting for it to fully stack first.
+      if (count === TEXT_START_COUNT) setRound1Done(true);
+      if (count >= total) clearInterval(id);
+    }, STACK_ITEM_DELAY_MS);
+    return () => clearInterval(id);
+  }, []);
 
   // A dinner's own RSVP response happens inside DinnerCard (its own local
   // state, since each card ticks its own countdown) — this is how that
@@ -652,40 +726,61 @@ export default function PortalDashboard() {
 
   // Replaces the old dark loading skeleton, which visually read as "the
   // dashboard" flashing up before snapping to the light pre-profile screen.
-  // This holds on a light, on-brand line instead, regardless of which
+  // Photos stack twice; once round one lands, the photo layer itself fades
+  // (revealing the beige underneath, not the whole screen) while round two
+  // keeps landing and the intro sentence types over it. Once that sentence
+  // finishes and holds a beat, the whole screen fades into whichever real
   // screen (dashboard or pre-profile) is about to follow.
-  // Mirrors the needsProfile screen's exact chrome (nav, eyebrow, container)
-  // and puts the sentence in the same left-aligned slot the "Location"
-  // heading sits in below — so the fade-out/fade-in handoff reads as that
-  // text settling into place, not two unrelated screens swapping.
+  // Mirrors the needsProfile screen's exact chrome below (nav height,
+  // eyebrow spacing, pl-2, text-3xl Permanent Marker) so the intro text
+  // sits in the identical spot the "Location" heading occupies next. After
+  // erasing, it types "Location" itself into that same spot, then hands
+  // off immediately (no fade of its own) — the real screen's other
+  // elements fade in around that already-visible word instead.
   if (showIntro) return (
     <div
-      className="min-h-screen relative overflow-hidden transition-opacity ease-in-out"
-      style={{ background: '#E7DFC5', transitionDuration: `${DASHBOARD_INTRO_FADE_MS}ms`, opacity: introLeaving ? 0 : 1 }}
+      className="min-h-screen relative overflow-hidden"
+      style={{ background: '#E7DFC5' }}
     >
-      {/* Invisible but present — reserves the Location screen's nav height
-          (logo + border) so the typewriter sentence below still lands in
-          that screen's same slot, without this screen showing the logo or
-          the line under it. */}
+      <div
+        className="absolute inset-0 flex items-center justify-center transition-opacity ease-in-out"
+        style={{ transitionDuration: `${PHOTO_FADE_MS}ms`, opacity: round1Done ? 0 : 1 }}
+      >
+        <div className="relative" style={{ width: 'min(98vw, 540px)', height: 'min(86vh, 660px)' }}>
+          {Array.from({ length: STACK_PHOTO_COUNT * STACK_ROUNDS }, (_, i) => {
+            const src = STACK_PHOTOS[i % STACK_PHOTO_COUNT];
+            const t = STACK_TRANSFORMS[i % STACK_TRANSFORMS.length];
+            return (
+              <motion.div
+                key={i}
+                className="absolute inset-0 rounded-sm bg-white p-2.5 shadow-lg"
+                style={{ zIndex: i, rotate: t.rotate, x: t.x * 2, y: t.y * 2, opacity: i < revealedCount ? 1 : 0 }}
+              >
+                <img src={src} alt="" className="w-full h-full object-cover" draggable={false} />
+              </motion.div>
+            );
+          })}
+        </div>
+      </div>
+
       <nav className="relative z-10 flex items-center justify-between px-6 py-5" aria-hidden="true">
         <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="" className="h-7 opacity-0" />
       </nav>
 
       <div className="relative z-10 max-w-lg mx-auto px-5 py-10 space-y-8">
-        {/* Invisible but present — reserves the exact height of the
-            Location screen's "Welcome to HeyDer" eyebrow above it, so the
-            typewriter sentence still lands in that screen's same slot
-            without this one showing the text. */}
         <div className="text-center" aria-hidden="true">
           <p className="font-sans text-xs tracking-[0.2em] uppercase mb-3 opacity-0">Welcome to HeyDer</p>
         </div>
 
         <div className="pl-2">
-          <TypewriterText
-            text={DASHBOARD_INTRO_TEXT}
-            speed={95}
-            onDone={() => setIntroTyped(true)}
-            className="font-typewriter text-left text-lg md:text-xl text-navy leading-relaxed"
+          <IntroText
+            line1={INTRO_LINE_1}
+            line2={INTRO_LINE_2}
+            finalWord="Location"
+            start={round1Done}
+            onDone={() => setIntroHoldDone(true)}
+            className="text-3xl text-navy leading-snug"
+            style={{ fontFamily: "'Permanent Marker', cursive" }}
           />
         </div>
       </div>
@@ -702,57 +797,62 @@ export default function PortalDashboard() {
     </div>
   );
 
-  if (needsProfile || (profile && !profile.profileComplete)) return (
-    <motion.div
-      className="min-h-screen relative overflow-hidden"
-      style={{ background: '#E7DFC5' }}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 1.1, ease: 'easeInOut' }}
-    >
-      <nav className="relative z-10 flex items-center justify-between px-6 py-5 border-b border-navy/10">
+  // No fade on the outer screen or the Location label itself — when
+  // arriving from the intro, that word is already sitting here typed out,
+  // so it stays put with zero visual change. Everything around it (nav,
+  // eyebrow, dropdown, the rest) fades in on its own instead, which is
+  // what actually reads as "the rest of the screen appearing".
+  if (needsProfile || (profile && !profile.profileComplete)) {
+    const revealFade = { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { duration: 0.9, ease: 'easeInOut' } };
+    return (
+    <div className="min-h-screen relative overflow-hidden" style={{ background: '#E7DFC5' }}>
+      <motion.nav {...revealFade} className="relative z-10 flex items-center justify-between px-6 py-5 border-b border-navy/10">
         <Link to="/">
           <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-7 brightness-0" />
         </Link>
         <button onClick={async () => { await logout(); navigate('/'); }} className="font-sans text-navy/50 text-xs hover:text-navy transition-colors">
           Sign out
         </button>
-      </nav>
+      </motion.nav>
 
       <div className="relative z-10 max-w-lg mx-auto px-5 py-10 space-y-8">
-        <div className="text-center">
+        <motion.div {...revealFade} className="text-center">
           <p className="font-sans text-navy/50 text-xs tracking-[0.2em] uppercase mb-3">Welcome to HeyDer</p>
-        </div>
+        </motion.div>
 
         <div className="space-y-1">
           <label className="text-navy text-3xl block pl-2" style={{ fontFamily: "'Permanent Marker', cursive" }}>Location</label>
-          <CityDropdown value={location} onChange={setLocation} />
+          <motion.div {...revealFade}>
+            <CityDropdown value={location} onChange={setLocation} />
+          </motion.div>
         </div>
 
         {location && location !== 'Auckland' && (
-          <div className="text-center">
+          <motion.div {...revealFade} className="text-center">
             <p className="font-sans text-navy/60 text-sm leading-relaxed">
               We're currently curating dinners only in Auckland. We'll let you know when we expand to {location}.
             </p>
-          </div>
+          </motion.div>
         )}
 
         {location === 'Auckland' && (
-          <Link
-            to="/profile"
-            onClick={() => {
-              // Quiz.jsx (mounted at /profile) picks this up and includes it
-              // in the submission — this selector used to be purely cosmetic,
-              // the picked city never actually reached the server.
-              sessionStorage.setItem('heyder_signup_city', location);
-            }}
-            className="w-full inline-flex items-center justify-center gap-2 border-2 border-navy text-navy font-sans font-semibold text-base tracking-wide px-8 py-4 rounded-2xl transition-all duration-200 hover:bg-navy hover:text-cream"
-          >
-            Build My Profile →
-          </Link>
+          <motion.div {...revealFade}>
+            <Link
+              to="/profile"
+              onClick={() => {
+                // Quiz.jsx (mounted at /profile) picks this up and includes it
+                // in the submission — this selector used to be purely cosmetic,
+                // the picked city never actually reached the server.
+                sessionStorage.setItem('heyder_signup_city', location);
+              }}
+              className="w-full inline-flex items-center justify-center gap-2 border-2 border-navy text-navy font-sans font-semibold text-base tracking-wide px-8 py-4 rounded-2xl transition-all duration-200 hover:bg-navy hover:text-cream"
+            >
+              Build My Profile →
+            </Link>
+          </motion.div>
         )}
 
-        <div className="border-t border-navy/10 pt-8">
+        <motion.div {...revealFade} className="border-t border-navy/10 pt-8">
           <button
             type="button"
             onClick={() => setHowItWorksOpen(o => !o)}
@@ -788,10 +888,11 @@ export default function PortalDashboard() {
               ))}
             </div>
           </div>
-        </div>
+        </motion.div>
       </div>
-    </motion.div>
-  );
+    </div>
+    );
+  }
 
   const upcoming = dinners.filter(d => d.is_pending || !d.date || new Date(d.date) >= new Date());
   const past = dinners.filter(d => !d.is_pending && d.date && new Date(d.date) < new Date());
