@@ -62,7 +62,7 @@ export const QUESTIONS = [
   {
     id: 'relationship',
     type: 'choice',
-    title: "What's your relationship status?",
+    title: 'Relationship status',
     field: 'field_3zmnHXYzZn17',
     chapter: 'basics',
     required: true,
@@ -71,7 +71,7 @@ export const QUESTIONS = [
   {
     id: 'lifestage',
     type: 'choice',
-    title: 'Which stage of life are you in right now?',
+    title: 'Current life stage',
     field: 'field_aIpzE2elktbh',
     chapter: 'basics',
     required: true,
@@ -82,7 +82,7 @@ export const QUESTIONS = [
   {
     id: 'personality',
     type: 'choice',
-    title: 'Would you say you\'re more…',
+    title: "I'm more of",
     field: 'field_L6GblNns9C7v',
     chapter: 'show_up',
     required: true,
@@ -91,7 +91,7 @@ export const QUESTIONS = [
   {
     id: 'battery',
     type: 'choice',
-    title: "How's your social battery these days?",
+    title: 'My social battery these days',
     field: 'field_LosYJHqrbpKO',
     chapter: 'show_up',
     required: true,
@@ -100,7 +100,7 @@ export const QUESTIONS = [
   {
     id: 'career_pref',
     type: 'choice',
-    title: 'If paid equally, which career would you choose?',
+    title: 'What career would you choose?',
     field: 'field_lS4ks7Km1VlA',
     chapter: 'show_up',
     required: true,
@@ -118,7 +118,7 @@ export const QUESTIONS = [
   {
     id: 'weekends',
     type: 'choice',
-    title: 'Most weekends, you are…',
+    title: "Most weekends I'm...",
     field: 'field_pCwGXuvIxGTu',
     chapter: 'show_up',
     required: true,
@@ -138,7 +138,7 @@ export const QUESTIONS = [
   {
     id: 'group_role',
     type: 'choice',
-    title: 'In a group, you naturally become the one who…',
+    title: 'In a group I naturally...',
     field: 'group_role',
     chapter: 'drawn_to',
     required: true,
@@ -152,7 +152,7 @@ export const QUESTIONS = [
   {
     id: 'connection_trigger',
     type: 'choice',
-    title: 'You feel instantly connected to someone who…',
+    title: 'I instantly connect with people who are',
     field: 'connection_trigger',
     chapter: 'drawn_to',
     required: true,
@@ -161,7 +161,7 @@ export const QUESTIONS = [
   {
     id: 'social_recharge',
     type: 'scale',
-    title: 'The day after a big night out, you feel',
+    title: 'After a big night out I feel',
     field: 'social_recharge',
     chapter: 'drawn_to',
     required: true,
@@ -173,7 +173,7 @@ export const QUESTIONS = [
   {
     id: 'deep_convo',
     type: 'scale',
-    title: 'I enjoy having deep conversations in a group',
+    title: 'I enjoy deep conversations',
     field: 'field_PyYcCusA8b74',
     chapter: 'conversation',
     required: true,
@@ -203,7 +203,7 @@ export const QUESTIONS = [
   {
     id: 'curious',
     type: 'scale',
-    title: 'You straight up ask questions when curious',
+    title: 'You ask questions when curious',
     field: 'field_OqnhJdRIytBz',
     chapter: 'conversation',
     required: true,
@@ -1559,7 +1559,9 @@ export default function Quiz() {
                           <span className="font-serif text-2xl">${oneTimePrice}</span>
                         </span>
                       </div>
-                      <p className="font-sans text-sm text-navy/55">Reserve just this Tuesday's dinner. Refundable up to 48hrs before.</p>
+                      <p className="font-sans text-sm text-navy/55">
+                        Reserve {answers.field_CdZldwp5q09o ? `the ${answers.field_CdZldwp5q09o}` : "this Tuesday's"} dinner. Refundable up to 48hrs before.
+                      </p>
                     </motion.button>
                     <motion.button
                       variants={fadeLeftVariant}
