@@ -451,18 +451,6 @@ function DinnerCard({ dinner, onCancel, onRsvpUpdate }) {
   );
 }
 
-const STACK_PHOTO_COUNT = 20;
-const STACK_PHOTOS = Array.from(
-  { length: STACK_PHOTO_COUNT },
-  (_, i) => `/photos/stack/stack-${String(i + 1).padStart(2, '0')}.jpg`
-);
-// The same set stacks almost all the way through round one; the fade (and
-// the intro text typing) starts right as its last two photos are landing,
-// not from the beginning of round one.
-const STACK_ROUNDS = 2;
-const STACK_ITEM_DELAY_MS = 350;
-const TEXT_START_COUNT = STACK_PHOTO_COUNT - 2;
-
 // Two fixed lines, each its own always-mounted block, rather than one
 // flowing string broken with \n — that still risked a visible jump right
 // at the instant the trailing newline entered or left the string (the <p>
@@ -474,11 +462,6 @@ const INTRO_LINE_1 = 'Meet people who want to';
 const INTRO_LINE_2 = 'meet someone like you.';
 const INTRO_TEXT_SPEED_MS = 130;
 const INTRO_TEXT_ERASE_SPEED_MS = 40;
-// The photo layer's fade is timed to take exactly as long as line one
-// takes to type, so by the moment line two ("meet someone like you.")
-// starts, every photo has completely faded away rather than the fade
-// finishing early or still being mid-flight into line two.
-const PHOTO_FADE_MS = INTRO_LINE_1.length * INTRO_TEXT_SPEED_MS;
 // Held for a beat once the sentence finishes typing, before it reverse-
 // erases back to nothing.
 const INTRO_TEXT_HOLD_MS = 700;
@@ -609,23 +592,6 @@ function IntroText({ line1, line2, finalWord, finalWordSize = '1.875rem', start,
     </div>
   );
 }
-// Fixed per-photo rotation/offset (not randomized on each render, which
-// would make the pile reshuffle on every re-render) so it reads as a
-// tossed stack of prints rather than a perfectly centered grid.
-// Kept to a narrow +-6deg range on purpose — a full-bleed cover needs to be
-// scaled up enough that its rotated edge still runs off-screen on every
-// side, and wider angles demand a much heavier (visibly zoomed-in) scale to
-// avoid corner gaps. A tighter range keeps the cover close to its native
-// framing while still reading as a loosely tossed stack.
-const STACK_TRANSFORMS = [
-  { rotate: -4, x: -6, y: 4 }, { rotate: 3, x: 8, y: -3 }, { rotate: -2, x: 4, y: 6 },
-  { rotate: 5, x: -10, y: -5 }, { rotate: -5.5, x: 2, y: 8 }, { rotate: 2.5, x: -7, y: -8 },
-  { rotate: -3, x: 9, y: 2 }, { rotate: 4.5, x: -3, y: -6 }, { rotate: -1.5, x: 6, y: 9 },
-  { rotate: 3.5, x: -9, y: 3 }, { rotate: -4.5, x: 3, y: -4 }, { rotate: 2, x: -5, y: 7 },
-  { rotate: -3.5, x: 7, y: -9 }, { rotate: 5.5, x: -4, y: 5 }, { rotate: -2.5, x: 5, y: -7 },
-  { rotate: 4, x: -8, y: -2 }, { rotate: -5, x: 10, y: 4 }, { rotate: 1.5, x: -2, y: -9 },
-  { rotate: -6, x: 6, y: 6 }, { rotate: 3, x: -6, y: -5 },
-];
 
 export default function PortalDashboard() {
   const { attendeeUser, logout } = useAuth();
@@ -633,8 +599,6 @@ export default function PortalDashboard() {
   const [location, setLocation] = useState('');
   const [howItWorksOpen, setHowItWorksOpen] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
-  const [round1Done, setRound1Done] = useState(false);
-  const [revealedCount, setRevealedCount] = useState(0);
   const [introHoldDone, setIntroHoldDone] = useState(false);
 
   // Cached (stale-while-revalidate): a repeat visit shows what was here last
@@ -683,26 +647,6 @@ export default function PortalDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, needsProfile]);
 
-  // Drives the stack's pacing directly off a real timer rather than
-  // Framer Motion's own per-item `delay` — with `duration: 0` that delay
-  // isn't reliably honored (onAnimationComplete can fire almost
-  // immediately regardless of the delay set), which was making every
-  // photo land in a rush instead of one every 350ms.
-  useEffect(() => {
-    const total = STACK_PHOTO_COUNT * STACK_ROUNDS;
-    let count = 0;
-    const id = setInterval(() => {
-      count += 1;
-      setRevealedCount(count);
-      // Fires well before round one's own 20 photos finish landing — the
-      // photo layer's fade and the text typing both start partway through
-      // round one instead of waiting for it to fully stack first.
-      if (count === TEXT_START_COUNT) setRound1Done(true);
-      if (count >= total) clearInterval(id);
-    }, STACK_ITEM_DELAY_MS);
-    return () => clearInterval(id);
-  }, []);
-
   // A dinner's own RSVP response happens inside DinnerCard (its own local
   // state, since each card ticks its own countdown) — this is how that
   // answer also lands in the cached list, so a later visit doesn't briefly
@@ -736,11 +680,6 @@ export default function PortalDashboard() {
 
   // Replaces the old dark loading skeleton, which visually read as "the
   // dashboard" flashing up before snapping to the light pre-profile screen.
-  // Photos stack twice; once round one lands, the photo layer itself fades
-  // (revealing the beige underneath, not the whole screen) while round two
-  // keeps landing and the intro sentence types over it. Once that sentence
-  // finishes and holds a beat, the whole screen fades into whichever real
-  // screen (dashboard or pre-profile) is about to follow.
   // Mirrors the needsProfile screen's exact chrome below (nav height,
   // eyebrow spacing, pl-2, text-3xl Permanent Marker) so the intro text
   // sits in the identical spot the "Location" heading occupies next. After
@@ -752,34 +691,6 @@ export default function PortalDashboard() {
       className="min-h-screen relative overflow-hidden"
       style={{ background: '#E7DFC5' }}
     >
-      <div
-        className="absolute inset-0 flex items-center justify-center transition-opacity ease-in-out"
-        style={{ transitionDuration: `${PHOTO_FADE_MS}ms`, opacity: round1Done ? 0 : 1 }}
-      >
-        {/* Only the already-revealed photos are ever mounted — rendering
-            all 40 up front (even hidden ones, toggling opacity) meant a
-            phone's WebView had to keep every rotated, shadowed layer
-            composited at once from the very first frame, which is what
-            was showing up as glitching. A lighter shadow than shadow-lg
-            (also one of the pricier properties to repaint at this count)
-            eases that further. */}
-        <div className="relative" style={{ width: 'min(98vw, 540px)', height: 'min(86vh, 660px)' }}>
-          {Array.from({ length: revealedCount }, (_, i) => {
-            const src = STACK_PHOTOS[i % STACK_PHOTO_COUNT];
-            const t = STACK_TRANSFORMS[i % STACK_TRANSFORMS.length];
-            return (
-              <motion.div
-                key={i}
-                className="absolute inset-0 rounded-sm bg-white p-2.5"
-                style={{ zIndex: i, rotate: t.rotate, x: t.x * 2, y: t.y * 2, boxShadow: '0 4px 10px rgba(22,24,29,0.18)' }}
-              >
-                <img src={src} alt="" className="w-full h-full object-cover" draggable={false} />
-              </motion.div>
-            );
-          })}
-        </div>
-      </div>
-
       <nav className="relative z-10 flex items-center justify-between px-6 py-5" aria-hidden="true">
         <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="" className="h-7 opacity-0" />
       </nav>
@@ -794,7 +705,7 @@ export default function PortalDashboard() {
             line1={INTRO_LINE_1}
             line2={INTRO_LINE_2}
             finalWord="Location"
-            start={round1Done}
+            start
             onDone={() => setIntroHoldDone(true)}
             className="text-navy leading-snug"
             style={{ fontFamily: "'Permanent Marker', cursive" }}
