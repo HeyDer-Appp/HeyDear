@@ -471,6 +471,22 @@ const VIBRATE_MAX_MS = 30;
 function TypewriterText({ text, speed = 45, onDone, className }) {
   const [shown, setShown] = useState('');
   const [done, setDone] = useState(false);
+  // A fresh Audio() per character rather than rewinding one shared element
+  // — resetting currentTime on an element whose previous play() hadn't
+  // resolved yet aborts that pending play, so only the last, uninterrupted
+  // character ever finished playing. Independent instances can overlap
+  // freely instead. Autoplay may still block this until a user gesture has
+  // happened somewhere on the page; it just stays silent until then, same
+  // as the vibrate fallback below.
+  const playKeyClick = () => {
+    try {
+      const audio = new Audio('/sounds/typewriter-key.mp3');
+      audio.volume = 0.45;
+      audio.play().catch(() => {});
+    } catch {
+      // Playback unavailable — typing continues silently.
+    }
+  };
 
   useEffect(() => {
     setShown('');
@@ -512,6 +528,7 @@ function TypewriterText({ text, speed = 45, onDone, className }) {
   // before React had even scheduled that update.
   useLayoutEffect(() => {
     if (!shown) return;
+    playKeyClick();
     const lastChar = shown[shown.length - 1];
     const wordBoundary = lastChar === ' ' || shown.length >= text.length;
     if (wordBoundary && typeof navigator !== 'undefined' && navigator.vibrate) {
@@ -646,8 +663,12 @@ export default function PortalDashboard() {
       className="min-h-screen relative overflow-hidden transition-opacity ease-in-out"
       style={{ background: '#E7DFC5', transitionDuration: `${DASHBOARD_INTRO_FADE_MS}ms`, opacity: introLeaving ? 0 : 1 }}
     >
-      <nav className="relative z-10 flex items-center justify-between px-6 py-5 border-b border-navy/10">
-        <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-7 brightness-0" />
+      {/* Invisible but present — reserves the Location screen's nav height
+          (logo + border) so the typewriter sentence below still lands in
+          that screen's same slot, without this screen showing the logo or
+          the line under it. */}
+      <nav className="relative z-10 flex items-center justify-between px-6 py-5" aria-hidden="true">
+        <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="" className="h-7 opacity-0" />
       </nav>
 
       <div className="relative z-10 max-w-lg mx-auto px-5 py-10 space-y-8">
