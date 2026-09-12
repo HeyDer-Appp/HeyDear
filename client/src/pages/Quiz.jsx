@@ -1191,7 +1191,10 @@ export default function Quiz() {
         field_OVB7lzEjSl7C: answers.field_OVB7lzEjSl7C || [],
         skip_booking: true,
       });
-      navigate('/profile/success');
+      // Skipping the date itself means no dinner was picked at all, so the
+      // "you're in, booking confirmed" success screen would be misleading —
+      // straight to the dashboard instead, matching the comment above.
+      navigate(skipDate ? '/portal/dashboard' : '/profile/success');
     } catch (err) {
       toast.error(err.response?.data?.error || 'Submission failed. Please try again.');
       setSubmitting(false);
@@ -1488,7 +1491,7 @@ export default function Quiz() {
                     ))}
                     <button
                       type="button"
-                      onClick={() => { setDateOptionsOpen(false); setStepIndex(i => Math.min(i + 1, STEPS.length - 1)); }}
+                      onClick={() => { setDateOptionsOpen(false); skipPayment(true); }}
                       disabled={submitting}
                       className="w-full text-left px-5 py-3 font-sans text-sm text-navy/55 hover:bg-navy/5 transition-colors border-t border-navy/10 disabled:opacity-50"
                     >
@@ -1560,7 +1563,7 @@ export default function Quiz() {
                         </span>
                       </div>
                       <p className="font-sans text-sm text-navy/55">
-                        Reserve {answers.field_CdZldwp5q09o ? `the ${answers.field_CdZldwp5q09o}` : "this Tuesday's"} dinner. Refundable up to 48hrs before.
+                        Reserve {answers.field_CdZldwp5q09o ? `the ${answers.field_CdZldwp5q09o}` : "this Tuesday's"} dinner.
                       </p>
                     </motion.button>
                     <motion.button
