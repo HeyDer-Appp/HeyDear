@@ -301,6 +301,7 @@ export default function BookDinner() {
                   </span>
                 )}
               </div>
+              <p className="font-sans text-gold/70 text-xs mb-1">Booking for {selectedDate}</p>
               <p className="font-sans text-cream/35 text-xs mb-4">
                 {stripeConfigured
                   ? "Choose how you'd like to join."
@@ -344,7 +345,7 @@ export default function BookDinner() {
                           <span className="font-serif text-2xl">${oneTimePrice}</span>
                         </span>
                       </div>
-                      <p className={`font-sans text-sm ${selectedPlan === 'one_time' ? 'text-navy/60' : 'text-cream/40'}`}>Reserve just this Tuesday's dinner. Refundable up to 48hrs before.</p>
+                      <p className={`font-sans text-sm ${selectedPlan === 'one_time' ? 'text-navy/60' : 'text-cream/40'}`}>Reserve {selectedDate ? `the ${selectedDate}` : "this Tuesday's"} dinner. Refundable up to 48hrs before.</p>
                     </motion.button>
                     <motion.button
                       variants={fadeLeftVariant}
