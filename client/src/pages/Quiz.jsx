@@ -1562,9 +1562,11 @@ export default function Quiz() {
                           <span className="font-serif text-2xl">${oneTimePrice}</span>
                         </span>
                       </div>
-                      <p className="font-sans text-sm text-navy/55">
-                        Reserve {answers.field_CdZldwp5q09o ? `the ${answers.field_CdZldwp5q09o}` : "this Tuesday's"} dinner.
-                      </p>
+                      {selectedPlan === 'one_time' && (
+                        <p className="font-sans text-sm text-navy/55">
+                          Reserve {answers.field_CdZldwp5q09o ? `the ${answers.field_CdZldwp5q09o}` : "this Tuesday's"} dinner.
+                        </p>
+                      )}
                     </motion.button>
                     <motion.button
                       variants={fadeLeftVariant}
@@ -1583,7 +1585,9 @@ export default function Quiz() {
                           <span className="font-serif text-2xl">${subPrice}<span className="text-sm">/mo</span></span>
                         </span>
                       </div>
-                      <p className="font-sans text-sm text-navy/55">Unlimited HeyDer dinners this month.</p>
+                      {selectedPlan === 'subscription' && (
+                        <p className="font-sans text-sm text-navy/55">Unlimited HeyDer dinners this month.</p>
+                      )}
                     </motion.button>
                   </motion.div>
 
