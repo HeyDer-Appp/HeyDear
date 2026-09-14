@@ -30,6 +30,7 @@ import Feedback from './pages/Feedback';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import DeleteAccount from './pages/DeleteAccount';
 import ChildSafety from './pages/ChildSafety';
+import PartnerWithUs from './pages/PartnerWithUs';
 import TermsConditions from './pages/TermsConditions';
 
 import PortalLogin from './pages/portal/Login';
@@ -135,6 +136,7 @@ function AppRoutes() {
       <Route path="/privacy-policy" element={<PrivacyPolicy />} />
       <Route path="/delete-account" element={<DeleteAccount />} />
       <Route path="/child-safety" element={<ChildSafety />} />
+      <Route path="/partner-with-us" element={<PartnerWithUs />} />
       <Route path="/terms-conditions" element={<TermsConditions />} />
 
       <Route path="/portal/login" element={<PortalLogin />} />

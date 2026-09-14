@@ -38,6 +38,7 @@ export default function Footer() {
                 { label: 'How It Works', href: '/#works' },
                 { label: 'Why Us', href: '/#whyus' },
                 { label: 'FAQ', href: '/#faq' },
+                { label: 'Partner With Us', href: '/partner-with-us' },
                 { label: 'Privacy Policy', href: '/privacy-policy' },
                 { label: 'Terms & Conditions', href: '/terms-conditions' },
               ].map(link => (
