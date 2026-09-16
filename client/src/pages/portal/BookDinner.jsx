@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
@@ -13,6 +13,8 @@ import BottomNav from '../../components/BottomNav';
 export default function BookDinner() {
   const { attendeeUser } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const presetDate = location.state?.presetDate;
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [alreadyBooked, setAlreadyBooked] = useState(false);
@@ -116,8 +118,18 @@ export default function BookDinner() {
       });
       setHasActiveSubscription(!!hasSub);
       const dateQuestion = questionsRes.data.questions?.find(q => q.id === 'CdZldwp5q09o');
-      setDateChoices(dateQuestion?.choices || []);
+      const choices = dateQuestion?.choices || [];
+      setDateChoices(choices);
+
+      // Came here already having picked a date on the My Table sentence
+      // card — skip straight to the plan choice instead of asking again,
+      // as long as the server's own date list actually has that date.
+      if (presetDate && choices.includes(presetDate)) {
+        setSelectedDate(presetDate);
+        setStep('payment');
+      }
     }).catch(() => setLoadError(true)).finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate]);
 
   // plan is only relevant in test mode (no Stripe key) — a real Stripe

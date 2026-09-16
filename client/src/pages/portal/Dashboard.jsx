@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
@@ -66,6 +66,141 @@ function CityDropdown({ value, onChange }) {
         </div>
       )}
     </div>
+  );
+}
+
+// Booking for a given Tuesday closes 6pm NZT the Sunday before it — two
+// days out, giving the venue side the whole week to plan instead of a
+// last-minute headcount. Once that cutoff passes for the nearest Tuesday,
+// it drops off the list and the window rolls forward, so there are always
+// exactly 3 real options. Dates are tracked as UTC-midnight values that
+// stand in for NZ calendar days (not real UTC instants) — comparisons all
+// happen on that same artificial axis, so this doesn't need real
+// timezone-offset math, and formatting uses timeZone: 'UTC' so the browser
+// doesn't reinterpret it through the viewer's own device timezone.
+function nzNowMillis() {
+  const fmt = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Pacific/Auckland', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+  });
+  const p = Object.fromEntries(fmt.formatToParts(new Date()).map(x => [x.type, x.value]));
+  return Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second);
+}
+
+function getNextTuesdayOptions(count = 3) {
+  const nowMillis = nzNowMillis();
+  let cursor = new Date(nowMillis);
+  cursor = new Date(Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth(), cursor.getUTCDate()));
+  while (cursor.getUTCDay() !== 2) cursor = new Date(cursor.getTime() + 86400000);
+
+  const options = [];
+  while (options.length < count) {
+    const cutoff = cursor.getTime() - 2 * 86400000 + 18 * 3600000; // Sunday 18:00, 2 days before
+    if (nowMillis < cutoff) options.push(new Date(cursor));
+    cursor = new Date(cursor.getTime() + 7 * 86400000);
+  }
+  return options;
+}
+
+function formatTuesdayOption(date) {
+  return date.toLocaleDateString('en-NZ', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
+}
+
+// The two inline pills that make up "Book my dinner on <date> in <city>
+// city" — small dropdown buttons sitting inside a flowing sentence rather
+// than a full-width form field, matching the approved mockup.
+function InlineDatePill({ value, onChange }) {
+  const [open, setOpen] = useState(false);
+  const options = React.useMemo(() => getNextTuesdayOptions(3), []);
+  return (
+    <span className="relative inline-block align-baseline">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1 font-sans text-[0.62em] align-middle"
+        style={{
+          background: 'transparent',
+          border: '1.5px solid rgba(117,68,113,0.55)',
+          boxShadow: 'inset 0 2px 4px rgba(22,24,29,0.25), inset 0 -1px 0 rgba(255,255,255,0.5)',
+        }}
+      >
+        <span style={{ color: value ? '#754471' : 'rgba(117,68,113,0.5)' }}>{value ? formatTuesdayOption(value) : 'choose date'}</span>
+        <svg width="9" height="9" viewBox="0 0 12 12" fill="none" style={{ color: '#754471', flexShrink: 0, transform: open ? 'rotate(180deg)' : 'none' }}>
+          <path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+      {open && (
+        <span
+          className="absolute left-1/2 mt-1.5 rounded-2xl overflow-hidden block"
+          style={{
+            transform: 'translateX(-50%)',
+            width: '180px',
+            zIndex: 50,
+            background: 'rgba(231,223,197,0.95)',
+            border: '1px solid rgba(22,24,29,0.12)',
+            boxShadow: '0 10px 28px rgba(22,24,29,0.12)',
+          }}
+        >
+          {options.map(date => (
+            <button
+              key={date.toISOString()}
+              type="button"
+              onClick={() => { onChange(date); setOpen(false); }}
+              className="w-full text-left px-4 py-2.5 font-sans text-sm text-navy hover:bg-navy/5 transition-colors block"
+            >
+              {formatTuesdayOption(date)}
+            </button>
+          ))}
+        </span>
+      )}
+    </span>
+  );
+}
+
+function InlineCityPill({ value, onChange }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <span className="relative inline-block align-baseline">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1 font-sans text-[0.62em] align-middle"
+        style={{
+          background: 'transparent',
+          border: '1.5px solid rgba(117,68,113,0.55)',
+          boxShadow: 'inset 0 2px 4px rgba(22,24,29,0.25), inset 0 -1px 0 rgba(255,255,255,0.5)',
+        }}
+      >
+        <span style={{ color: '#754471' }}>{value}</span>
+        <svg width="9" height="9" viewBox="0 0 12 12" fill="none" style={{ color: '#754471', flexShrink: 0, transform: open ? 'rotate(180deg)' : 'none' }}>
+          <path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+      {open && (
+        <span
+          className="absolute left-1/2 mt-1.5 rounded-2xl overflow-hidden block"
+          style={{
+            transform: 'translateX(-50%)',
+            width: '160px',
+            zIndex: 50,
+            background: 'rgba(231,223,197,0.95)',
+            border: '1px solid rgba(22,24,29,0.12)',
+            boxShadow: '0 10px 28px rgba(22,24,29,0.12)',
+          }}
+        >
+          {PRE_PROFILE_CITIES.map(city => (
+            <button
+              key={city}
+              type="button"
+              onClick={() => { onChange(city); setOpen(false); }}
+              className="w-full text-left px-4 py-2.5 font-sans text-sm text-navy hover:bg-navy/5 transition-colors block"
+            >
+              {city}
+            </button>
+          ))}
+        </span>
+      )}
+    </span>
   );
 }
 
@@ -597,9 +732,54 @@ export default function PortalDashboard() {
   const { attendeeUser, logout } = useAuth();
   const navigate = useNavigate();
   const [location, setLocation] = useState('');
+  const [bookingDate, setBookingDate] = useState(null);
+  const [bookingCity, setBookingCity] = useState('Auckland');
+  // Temporary — lets the booking-sentence card be dragged live while
+  // deciding where it should sit. Drag starts anywhere on the card except
+  // its buttons, so the date/city pills keep working normally.
+  const [cardOffset, setCardOffset] = useState({ x: 0, y: 85 });
+  const cardDragRef = useRef(null);
+  const startCardDrag = (e) => {
+    if (e.target.closest('button')) return;
+    e.preventDefault();
+    const point = e.touches ? e.touches[0] : e;
+    cardDragRef.current = { startX: point.clientX, startY: point.clientY, origX: cardOffset.x, origY: cardOffset.y };
+    window.addEventListener('mousemove', moveCardDrag);
+    window.addEventListener('mouseup', endCardDrag);
+    window.addEventListener('touchmove', moveCardDrag, { passive: false });
+    window.addEventListener('touchend', endCardDrag);
+  };
+  const moveCardDrag = (e) => {
+    if (!cardDragRef.current) return;
+    const point = e.touches ? e.touches[0] : e;
+    setCardOffset({
+      x: cardDragRef.current.origX + (point.clientX - cardDragRef.current.startX),
+      y: cardDragRef.current.origY + (point.clientY - cardDragRef.current.startY),
+    });
+  };
+  const endCardDrag = () => {
+    cardDragRef.current = null;
+    window.removeEventListener('mousemove', moveCardDrag);
+    window.removeEventListener('mouseup', endCardDrag);
+    window.removeEventListener('touchmove', moveCardDrag, { passive: false });
+    window.removeEventListener('touchend', endCardDrag);
+  };
   const [howItWorksOpen, setHowItWorksOpen] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
-  const [introHoldDone, setIntroHoldDone] = useState(false);
+  const [showConfirmSummary, setShowConfirmSummary] = useState(false);
+  const [matchAvatars, setMatchAvatars] = useState([]);
+  const handleConfirmClick = () => {
+    if (!bookingDate) { toast.error('Choose a date first.'); return; }
+    const seed = Math.random().toString(36).slice(2);
+    setMatchAvatars(Array.from({ length: 5 }, (_, i) => `https://i.pravatar.cc/150?u=${seed}-${i}`));
+    setShowConfirmSummary(true);
+  };
+  // Persisted per-session — without this, leaving the tab (Album, Chat, etc.)
+  // and coming back unmounts/remounts this component, resetting this to
+  // false and replaying the full typing animation every single visit.
+  const [introHoldDone, setIntroHoldDone] = useState(() => {
+    try { return sessionStorage.getItem('heyder_intro_seen') === '1'; } catch { return false; }
+  });
 
   // Cached (stale-while-revalidate): a repeat visit shows what was here last
   // time instantly, while a fresh copy loads quietly in the background — see
@@ -706,7 +886,10 @@ export default function PortalDashboard() {
             line2={INTRO_LINE_2}
             finalWord="Location"
             start
-            onDone={() => setIntroHoldDone(true)}
+            onDone={() => {
+              setIntroHoldDone(true);
+              try { sessionStorage.setItem('heyder_intro_seen', '1'); } catch {}
+            }}
             className="text-navy leading-snug"
             style={{ fontFamily: "'Permanent Marker', cursive" }}
           />
@@ -827,45 +1010,26 @@ export default function PortalDashboard() {
 
   return (
     <div className="quiz-bg min-h-screen relative overflow-hidden pb-24">
+      <img
+        src="/images/auckland-map-beige.png"
+        alt=""
+        aria-hidden="true"
+        className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+      />
       {/* Nav */}
-      <nav className="relative z-10 flex items-center justify-between px-6 py-5 border-b border-white/[0.06] backdrop-blur">
+      <nav className="relative z-10 flex items-center justify-between px-6 py-5 backdrop-blur-md">
         <Link to="/">
-          <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-7" />
+          <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-7 brightness-0" />
         </Link>
         <div className="flex items-center gap-3">
-          <img src={profile?.photo || AVATAR} alt="Account" className="w-8 h-8 rounded-full border border-gold/30 object-cover" />
-          <button onClick={async () => { await logout(); navigate('/'); }} className="font-sans text-cream/40 text-xs hover:text-cream transition-colors">
+          <img src={profile?.photo || AVATAR} alt="Account" className="w-8 h-8 rounded-full border border-navy/20 object-cover" />
+          <button onClick={async () => { await logout(); navigate('/'); }} className="font-sans text-navy/50 text-xs hover:text-navy transition-colors">
             Sign out
           </button>
         </div>
       </nav>
 
       <div className="relative z-10 max-w-lg mx-auto px-5 py-8 space-y-6">
-
-        {/* Profile header */}
-        <div className="flex items-center gap-3">
-          <img
-            src={profile?.photo || AVATAR}
-            alt=""
-            className="w-14 h-14 rounded-full border-2 border-gold/40 object-cover flex-shrink-0"
-          />
-          <div className="flex-1 min-w-0">
-            <h1 className="font-serif text-xl text-cream truncate">
-              {profile?.first_name}
-            </h1>
-            {hasActiveSubscription && (
-              <span className="inline-block mt-1 font-sans text-[10px] tracking-widest uppercase text-gold bg-gold/10 border border-gold/20 rounded-full px-2.5 py-0.5">
-                ✦ Subscription active
-              </span>
-            )}
-          </div>
-          <Link
-            to="/portal/profile"
-            className="font-sans text-gold text-xs hover:text-yellow transition-colors whitespace-nowrap"
-          >
-            Edit →
-          </Link>
-        </div>
 
         {/* Upcoming dinners */}
         {upcoming.length > 0 ? (
@@ -875,12 +1039,130 @@ export default function PortalDashboard() {
             ))}
           </div>
         ) : (
-          <div className="quiz-card text-center">
-            <p className="font-serif text-2xl text-cream mb-2">No dinners booked yet.</p>
-            <p className="font-sans text-cream/50 text-sm mb-6 leading-relaxed">
-              Your table is waiting. Takes 5 minutes to sign up.
-            </p>
-            <Link to="/portal/book" className="quiz-cta text-sm">Book a dinner</Link>
+          <div className="flex flex-col items-center justify-center gap-6" style={{ minHeight: '55vh' }}>
+            <div
+              className="flex flex-col items-center gap-6"
+              style={{ transform: `translate(${cardOffset.x}px, ${cardOffset.y}px)` }}
+            >
+              <motion.div
+                layout
+                layoutDependency={showConfirmSummary}
+                transition={{ layout: { duration: 0.45, ease: [0.32, 0.72, 0, 1] } }}
+                onMouseDown={!showConfirmSummary ? startCardDrag : undefined}
+                onTouchStart={!showConfirmSummary ? startCardDrag : undefined}
+                className="relative rounded-2xl px-7 py-6 text-center"
+                style={{
+                  background: 'rgba(245,237,216,0.85)',
+                  border: '1px solid rgba(22,24,29,0.15)',
+                  boxShadow: '0 20px 44px rgba(22,24,29,0.2), inset 0 1px 0 rgba(255,255,255,0.4)',
+                  cursor: showConfirmSummary ? 'default' : 'grab',
+                  width: showConfirmSummary ? 'min(360px, 88vw)' : 'fit-content',
+                  overflow: showConfirmSummary ? 'hidden' : 'visible',
+                }}
+              >
+                {showConfirmSummary && (
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmSummary(false)}
+                    aria-label="Close"
+                    className="absolute top-2 right-2 w-7 h-7 flex items-center justify-center rounded-full text-navy/70 hover:text-navy transition-colors"
+                    style={{ background: 'rgba(22,24,29,0.08)', zIndex: 10 }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                      <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" />
+                    </svg>
+                  </button>
+                )}
+                <AnimatePresence mode="popLayout" initial={false}>
+                  {!showConfirmSummary ? (
+                    <motion.div
+                      key="sentence"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1, transition: { delay: 0.15, duration: 0.2 } }}
+                      exit={{ opacity: 0, transition: { duration: 0.12 } }}
+                    >
+                      <p className="font-serif font-bold text-navy leading-relaxed" style={{ fontSize: '1.7rem' }}>
+                        Book my dinner on{' '}
+                        <InlineDatePill value={bookingDate} onChange={setBookingDate} />{' '}
+                        in{' '}
+                        <InlineCityPill value={bookingCity} onChange={setBookingCity} />{' '}
+                        city.
+                      </p>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="summary"
+                      className="relative"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1, transition: { delay: 0.15, duration: 0.2 } }}
+                      exit={{ opacity: 0, transition: { duration: 0.12 } }}
+                    >
+                      <p className="font-serif font-bold text-navy leading-snug pr-6" style={{ fontSize: '1.5rem' }}>
+                        Dinner + side quest on
+                        <br />
+                        {bookingDate ? formatTuesdayOption(bookingDate) : ''}
+                      </p>
+
+                      <p className="font-sans text-navy/60 text-sm mt-3 mb-4">with 5 compatible matches</p>
+                      <div className="flex justify-center -space-x-3 mb-7">
+                        {matchAvatars.map((src, i) => (
+                          <img
+                            key={i}
+                            src={src}
+                            alt=""
+                            className="w-12 h-12 rounded-full object-cover"
+                            style={{ border: '2px solid #F5EDD8', filter: 'blur(4px)' }}
+                          />
+                        ))}
+                      </div>
+
+                      <div className="text-left space-y-4 mb-7">
+                        {[
+                          'Group glimpse and group chat opens 48 hrs before',
+                          'Venue & afterparty activity revealed 24 hrs before',
+                          `Dinner on ${bookingDate ? formatTuesdayOption(bookingDate) : ''} 7pm followed by the afterparty`,
+                        ].map((step, i) => (
+                          <div key={i} className="flex gap-3 items-start">
+                            <span
+                              className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center font-sans text-xs font-bold"
+                              style={{ background: '#754471', color: '#F5EDD8' }}
+                            >
+                              {i + 1}
+                            </span>
+                            <p className="font-sans text-sm text-navy/80 leading-snug pt-0.5">{step}</p>
+                          </div>
+                        ))}
+                      </div>
+
+                      <Link
+                        to="/portal/book"
+                        state={{
+                          presetDate: bookingDate
+                            ? bookingDate.toLocaleDateString('en-NZ', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
+                            : undefined,
+                        }}
+                        className="inline-flex items-center justify-center gap-2 font-sans font-semibold text-sm tracking-widest uppercase px-6 py-3 rounded-2xl transition-all duration-200 w-full"
+                        style={{ background: '#754471', color: '#F5EDD8' }}
+                      >
+                        Continue to book
+                      </Link>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+              {!showConfirmSummary && (
+                <button
+                  type="button"
+                  onClick={handleConfirmClick}
+                  className="inline-flex items-center justify-center gap-2 border-2 font-sans font-semibold text-sm tracking-widest uppercase px-6 py-3 rounded-2xl backdrop-blur-md transition-all duration-200"
+                  style={{ borderColor: '#754471', color: '#754471', background: 'rgba(231,223,197,0.35)' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = '#754471'; e.currentTarget.style.color = '#F5EDD8'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(231,223,197,0.35)'; e.currentTarget.style.color = '#754471'; }}
+                >
+                  Confirm
+                </button>
+              )}
+            </div>
           </div>
         )}
 
@@ -912,10 +1194,6 @@ export default function PortalDashboard() {
             </div>
           </div>
         )}
-
-        <p className="font-sans text-cream/25 text-xs text-center pb-4">
-          Questions? <a href="mailto:info@heyder.nz" className="text-gold/60 hover:text-gold transition-colors">info@heyder.nz</a>
-        </p>
       </div>
 
       {showContactModal && (

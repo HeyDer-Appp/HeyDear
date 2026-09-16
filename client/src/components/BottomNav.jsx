@@ -47,7 +47,7 @@ export default function BottomNav() {
   }, []);
 
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-40 border-t border-white/[0.06] bg-[#16181d]/95 backdrop-blur">
+    <nav className="fixed bottom-0 inset-x-0 z-40 backdrop-blur-md" style={{ background: 'transparent' }}>
       <div className="max-w-lg mx-auto flex items-center justify-between px-4 py-2">
         {ITEMS.map(item => {
           const Icon = item.icon;
@@ -57,14 +57,14 @@ export default function BottomNav() {
               to={item.to}
               className={({ isActive }) =>
                 `relative flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors ${
-                  isActive ? 'text-gold' : 'text-cream/40 hover:text-cream/70'
+                  isActive ? 'text-[#754471]' : 'text-gray-500/70 hover:text-gray-500'
                 }`
               }
             >
               <span className="relative">
                 <Icon size={27} strokeWidth={1.75} />
                 {item.to === '/portal/chat' && pendingCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-[#16181d]" />
+                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-[#E7DFC5]" />
                 )}
               </span>
               <span className="font-sans text-[11px] tracking-wide">{item.label}</span>

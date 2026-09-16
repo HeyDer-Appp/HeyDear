@@ -14,6 +14,13 @@
        of them together — bumped up from the 16px default since the app
        read noticeably smaller than everyday chat apps like WhatsApp. */
     font-size: 18px;
+    /* Without this, iOS Safari auto-boosts/shrinks text size per-element
+       based on that element's rendered width vs the viewport — so an
+       inline-block like the booking sentence card visibly changes font
+       size as its date/city pill grows or shrinks and the card resizes
+       around it. */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
   }
 
   body {
