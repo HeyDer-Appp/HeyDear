@@ -1,26 +1,11 @@
 import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const STEPS = [
-  {
-    emoji: '🍽️',
-    title: 'My Table',
-    body: "This is home base. See your next dinner, its countdown, and RSVP once your group is set.",
-  },
-  {
-    emoji: '👥',
-    title: 'Group',
-    body: "Once you're matched, chat with your table here before dinner night — say hi, plan a time to meet outside.",
-  },
-  {
-    emoji: '💬',
-    title: 'Chat',
-    body: "Everyone you've met at a HeyDer dinner shows up here — connect with them and keep the conversation going after.",
-  },
-  {
-    emoji: '📸',
-    title: 'Album',
-    body: 'Photos shared from past dinners live here — add your own after each one.',
-  },
+  { emoji: '🍽️', title: 'My Table', body: 'Your next dinner and countdown.' },
+  { emoji: '👥', title: 'Group', body: 'Chat with your table before dinner.' },
+  { emoji: '💬', title: 'Chat', body: 'Stay in touch with people you meet.' },
+  { emoji: '📸', title: 'Album', body: 'Photos from past dinners.' },
 ];
 
 // Shown once, right after profile completion — localStorage flag mirrors
@@ -40,32 +25,52 @@ export default function OnboardingTour() {
   const current = STEPS[step];
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-5">
-      <div className="w-full max-w-sm quiz-card text-center">
-        <div className="w-14 h-14 rounded-full bg-gold/10 border border-gold/20 flex items-center justify-center mx-auto mb-4 text-2xl">
-          {current.emoji}
-        </div>
-        <h2 className="font-serif text-2xl text-cream mb-2">{current.title}</h2>
-        <p className="font-sans text-cream/50 text-sm leading-relaxed mb-6">{current.body}</p>
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.4 }}
+      className="fixed inset-0 z-50 bg-navy/50 backdrop-blur-sm flex items-center justify-center p-5"
+    >
+      <motion.div
+        initial={{ opacity: 0, y: 24, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        className="w-full max-w-sm glass-card text-center"
+      >
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={step}
+            initial={{ opacity: 0, x: 18 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -18 }}
+            transition={{ duration: 0.22 }}
+          >
+            <div className="w-14 h-14 rounded-full bg-plum/10 border border-plum/20 flex items-center justify-center mx-auto mb-4 text-2xl">
+              {current.emoji}
+            </div>
+            <h2 className="font-serif font-bold text-2xl text-navy mb-1">{current.title}</h2>
+            <p className="font-sans text-navy/65 text-sm mb-6">{current.body}</p>
+          </motion.div>
+        </AnimatePresence>
 
         <div className="flex items-center justify-center gap-1.5 mb-6">
           {STEPS.map((_, i) => (
-            <span key={i} className={`h-1.5 rounded-full transition-all ${i === step ? 'w-5 bg-gold' : 'w-1.5 bg-white/15'}`} />
+            <span key={i} className={`h-1.5 rounded-full transition-all duration-300 ${i === step ? 'w-5 bg-plum' : 'w-1.5 bg-navy/20'}`} />
           ))}
         </div>
 
         <div className="flex items-center gap-2">
-          <button onClick={finish} className="flex-1 py-3 rounded-xl border border-white/10 text-cream/50 hover:text-cream font-sans text-xs uppercase tracking-widest transition-colors">
+          <button onClick={finish} className="flex-1 py-3 rounded-2xl border border-navy/15 text-navy/65 hover:text-navy font-sans text-xs uppercase tracking-widest transition-colors">
             Skip
           </button>
           <button
             onClick={() => (isLast ? finish() : setStep(s => s + 1))}
-            className="quiz-cta flex-1 text-xs py-3"
+            className="plum-cta flex-1 text-xs py-3"
           >
-            {isLast ? "Let's go" : 'Next'}
+            {isLast ? 'Go' : 'Next'}
           </button>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

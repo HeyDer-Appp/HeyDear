@@ -11,6 +11,8 @@ export default {
         cream: '#F5EDD8',
         gold: '#E8A854',
         yellow: '#f0c040',
+        plum: '#754471',
+        beige: '#E7DFC5',
       },
       fontFamily: {
         serif: ['"Cormorant Garamond"', 'Georgia', 'serif'],

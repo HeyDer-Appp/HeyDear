@@ -6,6 +6,7 @@ import api from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 import { fileToDataUrl, cropAndResizeImage } from '../../utils/image';
 import BottomNav from '../../components/BottomNav';
+import { Stagger, Rise } from '../../components/Motion';
 import PhotoCropModal from '../../components/PhotoCropModal';
 import { useCachedFetch } from '../../utils/useCachedFetch';
 
@@ -64,7 +65,7 @@ function PhotoStack({ photos, dateLabel, onOpen }) {
         );
       })}
       {photos.length > 1 && (
-        <span className="absolute -top-2 -right-2 z-10 bg-gold text-navy text-[10px] font-sans font-bold rounded-full w-5 h-5 flex items-center justify-center shadow">
+        <span className="absolute -top-2 -right-2 z-10 bg-plum text-cream text-[10px] font-sans font-bold rounded-full w-5 h-5 flex items-center justify-center shadow">
           {photos.length}
         </span>
       )}
@@ -141,21 +142,17 @@ export default function MyAlbum() {
 
   if (loading) {
     return (
-      <div className="quiz-bg min-h-screen relative overflow-hidden pb-24">
-        <nav className="relative z-10 flex items-center justify-between px-6 py-5 border-b border-white/[0.06] backdrop-blur">
-          <Link to="/portal/dashboard" className="font-sans text-cream/50 text-sm hover:text-cream transition-colors">← Back</Link>
-          <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-7" />
+      <div className="portal-bg min-h-screen relative overflow-hidden pb-24">
+        <nav className="relative z-10 flex items-center justify-between px-6 py-5 backdrop-blur-md">
+          <Link to="/portal/dashboard" className="font-sans text-navy/65 text-sm hover:text-navy transition-colors">← Back</Link>
+          <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-7 brightness-0" />
           <div className="w-10" />
         </nav>
         <div className="relative z-10 max-w-lg mx-auto px-5 py-8">
-          <div className="mb-6">
-            <p className="font-sans text-cream/40 text-sm">Your dinners</p>
-            <h1 className="font-serif text-3xl text-cream mt-1">My Album</h1>
-            <p className="font-sans text-cream/40 text-sm mt-2 leading-relaxed">Tap a stack to view your memories.</p>
-          </div>
+          <h1 className="font-serif font-bold text-3xl text-navy mb-6">Album</h1>
           <div className="grid grid-cols-2 gap-5 animate-pulse">
             {[0, 1, 2, 3].map(i => (
-              <div key={i} className="w-full max-w-[128px] aspect-square rounded-sm bg-white/[0.06]" />
+              <div key={i} className="w-full max-w-[128px] aspect-square rounded-sm bg-white/40" />
             ))}
           </div>
         </div>
@@ -169,39 +166,31 @@ export default function MyAlbum() {
   const openPhoto = openDinner && openPhotoIndex !== null ? openDinner.photos[openPhotoIndex] : null;
 
   return (
-    <div className="quiz-bg min-h-screen relative overflow-hidden pb-24">
-      <nav className="relative z-10 flex items-center justify-between px-6 py-5 border-b border-white/[0.06] backdrop-blur">
-        <Link to="/portal/dashboard" className="font-sans text-cream/50 text-sm hover:text-cream transition-colors">← Back</Link>
-        <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-7" />
+    <div className="portal-bg min-h-screen relative overflow-hidden pb-24">
+      <nav className="relative z-10 flex items-center justify-between px-6 py-5 backdrop-blur-md">
+        <Link to="/portal/dashboard" className="font-sans text-navy/65 text-sm hover:text-navy transition-colors">← Back</Link>
+        <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-7 brightness-0" />
         <div className="w-10" />
       </nav>
 
-      <div className="relative z-10 max-w-lg mx-auto px-5 py-8">
-        <div className="mb-6">
-          <p className="font-sans text-cream/40 text-sm">Your dinners</p>
-          <h1 className="font-serif text-3xl text-cream mt-1">My Album</h1>
-          <p className="font-sans text-cream/40 text-sm mt-2 leading-relaxed">
-            Tap a stack to view {firstName ? `${firstName}'s` : 'your'} memories.
-          </p>
-        </div>
+      <Stagger className="relative z-10 max-w-lg mx-auto px-5 py-8">
+        <Rise><h1 className="font-serif font-bold text-3xl text-navy mb-6">Album</h1></Rise>
 
         {dinners.length === 0 && (
-          <div className="quiz-card text-center py-10">
-            <p className="font-sans text-cream/50 text-sm">
-              No dinners yet — once you're matched and Tuesday night happens, photos from the table show up here.
-            </p>
-          </div>
+          <Rise className="glass-card text-center py-10">
+            <p className="font-sans text-navy/65 text-sm">No dinners yet.</p>
+          </Rise>
         )}
 
         <div className="grid grid-cols-2 gap-5 items-start">
           {dinners.map(dinner => {
             const dateLabel = formatDinnerDate(dinner.date);
             return (
-              <div key={dinner.table_id} className="flex flex-col items-center">
+              <Rise key={dinner.table_id} className="flex flex-col items-center">
                 {dinner.photos.length === 0 ? (
                   <div className="w-full max-w-[128px] aspect-square flex flex-col items-center justify-center text-center">
-                    <p className="font-sans text-cream/30 text-xs">{dateLabel}</p>
-                    <p className="font-sans text-cream/30 text-xs italic mt-1">No photos yet.</p>
+                    <p className="font-sans text-navy/45 text-xs">{dateLabel}</p>
+                    <p className="font-sans text-navy/45 text-xs italic mt-1">Empty</p>
                   </div>
                 ) : (
                   <PhotoStack photos={dinner.photos} dateLabel={dateLabel} onOpen={() => setOpenDinnerId(dinner.table_id)} />
@@ -215,7 +204,7 @@ export default function MyAlbum() {
                   // White/cream background (not transparent) so both read as
                   // real buttons sitting under the polaroid, not stray icons.
                   <div className="relative z-20 flex gap-1.5 mt-2.5 w-full max-w-[128px]">
-                    <label className={`flex-1 bg-[#f5edd8] text-[#2a2a2a] rounded-lg text-base py-2 flex items-center justify-center cursor-pointer shadow-[0_2px_8px_rgba(0,0,0,0.3)] hover:bg-white transition-colors ${uploadingFor === dinner.table_id ? 'opacity-60 pointer-events-none' : ''}`}>
+                    <label className={`flex-1 bg-cream text-[#2a2a2a] rounded-lg text-base py-2 flex items-center justify-center cursor-pointer shadow-[0_2px_8px_rgba(22,24,29,0.2)] hover:bg-white transition-colors ${uploadingFor === dinner.table_id ? 'opacity-60 pointer-events-none' : ''}`}>
                       {uploadingFor === dinner.table_id ? '…' : '📷'}
                       <input
                         type="file"
@@ -225,7 +214,7 @@ export default function MyAlbum() {
                         onChange={e => { handleFileSelect(dinner.table_id, e.target.files?.[0]); e.target.value = ''; }}
                       />
                     </label>
-                    <label className={`flex-1 bg-[#f5edd8] text-[#2a2a2a] rounded-lg text-base py-2 flex items-center justify-center cursor-pointer shadow-[0_2px_8px_rgba(0,0,0,0.3)] hover:bg-white transition-colors ${uploadingFor === dinner.table_id ? 'opacity-60 pointer-events-none' : ''}`}>
+                    <label className={`flex-1 bg-cream text-[#2a2a2a] rounded-lg text-base py-2 flex items-center justify-center cursor-pointer shadow-[0_2px_8px_rgba(22,24,29,0.2)] hover:bg-white transition-colors ${uploadingFor === dinner.table_id ? 'opacity-60 pointer-events-none' : ''}`}>
                       🖼
                       <input
                         type="file"
@@ -236,11 +225,11 @@ export default function MyAlbum() {
                     </label>
                   </div>
                 )}
-              </div>
+              </Rise>
             );
           })}
         </div>
-      </div>
+      </Stagger>
 
       {/* Expanded stack — every photo from this one dinner, scattering into
           place from roughly where the stack sat when tapped. */}
@@ -258,17 +247,17 @@ export default function MyAlbum() {
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 20, opacity: 0 }}
               transition={{ type: 'spring', stiffness: 320, damping: 32 }}
-              className="w-full max-w-lg bg-[#16181d] rounded-t-3xl max-h-[85vh] overflow-y-auto p-5 pb-8"
+              className="w-full max-w-lg bg-cream rounded-t-3xl max-h-[85vh] overflow-y-auto p-5 pb-8"
               onClick={e => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <p className="font-serif text-xl text-cream">{openDinnerDateLabel}</p>
-                  <p className="font-sans text-cream/35 text-xs">{openDinner.city}</p>
+                  <p className="font-serif text-xl text-navy">{openDinnerDateLabel}</p>
+                  <p className="font-sans text-navy/50 text-xs">{openDinner.city}</p>
                 </div>
                 <button
                   onClick={() => { setOpenDinnerId(null); setOpenPhotoIndex(null); }}
-                  className="font-sans text-cream/40 hover:text-cream text-xs transition-colors"
+                  className="font-sans text-navy/55 hover:text-navy text-xs transition-colors"
                 >
                   Close
                 </button>
@@ -289,7 +278,7 @@ export default function MyAlbum() {
                   >
                     <PolaroidCard photo={p} dateLabel={openDinnerDateLabel} onClick={() => setOpenPhotoIndex(i)} />
                     {p.uploaderName && (
-                      <p className="font-sans text-cream/25 text-[10px] text-center mt-1">by {p.uploaderName}</p>
+                      <p className="font-sans text-navy/40 text-[10px] text-center mt-1">by {p.uploaderName}</p>
                     )}
                   </motion.div>
                 ))}
@@ -315,14 +304,14 @@ export default function MyAlbum() {
               {openPhoto.userId === attendeeUser?.uid && (
                 <button
                   onClick={e => { e.stopPropagation(); handleDeletePhoto(openDinner.table_id, openPhoto.id); }}
-                  className="font-sans text-red-400/70 hover:text-red-400 text-sm"
+                  className="font-sans text-red-700/70 hover:text-red-700 text-sm"
                 >
                   Delete
                 </button>
               )}
               <button
                 onClick={() => setOpenPhotoIndex(null)}
-                className="font-sans text-cream/60 hover:text-cream text-sm"
+                className="font-sans text-navy/72 hover:text-navy text-sm"
               >
                 Close ✕
               </button>
@@ -332,13 +321,13 @@ export default function MyAlbum() {
               <>
                 <button
                   onClick={e => { e.stopPropagation(); setOpenPhotoIndex(i => (i - 1 + openDinner.photos.length) % openDinner.photos.length); }}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-cream/50 hover:text-cream text-3xl font-serif px-2"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-navy/65 hover:text-navy text-3xl font-serif px-2"
                 >
                   ‹
                 </button>
                 <button
                   onClick={e => { e.stopPropagation(); setOpenPhotoIndex(i => (i + 1) % openDinner.photos.length); }}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-cream/50 hover:text-cream text-3xl font-serif px-2"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-navy/65 hover:text-navy text-3xl font-serif px-2"
                 >
                   ›
                 </button>
@@ -364,7 +353,7 @@ export default function MyAlbum() {
               </p>
             </div>
             {openPhoto.uploaderName && (
-              <p className="font-sans text-cream/40 text-xs mt-3">by {openPhoto.uploaderName}</p>
+              <p className="font-sans text-navy/55 text-xs mt-3">by {openPhoto.uploaderName}</p>
             )}
           </motion.div>
         )}

@@ -4,12 +4,15 @@ import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
-import { fadeUpVariant, staggerContainerVariant, fadeLeftVariant, choiceBase, choiceIdle, choiceActive, DATE_Q } from '../Quiz';
+import { fadeUpVariant, staggerContainerVariant, fadeLeftVariant, choiceBase } from '../Quiz';
 import BottomNav from '../../components/BottomNav';
 
 // Booking again is just "pick a Tuesday, pay (or not, if subscribed)" — a
 // returning member's profile is already built, so this is a dedicated,
 // two-step page rather than sending them back through the profile quiz.
+const choiceIdle = 'border-transparent bg-navy/[0.05] text-navy/70 hover:bg-navy/[0.09] hover:text-navy';
+const choiceActive = 'border-plum bg-plum text-cream shadow-[0_6px_20px_rgba(117,68,113,0.25)]';
+
 export default function BookDinner() {
   const { attendeeUser } = useAuth();
   const navigate = useNavigate();
@@ -216,29 +219,28 @@ export default function BookDinner() {
   const removeCoupon = () => { setAppliedCoupon(null); setCouponInput(''); setCouponError(''); };
 
   const header = (
-    <nav className="relative z-10 flex items-center justify-between px-6 py-5 border-b border-white/[0.06] backdrop-blur">
-      <Link to="/portal/dashboard" className="font-sans text-cream/50 text-sm hover:text-cream transition-colors">← Back</Link>
-      <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-7" />
+    <nav className="relative z-10 flex items-center justify-between px-6 py-5 border-b border-navy/10 backdrop-blur">
+      <Link to="/portal/dashboard" className="font-sans text-navy/65 text-sm hover:text-navy transition-colors">← Back</Link>
+      <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-7 brightness-0" />
       <div className="w-10" />
     </nav>
   );
 
   if (loading) {
     return (
-      <div className="quiz-bg min-h-screen flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+      <div className="portal-bg min-h-screen flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-plum border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   if (loadError) {
     return (
-      <div className="quiz-bg min-h-screen relative overflow-hidden pb-24">
+      <div className="portal-bg min-h-screen relative overflow-hidden pb-24">
         {header}
         <div className="relative z-10 max-w-lg mx-auto px-5 py-20 text-center">
-          <p className="font-serif text-2xl text-cream mb-3">Couldn't load booking</p>
-          <p className="font-sans text-cream/50 text-sm mb-6">Please refresh, or contact info@heyder.nz if this keeps happening.</p>
-          <button onClick={() => window.location.reload()} className="quiz-cta text-xs py-2 px-6">Retry</button>
+          <p className="font-serif text-2xl text-navy mb-3">Couldn't load.</p>
+          <button onClick={() => window.location.reload()} className="plum-cta text-xs py-2 px-6">Retry</button>
         </div>
         <BottomNav />
       </div>
@@ -247,15 +249,15 @@ export default function BookDinner() {
 
   if (alreadyBooked) {
     return (
-      <div className="quiz-bg min-h-screen relative overflow-hidden pb-24">
+      <div className="portal-bg min-h-screen relative overflow-hidden pb-24">
         {header}
         <div className="relative z-10 max-w-lg mx-auto px-5 py-20 text-center">
           <p className="text-4xl mb-4">🍽</p>
-          <p className="font-serif text-2xl text-cream mb-3">You've already got a dinner booked</p>
-          <p className="font-sans text-cream/50 text-sm mb-6 leading-relaxed">
-            One Tuesday at a time — cancel your current booking from the dashboard first if you'd like to pick a different date.
+          <p className="font-serif text-2xl text-navy mb-3">Already booked</p>
+          <p className="font-sans text-navy/65 text-sm mb-6 leading-relaxed">
+            One Tuesday at a time. Cancel it from My Table to pick another.
           </p>
-          <Link to="/portal/dashboard" className="quiz-cta text-sm py-2.5 px-6">Back to dashboard</Link>
+          <Link to="/portal/dashboard" className="plum-cta text-sm py-2.5 px-6">Back</Link>
         </div>
         <BottomNav />
       </div>
@@ -263,21 +265,16 @@ export default function BookDinner() {
   }
 
   return (
-    <div className="quiz-bg min-h-screen relative overflow-hidden pb-24">
+    <div className="portal-bg min-h-screen relative overflow-hidden pb-24">
       {header}
       <div className="relative z-10 max-w-lg mx-auto px-5 py-8 space-y-6">
-        <div>
-          <p className="font-sans text-cream/40 text-sm">Book a dinner</p>
-          <h1 className="font-serif text-3xl text-cream mt-1">
-            {step === 'date' ? 'Which Tuesday?' : 'Reserve your spot'}
-          </h1>
-        </div>
+        <h1 className="font-serif font-bold text-3xl text-navy">
+          {step === 'date' ? 'Which Tuesday?' : 'Your spot'}
+        </h1>
 
         {step === 'date' && (
           <>
-            <div className="quiz-card">
-              <motion.p initial="hidden" animate="visible" variants={fadeUpVariant} className="font-serif text-xl text-cream mb-1">{DATE_Q.title}</motion.p>
-              <p className="font-sans text-cream/35 text-xs mb-3">Your reservation covers one Tuesday dinner.</p>
+            <div className="glass-card">
               <motion.div initial="hidden" animate="visible" variants={staggerContainerVariant} className="flex flex-wrap gap-2 justify-center">
                 {dateChoices.map(choice => (
                   <motion.button
@@ -295,7 +292,7 @@ export default function BookDinner() {
             <button
               onClick={() => selectedDate && setStep('payment')}
               disabled={!selectedDate}
-              className="quiz-cta w-full flex items-center justify-center gap-2 disabled:opacity-40"
+              className="plum-cta w-full flex items-center justify-center gap-2 disabled:opacity-40"
             >
               {hasActiveSubscription ? 'Confirm →' : 'Continue to payment →'}
             </button>
@@ -304,33 +301,25 @@ export default function BookDinner() {
 
         {step === 'payment' && (
           <>
-            <div className="quiz-card">
-              <div className="flex items-center gap-2 mb-1">
-                <motion.p initial="hidden" animate="visible" variants={fadeUpVariant} className="font-serif text-xl text-cream">Reserve your spot</motion.p>
+            <div className="glass-card">
+              <motion.p initial="hidden" animate="visible" variants={fadeUpVariant} className="font-serif font-bold text-xl text-navy mb-4 flex items-center gap-2">
+                {selectedDate}
                 {!stripeConfigured && (
-                  <span className="text-[10px] font-sans font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full bg-yellow/15 text-yellow">
-                    Test mode
-                  </span>
+                  <span className="text-[10px] font-sans font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full bg-plum/15 text-plum">Test</span>
                 )}
-              </div>
-              <p className="font-sans text-gold/70 text-xs mb-1">Booking for {selectedDate}</p>
-              <p className="font-sans text-cream/35 text-xs mb-4">
-                {stripeConfigured
-                  ? "Choose how you'd like to join."
-                  : 'Payments are not connected yet — booking will be simulated, no card required.'}
-              </p>
+              </motion.p>
 
               {hasActiveSubscription ? (
                 <div>
-                  <div className="rounded-xl border border-gold/25 bg-gold/[0.06] p-4 mb-4 text-center">
-                    <p className="font-sans text-cream/70 text-sm">✓ You're covered by your monthly membership — no extra charge.</p>
+                  <div className="rounded-xl border border-plum/25 bg-plum/[0.06] p-4 mb-4 text-center">
+                    <p className="font-sans text-navy/80 text-sm">✓ Covered by your membership</p>
                   </div>
                   <button
                     onClick={handleConfirmSubscribed}
                     disabled={submitting}
-                    className="quiz-cta w-full flex items-center justify-center gap-2 disabled:opacity-60"
+                    className="plum-cta w-full flex items-center justify-center gap-2 disabled:opacity-60"
                   >
-                    {submitting ? 'Confirming...' : 'Confirm Booking'}
+                    {submitting ? 'Confirming...' : 'Confirm'}
                   </button>
                 </div>
               ) : (() => {
@@ -349,15 +338,15 @@ export default function BookDinner() {
                       className={`w-full text-left rounded-2xl border p-4 transition-colors duration-200 ${selectedPlan === 'one_time' ? choiceActive : choiceIdle}`}
                     >
                       <div className="flex items-center justify-between mb-1">
-                        <span className="font-sans font-semibold text-base">One-time reservation</span>
+                        <span className="font-sans font-semibold text-base">One dinner</span>
                         <span className="flex items-baseline gap-1.5">
                           {discountPercent > 0 && (
-                            <span className={`font-sans text-xs line-through ${selectedPlan === 'one_time' ? 'text-navy/40' : 'text-cream/25'}`}>${baseOneTime.toFixed(2).replace(/\.00$/, '')}</span>
+                            <span className={`font-sans text-xs line-through ${selectedPlan === 'one_time' ? 'text-cream/60' : 'text-navy/40'}`}>${baseOneTime.toFixed(2).replace(/\.00$/, '')}</span>
                           )}
                           <span className="font-serif text-2xl">${oneTimePrice}</span>
                         </span>
                       </div>
-                      <p className={`font-sans text-sm ${selectedPlan === 'one_time' ? 'text-navy/60' : 'text-cream/40'}`}>Reserve {selectedDate ? `the ${selectedDate}` : "this Tuesday's"} dinner. Refundable up to 48hrs before.</p>
+                      <p className={`font-sans text-sm ${selectedPlan === 'one_time' ? 'text-cream/80' : 'text-navy/55'}`}>Refundable up to 48h before.</p>
                     </motion.button>
                     <motion.button
                       variants={fadeLeftVariant}
@@ -365,17 +354,17 @@ export default function BookDinner() {
                       onClick={() => setSelectedPlan('subscription')}
                       className={`w-full text-left rounded-2xl border p-4 transition-colors duration-200 relative ${selectedPlan === 'subscription' ? choiceActive : choiceIdle}`}
                     >
-                      <span className="absolute -top-2.5 right-5 bg-yellow text-navy text-[10px] font-sans font-bold uppercase tracking-widest px-2.5 py-1 rounded-full">Best value</span>
+                      <span className="absolute -top-2.5 right-5 bg-plum text-cream text-[10px] font-sans font-bold uppercase tracking-widest px-2.5 py-1 rounded-full">Best value</span>
                       <div className="flex items-center justify-between mb-1">
-                        <span className="font-sans font-semibold text-base">Monthly membership</span>
+                        <span className="font-sans font-semibold text-base">Monthly</span>
                         <span className="flex items-baseline gap-1.5">
                           {discountPercent > 0 && (
-                            <span className={`font-sans text-xs line-through ${selectedPlan === 'subscription' ? 'text-navy/40' : 'text-cream/25'}`}>${baseSub.toFixed(2).replace(/\.00$/, '')}</span>
+                            <span className={`font-sans text-xs line-through ${selectedPlan === 'subscription' ? 'text-cream/60' : 'text-navy/40'}`}>${baseSub.toFixed(2).replace(/\.00$/, '')}</span>
                           )}
                           <span className="font-serif text-2xl">${subPrice}<span className="text-sm">/mo</span></span>
                         </span>
                       </div>
-                      <p className={`font-sans text-sm ${selectedPlan === 'subscription' ? 'text-navy/60' : 'text-cream/40'}`}>Unlimited HeyDer dinners this month.</p>
+                      <p className={`font-sans text-sm ${selectedPlan === 'subscription' ? 'text-cream/80' : 'text-navy/55'}`}>Unlimited dinners.</p>
                     </motion.button>
                   </motion.div>
 
@@ -384,32 +373,31 @@ export default function BookDinner() {
                   <div className="mb-4">
                     {appliedCoupon ? (
                       <div className="flex items-center justify-between rounded-xl border border-emerald-400/25 bg-emerald-400/[0.06] px-3 py-2.5">
-                        <span className="font-sans text-emerald-400 text-xs">
-                          ✓ Code <span className="font-mono">{appliedCoupon.code}</span> applied — {appliedCoupon.discountPercent}% off
+                        <span className="font-sans text-emerald-700 text-xs">
+                          ✓ <span className="font-mono">{appliedCoupon.code}</span> · {appliedCoupon.discountPercent}% off
                         </span>
-                        <button type="button" onClick={removeCoupon} className="font-sans text-cream/40 hover:text-cream text-xs transition-colors">Remove</button>
+                        <button type="button" onClick={removeCoupon} className="font-sans text-navy/55 hover:text-navy text-xs transition-colors">Remove</button>
                       </div>
                     ) : (
                       <div>
-                        <label className="font-sans text-cream/40 text-xs tracking-[0.1em] uppercase mb-1.5 block">Coupon code</label>
                         <div className="flex gap-2">
                           <input
                             type="text"
                             value={couponInput}
                             onChange={e => { setCouponInput(e.target.value.toUpperCase()); setCouponError(''); }}
-                            placeholder="Enter code"
-                            className="quiz-input flex-1"
+                            placeholder="Coupon code"
+                            className="portal-login-input flex-1"
                           />
                           <button
                             type="button"
                             onClick={applyCoupon}
                             disabled={validatingCoupon || !couponInput.trim()}
-                            className="btn-outline text-xs px-4 disabled:opacity-50"
+                            className="plum-cta text-xs px-5 py-2 disabled:opacity-50"
                           >
                             {validatingCoupon ? '...' : 'Apply'}
                           </button>
                         </div>
-                        {couponError && <p className="font-sans text-red-400/80 text-xs mt-1.5">{couponError}</p>}
+                        {couponError && <p className="font-sans text-red-700/80 text-xs mt-1.5">{couponError}</p>}
                       </div>
                     )}
                   </div>
@@ -417,19 +405,19 @@ export default function BookDinner() {
                   <button
                     onClick={() => handlePayment(selectedPlan)}
                     disabled={submitting}
-                    className="quiz-cta w-full flex items-center justify-center gap-2 disabled:opacity-60"
+                    className="plum-cta w-full flex items-center justify-center gap-2 disabled:opacity-60"
                   >
                     {submitting
                       ? 'Processing...'
                       : !stripeConfigured
-                        ? 'Complete Booking (Test Mode)'
-                        : selectedPlan === 'subscription' ? `Subscribe $${subPrice}/mo` : `Pay $${oneTimePrice} & Complete Booking`}
+                        ? 'Book (test)'
+                        : selectedPlan === 'subscription' ? `Subscribe $${subPrice}/mo` : `Pay $${oneTimePrice}`}
                   </button>
                 </div>
                 );
               })()}
             </div>
-            <button onClick={() => setStep('date')} className="font-sans text-cream/50 hover:text-cream text-sm px-2 py-3 transition-colors">
+            <button onClick={() => setStep('date')} className="font-sans text-navy/65 hover:text-navy text-sm px-2 py-3 transition-colors">
               ← Back
             </button>
           </>

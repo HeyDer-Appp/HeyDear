@@ -7,6 +7,7 @@ import BottomNav from '../../components/BottomNav';
 import { flagUrl } from '../../utils/flags';
 import { GlimpseModal } from './Dashboard';
 import { useCachedFetch } from '../../utils/useCachedFetch';
+import { Stagger, Rise } from '../../components/Motion';
 
 const AVATAR_FALLBACK = 'https://heyder.nz/wp-content/uploads/2026/06/account-2.png';
 
@@ -30,7 +31,7 @@ function formatDinnerDate(iso) {
 function Avatar({ photo, blurred, size = 32 }) {
   return (
     <div
-      className="rounded-full overflow-hidden flex-shrink-0 border border-white/10"
+      className="rounded-full overflow-hidden flex-shrink-0 border border-navy/15"
       style={{ width: size, height: size }}
     >
       <img
@@ -49,7 +50,7 @@ function Avatar({ photo, blurred, size = 32 }) {
 function NameTag({ name, country }) {
   if (!name) return null;
   return (
-    <p className="font-sans text-cream/30 text-[10px] mb-1 ml-1 flex items-center gap-1">
+    <p className="font-sans text-navy/45 text-[10px] mb-1 ml-1 flex items-center gap-1">
       {name}
       {country && flagUrl(country) && <img src={flagUrl(country)} alt={country} className="h-2.5 rounded-[1px]" />}
     </p>
@@ -87,14 +88,14 @@ function PromptOptions({ options, onSelect }) {
             disabled={submitting}
             className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl border text-left font-sans text-xs transition-all duration-200 ${
               active
-                ? 'border-gold bg-gold/10 text-cream shadow-[0_4px_20px_rgba(232,168,84,0.15)]'
-                : 'border-white/10 bg-white/[0.03] text-cream/70 hover:border-gold/40 hover:bg-white/[0.06]'
+                ? 'border-plum bg-plum/10 text-navy shadow-[0_4px_20px_rgba(232,168,84,0.15)]'
+                : 'border-navy/15 bg-white/30 text-navy/80 hover:border-plum/40 hover:bg-white/60'
             } ${submitting && !active ? 'opacity-35' : ''}`}
           >
             <span className={`flex-shrink-0 w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors duration-200 ${
-              active ? 'border-gold' : 'border-cream/25'
+              active ? 'border-plum' : 'border-navy/25'
             }`}>
-              <span className={`w-2 h-2 rounded-full bg-gold transition-transform duration-200 ${active ? 'scale-100' : 'scale-0'}`} />
+              <span className={`w-2 h-2 rounded-full bg-plum transition-transform duration-200 ${active ? 'scale-100' : 'scale-0'}`} />
             </span>
             {opt}
           </button>
@@ -110,8 +111,8 @@ function PromptMessage({ msg, photo, name, country, blurred, onAnswer, isOwn, my
       <Avatar photo={photo} blurred={blurred} />
       <div className={`max-w-[75%] ${isOwn ? 'text-right' : ''}`}>
         {!isOwn && <NameTag name={name} country={country} />}
-        <div className={`rounded-2xl px-4 py-2.5 ${isOwn ? 'bg-gold text-navy rounded-br-sm' : 'bg-white/[0.06] text-cream rounded-bl-sm'}`}>
-          <p className={`font-sans text-[10px] uppercase tracking-widest mb-1 ${isOwn ? 'text-navy/50' : 'text-cream/35'}`}>Asked</p>
+        <div className={`rounded-2xl px-4 py-2.5 ${isOwn ? 'bg-plum text-cream rounded-br-sm' : 'bg-cream/90 text-navy rounded-bl-sm'}`}>
+          <p className={`font-sans text-[10px] uppercase tracking-widest mb-1 ${isOwn ? 'text-navy/50' : 'text-navy/50'}`}>Asked</p>
           <p className="font-serif text-base leading-snug">{msg.prompt_text}</p>
         </div>
         {/* You can't answer your own question — server enforces this too,
@@ -119,9 +120,9 @@ function PromptMessage({ msg, photo, name, country, blurred, onAnswer, isOwn, my
             you've answered, the picker is replaced with what you picked —
             same server-side rule (one answer per prompt) backs this too. */}
         {isOwn ? (
-          <p className="mt-1.5 font-sans text-cream/25 text-[11px] italic">Your question — waiting on answers</p>
+          <p className="mt-1.5 font-sans text-navy/40 text-[11px] italic">Your question — waiting on answers</p>
         ) : myAnswer ? (
-          <p className="mt-1.5 font-sans text-cream/40 text-[11px]">You answered: <span className="text-gold font-medium">{myAnswer}</span></p>
+          <p className="mt-1.5 font-sans text-navy/55 text-[11px]">You answered: <span className="text-plum font-medium">{myAnswer}</span></p>
         ) : (
           <PromptOptions options={msg.prompt_options || []} onSelect={(opt) => onAnswer(msg.id, opt)} />
         )}
@@ -138,10 +139,10 @@ function AnswerMessage({ msg, photo, name, country, blurred, isOwn }) {
         {!isOwn && <NameTag name={name} country={country} />}
         <div
           className={`rounded-2xl px-4 py-2.5 ${
-            isOwn ? 'bg-gold text-navy rounded-br-sm' : 'bg-white/[0.06] text-cream rounded-bl-sm'
+            isOwn ? 'bg-plum text-cream rounded-br-sm' : 'bg-cream/90 text-navy rounded-bl-sm'
           }`}
         >
-          <p className={`font-sans text-[10px] uppercase tracking-widest mb-1 ${isOwn ? 'text-navy/50' : 'text-cream/40'}`}>
+          <p className={`font-sans text-[10px] uppercase tracking-widest mb-1 ${isOwn ? 'text-navy/50' : 'text-navy/55'}`}>
             ↳ replied to "{msg.prompt_text}"
           </p>
           <p className="font-sans text-sm font-medium">{msg.option}</p>
@@ -159,7 +160,7 @@ function TextMessage({ msg, photo, name, country, isOwn }) {
         {!isOwn && <NameTag name={name} country={country} />}
         <div
           className={`rounded-2xl px-4 py-2.5 font-sans text-sm ${
-            isOwn ? 'bg-gold text-navy rounded-br-sm' : 'bg-white/[0.06] text-cream rounded-bl-sm'
+            isOwn ? 'bg-plum text-cream rounded-br-sm' : 'bg-cream/90 text-navy rounded-bl-sm'
           }`}
         >
           {msg.text}
@@ -170,9 +171,9 @@ function TextMessage({ msg, photo, name, country, isOwn }) {
 }
 
 const header = (
-  <nav className="relative z-10 flex items-center justify-between px-6 py-5 border-b border-white/[0.06] backdrop-blur">
-    <Link to="/portal/dashboard" className="font-sans text-cream/50 text-sm hover:text-cream transition-colors">← Back</Link>
-    <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-7" />
+  <nav className="relative z-10 flex items-center justify-between px-6 py-5 backdrop-blur-md">
+    <Link to="/portal/dashboard" className="font-sans text-navy/65 text-sm hover:text-navy transition-colors">← Back</Link>
+    <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-7 brightness-0" />
     <div className="w-10" />
   </nav>
 );
@@ -182,25 +183,25 @@ const header = (
 // normal, expected state once a chat's unlocked, so it shows nothing here
 // rather than a badge that just duplicates the "Open chat" button below it.
 function StatusBadge({ g }) {
-  if (g.revealed) return <span className="text-emerald-400 text-[10px] font-sans font-semibold uppercase tracking-widest">Attended</span>;
+  if (g.revealed) return <span className="text-emerald-700 text-[10px] font-sans font-semibold uppercase tracking-widest">Attended</span>;
   if (g.chat_open) return null;
-  return <span className="text-cream/30 text-[10px] font-sans font-semibold uppercase tracking-widest">Locked</span>;
+  return <span className="text-navy/45 text-[10px] font-sans font-semibold uppercase tracking-widest">Locked</span>;
 }
 
 function GroupListCard({ g, onOpen, onExit }) {
   return (
-    <div className="quiz-card">
+    <div className="glass-card">
       <div className="flex items-center justify-between mb-1">
-        <p className="font-serif text-lg text-cream flex items-center gap-2">
+        <p className="font-serif text-lg text-navy flex items-center gap-2">
           {formatDinnerDate(g.dinner_date)}
           {g.has_unread && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0" />}
         </p>
         <StatusBadge g={g} />
       </div>
-      <p className="font-sans text-cream/40 text-xs mb-4">{g.city} · {g.member_count} people</p>
+      <p className="font-sans text-navy/55 text-xs mb-4">{g.member_count} people</p>
       <div className="flex items-center gap-4">
-        <button onClick={() => onOpen(g.table_id)} className="quiz-cta text-xs py-2 px-5">Open chat</button>
-        {onExit && <button onClick={() => onExit(g.table_id)} className="font-sans text-cream/30 hover:text-red-400 text-xs transition-colors">Exit group</button>}
+        <button onClick={() => onOpen(g.table_id)} className="plum-cta text-xs py-2 px-5">Open</button>
+        {onExit && <button onClick={() => onExit(g.table_id)} className="font-sans text-navy/45 hover:text-red-700 text-xs transition-colors">Leave</button>}
       </div>
     </div>
   );
@@ -233,19 +234,16 @@ function GroupList({ onOpen }) {
 
   if (loading) {
     return (
-      <div className="quiz-bg min-h-screen relative overflow-hidden pb-24">
+      <div className="portal-bg min-h-screen relative overflow-hidden pb-24">
         {header}
         <div className="relative z-10 max-w-lg mx-auto px-5 py-8 space-y-8">
-          <div>
-            <p className="font-sans text-cream/40 text-sm">Your dinners</p>
-            <h1 className="font-serif text-3xl text-cream mt-1">Group Chats</h1>
-          </div>
+          <h1 className="font-serif font-bold text-3xl text-navy">Groups</h1>
           <div className="space-y-3 animate-pulse">
             {[0, 1].map(i => (
-              <div key={i} className="quiz-card space-y-3">
-                <div className="h-5 w-36 rounded bg-white/[0.06]" />
-                <div className="h-3 w-28 rounded bg-white/[0.04]" />
-                <div className="h-8 w-24 rounded-full bg-white/[0.06]" />
+              <div key={i} className="glass-card space-y-3">
+                <div className="h-5 w-36 rounded bg-white/40" />
+                <div className="h-3 w-28 rounded bg-white/40" />
+                <div className="h-8 w-24 rounded-full bg-white/40" />
               </div>
             ))}
           </div>
@@ -257,12 +255,11 @@ function GroupList({ onOpen }) {
 
   if (loadError && !groups) {
     return (
-      <div className="quiz-bg min-h-screen relative overflow-hidden pb-24">
+      <div className="portal-bg min-h-screen relative overflow-hidden pb-24">
         {header}
         <div className="relative z-10 max-w-lg mx-auto px-5 py-20 text-center">
-          <p className="font-serif text-2xl text-cream mb-3">Couldn't load your groups</p>
-          <p className="font-sans text-cream/50 text-sm mb-6">Please refresh, or contact info@heyder.nz if this keeps happening.</p>
-          <button onClick={() => window.location.reload()} className="quiz-cta text-xs py-2 px-6">Retry</button>
+          <p className="font-serif text-2xl text-navy mb-3">Couldn't load.</p>
+          <button onClick={() => window.location.reload()} className="plum-cta text-xs py-2 px-6">Retry</button>
         </div>
         <BottomNav />
       </div>
@@ -273,34 +270,31 @@ function GroupList({ onOpen }) {
   const attended = (groups || []).filter(g => g.revealed);
 
   return (
-    <div className="quiz-bg min-h-screen relative overflow-hidden pb-24">
+    <div className="portal-bg min-h-screen relative overflow-hidden pb-24">
       {header}
-      <div className="relative z-10 max-w-lg mx-auto px-5 py-8 space-y-8">
-        <div>
-          <p className="font-sans text-cream/40 text-sm">Your dinners</p>
-          <h1 className="font-serif text-3xl text-cream mt-1">Group Chats</h1>
-        </div>
+      <Stagger className="relative z-10 max-w-lg mx-auto px-5 py-8 space-y-8">
+        <Rise><h1 className="font-serif font-bold text-3xl text-navy">Groups</h1></Rise>
 
         {(groups || []).length === 0 && (
-          <div className="quiz-card text-center py-10">
-            <p className="font-sans text-cream/40 text-sm">Once you're matched with a table, your group chat shows up here 48 hours before dinner.</p>
-          </div>
+          <Rise className="glass-card text-center py-10">
+            <p className="font-sans text-navy/55 text-sm">Opens 48h before dinner.</p>
+          </Rise>
         )}
 
         {upcoming.length > 0 && (
           <div className="space-y-3">
-            <p className="font-sans font-semibold text-cream/50 text-xs uppercase tracking-widest">Upcoming</p>
-            {upcoming.map(g => <GroupListCard key={g.table_id} g={g} onOpen={onOpen} />)}
+            <Rise><p className="font-sans font-semibold text-navy/65 text-xs uppercase tracking-widest">Upcoming</p></Rise>
+            {upcoming.map(g => <Rise key={g.table_id}><GroupListCard g={g} onOpen={onOpen} /></Rise>)}
           </div>
         )}
 
         {attended.length > 0 && (
           <div className="space-y-3">
-            <p className="font-sans font-semibold text-cream/50 text-xs uppercase tracking-widest">Attended</p>
-            {attended.map(g => <GroupListCard key={g.table_id} g={g} onOpen={onOpen} onExit={handleExit} />)}
+            <Rise><p className="font-sans font-semibold text-navy/65 text-xs uppercase tracking-widest">Past</p></Rise>
+            {attended.map(g => <Rise key={g.table_id}><GroupListCard g={g} onOpen={onOpen} onExit={handleExit} /></Rise>)}
           </div>
         )}
-      </div>
+      </Stagger>
       <BottomNav />
     </div>
   );
@@ -389,22 +383,22 @@ function GroupDetail({ tableId, onBack }) {
   };
 
   const detailHeader = (
-    <nav className="relative z-10 flex items-center justify-between px-6 py-5 border-b border-white/[0.06] backdrop-blur">
-      <button onClick={onBack} className="font-sans text-cream/50 text-sm hover:text-cream transition-colors">← All groups</button>
-      <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-7" />
+    <nav className="relative z-10 flex items-center justify-between px-6 py-5 backdrop-blur-md">
+      <button onClick={onBack} className="font-sans text-navy/65 text-sm hover:text-navy transition-colors">← All groups</button>
+      <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-7 brightness-0" />
       <div className="w-16" />
     </nav>
   );
 
   if (loading) {
     return (
-      <div className="quiz-bg min-h-screen relative overflow-hidden pb-24">
+      <div className="portal-bg min-h-screen relative overflow-hidden pb-24">
         {detailHeader}
         <div className="relative z-10 max-w-lg mx-auto px-5 py-8 space-y-3 animate-pulse">
           {[0, 1, 2].map(i => (
             <div key={i} className={`flex items-end gap-2 ${i % 2 ? 'flex-row-reverse' : ''}`}>
-              <div className="w-8 h-8 rounded-full bg-white/[0.06] flex-shrink-0" />
-              <div className={`h-10 rounded-2xl bg-white/[0.06] ${i === 1 ? 'w-40' : 'w-56'}`} />
+              <div className="w-8 h-8 rounded-full bg-white/40 flex-shrink-0" />
+              <div className={`h-10 rounded-2xl bg-white/40 ${i === 1 ? 'w-40' : 'w-56'}`} />
             </div>
           ))}
         </div>
@@ -414,12 +408,11 @@ function GroupDetail({ tableId, onBack }) {
 
   if (loadError && !data) {
     return (
-      <div className="quiz-bg min-h-screen relative overflow-hidden pb-24">
+      <div className="portal-bg min-h-screen relative overflow-hidden pb-24">
         {detailHeader}
         <div className="relative z-10 max-w-lg mx-auto px-5 py-20 text-center">
-          <p className="font-serif text-2xl text-cream mb-3">Couldn't load this group chat</p>
-          <p className="font-sans text-cream/50 text-sm mb-6">Please refresh, or contact info@heyder.nz if this keeps happening.</p>
-          <button onClick={() => window.location.reload()} className="quiz-cta text-xs py-2 px-6">Retry</button>
+          <p className="font-serif text-2xl text-navy mb-3">Couldn't load.</p>
+          <button onClick={() => window.location.reload()} className="plum-cta text-xs py-2 px-6">Retry</button>
         </div>
         <BottomNav />
       </div>
@@ -429,17 +422,13 @@ function GroupDetail({ tableId, onBack }) {
   if (!data?.chat_open) {
     const msLeft = data ? new Date(data.chat_opens_at) - now : 0;
     return (
-      <div className="quiz-bg min-h-screen relative overflow-hidden pb-24">
+      <div className="portal-bg min-h-screen relative overflow-hidden pb-24">
         {detailHeader}
         <div className="relative z-10 max-w-lg mx-auto px-5 py-8">
-          <div className="quiz-card text-center py-12">
+          <div className="glass-card text-center py-12">
             <p className="text-4xl mb-4">🔒</p>
-            <h1 className="font-serif text-2xl text-cream mb-2">Group chat opens soon</h1>
-            <p className="font-sans text-cream/40 text-sm mb-6 leading-relaxed">
-              You'll be able to meet your table with a few icebreakers 48 hours before dinner. Full profiles — names, photos — and messaging unlock at 8pm on the night.
-            </p>
-            <p className="font-serif text-3xl text-gold tabular-nums">{formatCountdown(msLeft)}</p>
-            <p className="font-sans text-cream/30 text-xs mt-1 uppercase tracking-widest">until it opens</p>
+            <p className="font-serif font-bold text-4xl text-plum tabular-nums">{formatCountdown(msLeft)}</p>
+            <p className="font-sans text-navy/55 text-xs mt-2 uppercase tracking-widest">Opens soon</p>
           </div>
         </div>
         <BottomNav />
@@ -448,28 +437,28 @@ function GroupDetail({ tableId, onBack }) {
   }
 
   return (
-    <div className="quiz-bg min-h-screen relative overflow-hidden">
+    <div className="portal-bg min-h-screen relative overflow-hidden">
       {detailHeader}
 
       {/* Compact group-info bar — tap to see everyone, WhatsApp-style */}
       <button
         onClick={() => setShowGroupInfo(true)}
-        className="relative z-10 w-full max-w-lg mx-auto px-5 py-3 flex items-center gap-3 text-left border-b border-white/[0.06]"
+        className="relative z-10 w-full max-w-lg mx-auto px-5 py-3 flex items-center gap-3 text-left border-b border-navy/10"
       >
         <div className="flex -space-x-2 flex-shrink-0">
           {(data.members || []).slice(0, 5).map(m => (
-            <div key={m.user_id} className="rounded-full ring-2 ring-[#16181d]">
+            <div key={m.user_id} className="rounded-full ring-2 ring-beige">
               <Avatar photo={m.photo} blurred={!data.revealed} size={28} />
             </div>
           ))}
           {(data.members || []).length > 5 && (
-            <div className="w-7 h-7 rounded-full ring-2 ring-[#16181d] bg-white/10 flex items-center justify-center text-cream/60 text-[10px] font-sans font-semibold">
+            <div className="w-7 h-7 rounded-full ring-2 ring-beige bg-white/50 flex items-center justify-center text-navy/72 text-[10px] font-sans font-semibold">
               +{data.members.length - 5}
             </div>
           )}
         </div>
-        <p className="font-sans text-cream/40 text-xs">
-          {data.revealed ? 'Your table' : 'Your table — names & faces reveal at 8pm'}
+        <p className="font-sans text-navy/55 text-xs">
+          {data.revealed ? 'Your table' : 'Names at 8pm'}
         </p>
       </button>
 
@@ -478,8 +467,8 @@ function GroupDetail({ tableId, onBack }) {
       {/* Feed */}
       <div ref={feedRef} className="relative z-10 max-w-lg mx-auto px-5 pt-2 pb-40 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 220px)' }}>
         {(data.messages || []).length === 0 && (
-          <div className="quiz-card text-center py-10 my-4">
-            <p className="font-sans text-cream/40 text-sm">No one's said anything yet. Break the ice with a question →</p>
+          <div className="glass-card text-center py-10 my-4">
+            <p className="font-sans text-navy/55 text-sm">Ask a question +</p>
           </div>
         )}
         {(data.messages || []).map(msg => {
@@ -501,12 +490,12 @@ function GroupDetail({ tableId, onBack }) {
       </div>
 
       {/* Composer */}
-      <div className="fixed bottom-16 inset-x-0 z-30 border-t border-white/[0.06] bg-[#16181d]/95 backdrop-blur px-4 py-2.5">
+      <div className="fixed bottom-16 inset-x-0 z-30 bg-beige/70 backdrop-blur-md px-4 py-2.5">
         <div className="max-w-lg mx-auto flex items-center gap-2">
           <button
             onClick={() => setShowPicker(true)}
             title="Ask a question"
-            className="flex-shrink-0 w-9 h-9 rounded-full border border-gold/30 text-gold flex items-center justify-center font-sans text-lg hover:bg-gold/10 transition-colors"
+            className="flex-shrink-0 w-9 h-9 rounded-full border border-plum/30 text-plum flex items-center justify-center font-sans text-lg hover:bg-plum/10 transition-colors"
           >
             +
           </button>
@@ -516,21 +505,20 @@ function GroupDetail({ tableId, onBack }) {
                 value={text}
                 onChange={e => setText(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSend()}
-                placeholder="Message the group…"
-                className="flex-1 bg-white/[0.06] border border-white/10 rounded-full px-4 py-2.5 text-cream text-sm font-sans focus:outline-none focus:border-gold/40"
+                placeholder="Message"
+                className="flex-1 bg-white/40 border border-navy/15 rounded-full px-4 py-2.5 text-navy text-sm font-sans focus:outline-none focus:border-plum/40"
               />
               <button
                 onClick={handleSend}
                 disabled={!text.trim() || sending}
-                className="quiz-cta text-xs py-2.5 px-4 disabled:opacity-40"
+                className="plum-cta text-xs py-2.5 px-4 disabled:opacity-40"
               >
                 Send
               </button>
             </>
           ) : (
             <div className="flex-1 px-1">
-              <p className="font-sans text-cream/70 text-sm font-semibold">Chat opens soon</p>
-              <p className="font-sans text-cream/30 text-xs mt-0.5">🔒 Messaging opens at 8pm on dinner night</p>
+              <p className="font-sans text-navy/65 text-sm">🔒 Opens 8pm on the night</p>
             </div>
           )}
         </div>
@@ -540,16 +528,16 @@ function GroupDetail({ tableId, onBack }) {
       {showPicker && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60" onClick={() => setShowPicker(false)}>
           <div
-            className="w-full max-w-lg bg-[#16181d] rounded-t-3xl max-h-[70vh] overflow-y-auto p-5 pb-8"
+            className="w-full max-w-lg bg-cream rounded-t-3xl max-h-[70vh] overflow-y-auto p-5 pb-8"
             onClick={e => e.stopPropagation()}
           >
-            <p className="font-serif text-xl text-cream mb-4">Ask the group</p>
+            <p className="font-serif font-bold text-xl text-navy mb-4">Ask</p>
             <div className="space-y-2">
               {(data.prompts || []).map(p => (
                 <button
                   key={p.id}
                   onClick={() => handleAsk(p.id)}
-                  className="w-full text-left px-4 py-3 rounded-xl border border-white/10 hover:border-gold/40 font-sans text-cream/80 text-sm transition-colors"
+                  className="w-full text-left px-4 py-3 rounded-xl border border-navy/15 hover:border-plum/40 font-sans text-navy/85 text-sm transition-colors"
                 >
                   {p.text}
                 </button>

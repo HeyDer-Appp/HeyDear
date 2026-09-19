@@ -9,13 +9,14 @@ import { clearCached } from '../../utils/cache';
 import { useCachedFetch } from '../../utils/useCachedFetch';
 import { DIAL_CODES } from '../../utils/flags';
 import BottomNav from '../../components/BottomNav';
+import { Stagger, Rise } from '../../components/Motion';
 import PhotoCropModal from '../../components/PhotoCropModal';
 import { isPushSupported, getPermissionState, subscribeToPush, unsubscribeFromPush } from '../../utils/push';
 
 const choiceIdle =
-  'border-[#e7dcbd]/18 bg-[#e7dcbd]/[0.04] text-[#e7dcbd]/65 hover:border-[#e7dcbd]/40 hover:bg-[#e7dcbd]/[0.08] hover:text-[#e7dcbd]/95';
+  'border-transparent bg-navy/[0.05] text-navy/70 hover:bg-navy/[0.09] hover:text-navy';
 const choiceActive =
-  'border-gold bg-gold text-navy shadow-[0_8px_32px_rgba(232,168,84,0.25)]';
+  'border-plum bg-plum text-cream shadow-[0_6px_20px_rgba(117,68,113,0.25)]';
 
 function getAge(dob) {
   if (!dob) return '—';
@@ -33,39 +34,38 @@ function SubscriptionCard({ renewsAt, dinnersAttended, onRenew, renewing, onMana
   const showRenew = msLeft <= THREE_DAYS_MS;
 
   return (
-    <div className="quiz-card">
+    <div className="glass-card">
       <div className="flex items-center justify-between mb-4">
-        <span className="inline-flex items-center gap-1.5 font-sans text-[10px] tracking-widest uppercase text-gold bg-gold/10 border border-gold/20 rounded-full px-2.5 py-0.5">
-          ✦ Subscription active
+        <span className="inline-flex items-center gap-1.5 font-sans text-[10px] tracking-widest uppercase text-plum bg-plum/10 border border-plum/20 rounded-full px-2.5 py-0.5">
+          Active
         </span>
       </div>
       <div className="grid grid-cols-2 gap-4 mb-4">
         <div>
-          <p className="font-sans text-cream/40 text-xs uppercase tracking-widest mb-1">Renews in</p>
-          <p className="font-serif text-2xl text-cream leading-tight">{daysLeft} {daysLeft === 1 ? 'day' : 'days'}</p>
-          <p className="font-sans text-cream/30 text-xs mt-0.5">
+          <p className="font-sans text-navy/55 text-xs uppercase tracking-widest mb-1">Renews in</p>
+          <p className="font-serif text-2xl text-navy leading-tight">{daysLeft} {daysLeft === 1 ? 'day' : 'days'}</p>
+          <p className="font-sans text-navy/45 text-xs mt-0.5">
             {new Date(renewsAt).toLocaleDateString('en-NZ', { day: 'numeric', month: 'long', year: 'numeric' })}
           </p>
         </div>
         <div>
-          <p className="font-sans text-cream/40 text-xs uppercase tracking-widest mb-1">Dinners attended</p>
-          <p className="font-serif text-2xl text-cream leading-tight">{dinnersAttended}</p>
+          <p className="font-sans text-navy/55 text-xs uppercase tracking-widest mb-1">Dinners</p>
+          <p className="font-serif text-2xl text-navy leading-tight">{dinnersAttended}</p>
         </div>
       </div>
       {showRenew && (
         <>
-          <p className="font-sans text-cream/40 text-xs mb-3">Your membership is about to expire — renew now so your next dinner stays free.</p>
-          <button onClick={onRenew} disabled={renewing} className="quiz-cta w-full disabled:opacity-60 mb-2">
-            {renewing ? 'Renewing...' : 'Renew for 1 more month'}
+          <button onClick={onRenew} disabled={renewing} className="plum-cta w-full disabled:opacity-60 mb-2">
+            {renewing ? '...' : 'Renew'}
           </button>
         </>
       )}
       <button
         onClick={onManageBilling}
         disabled={managingBilling}
-        className="w-full text-center py-2.5 rounded-xl border border-white/10 text-cream/60 hover:text-cream hover:border-white/25 font-sans text-sm transition-colors disabled:opacity-60"
+        className="w-full text-center py-2.5 rounded-xl border border-navy/15 text-navy/72 hover:text-navy hover:border-navy/30 font-sans text-sm transition-colors disabled:opacity-60"
       >
-        {managingBilling ? 'Opening billing...' : 'Cancel or update payment method →'}
+        {managingBilling ? '...' : 'Billing →'}
       </button>
     </div>
   );
@@ -76,19 +76,17 @@ function SubscriptionCard({ renewsAt, dinnersAttended, onRenew, renewing, onMana
 // have one, with no way to actually get one from here.
 function NoSubscriptionCard({ dinnersAttended }) {
   return (
-    <div className="quiz-card">
-      <span className="inline-flex items-center gap-1.5 font-sans text-[10px] tracking-widest uppercase text-cream/40 bg-white/[0.04] border border-white/10 rounded-full px-2.5 py-0.5 mb-4">
-        No active subscription
+    <div className="glass-card">
+      <span className="inline-flex items-center gap-1.5 font-sans text-[10px] tracking-widest uppercase text-navy/55 bg-white/40 border border-navy/15 rounded-full px-2.5 py-0.5 mb-4">
+        No plan
       </span>
       <div className="mb-4">
-        <p className="font-sans text-cream/40 text-xs uppercase tracking-widest mb-1">Dinners attended</p>
-        <p className="font-serif text-2xl text-cream leading-tight">{dinnersAttended}</p>
+        <p className="font-sans text-navy/55 text-xs uppercase tracking-widest mb-1">Dinners</p>
+        <p className="font-serif text-2xl text-navy leading-tight">{dinnersAttended}</p>
       </div>
-      <p className="font-sans text-cream/40 text-sm mb-4 leading-relaxed">
-        Subscribe for unlimited HeyDer dinners every month instead of paying per dinner.
-      </p>
-      <Link to="/portal/book" className="quiz-cta w-full flex items-center justify-center">
-        Get a subscription →
+      <p className="font-sans text-navy/55 text-sm mb-4">Unlimited dinners, monthly.</p>
+      <Link to="/portal/book" className="plum-cta w-full flex items-center justify-center">
+        Subscribe →
       </Link>
     </div>
   );
@@ -109,8 +107,8 @@ function SaveButton({ onClick, saving, compact }) {
       onClick={onClick}
       disabled={saving}
       className={compact
-        ? 'quiz-cta text-xs py-1.5 px-4 flex items-center gap-1.5 disabled:opacity-60'
-        : 'quiz-cta w-full flex items-center justify-center gap-2 disabled:opacity-60'}
+        ? 'plum-cta text-xs py-1.5 px-4 flex items-center gap-1.5 disabled:opacity-60'
+        : 'plum-cta w-full flex items-center justify-center gap-2 disabled:opacity-60'}
     >
       {saving ? (
         <>
@@ -359,22 +357,19 @@ export default function EditProfile() {
   const leaveWithoutApplying = () => navigate('/portal');
 
   if (loading) return (
-    <div className="quiz-bg min-h-screen relative overflow-hidden pb-24">
-      <nav className="sticky top-0 z-20 flex items-center justify-between px-6 py-5 border-b border-white/[0.06] backdrop-blur bg-[#16181d]/90">
-        <span className="font-sans text-cream/50 text-sm">← Back</span>
-        <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-7" />
+    <div className="portal-bg min-h-screen relative overflow-hidden pb-24">
+      <nav className="sticky top-0 z-20 flex items-center justify-between px-6 py-5 backdrop-blur-md bg-beige/70">
+        <span className="font-sans text-navy/65 text-sm">← Back</span>
+        <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-7 brightness-0" />
         <div className="w-10" />
       </nav>
       <div className="relative z-10 max-w-lg mx-auto px-5 py-8 space-y-6">
-        <div>
-          <p className="font-sans text-cream/40 text-sm">Your profile</p>
-          <h1 className="font-serif text-3xl text-cream mt-1">Edit your answers</h1>
-        </div>
+        <h1 className="font-serif font-bold text-3xl text-navy">Profile</h1>
         <div className="space-y-6 animate-pulse">
           {[0, 1, 2].map(i => (
-            <div key={i} className="quiz-card space-y-3">
-              <div className="h-4 w-32 rounded bg-white/[0.06]" />
-              <div className="h-3 w-full rounded bg-white/[0.04]" />
+            <div key={i} className="glass-card space-y-3">
+              <div className="h-4 w-32 rounded bg-white/40" />
+              <div className="h-3 w-full rounded bg-white/40" />
             </div>
           ))}
         </div>
@@ -384,46 +379,43 @@ export default function EditProfile() {
   );
 
   if (!profileData) return (
-    <div className="quiz-bg min-h-screen flex items-center justify-center p-8 text-center">
+    <div className="portal-bg min-h-screen flex items-center justify-center p-8 text-center">
       <div>
-        <p className="font-serif text-2xl text-cream mb-3">Couldn't load your profile</p>
-        <Link to="/portal" className="quiz-cta text-xs py-2 px-6">Back to dashboard</Link>
+        <p className="font-serif text-2xl text-navy mb-3">Couldn't load.</p>
+        <Link to="/portal" className="plum-cta text-xs py-2 px-6">Back</Link>
       </div>
     </div>
   );
 
   return (
-    <div className="quiz-bg min-h-screen relative overflow-hidden pb-24">
-      <nav className="sticky top-0 z-20 flex items-center justify-between px-6 py-5 border-b border-white/[0.06] backdrop-blur bg-[#16181d]/90">
+    <div className="portal-bg min-h-screen relative overflow-hidden pb-24">
+      <nav className="sticky top-0 z-20 flex items-center justify-between px-6 py-5 backdrop-blur-md bg-beige/70">
         <div className="flex items-center gap-3">
-          <Link to="/portal" onClick={handleBackClick} className="font-sans text-cream/50 text-sm hover:text-cream transition-colors">← Back</Link>
+          <Link to="/portal" onClick={handleBackClick} className="font-sans text-navy/65 text-sm hover:text-navy transition-colors">← Back</Link>
           {saving ? (
-            <span className="font-sans text-cream/30 text-xs flex items-center gap-1.5">
-              <div className="w-3 h-3 border-2 border-cream/30 border-t-transparent rounded-full animate-spin" />
+            <span className="font-sans text-navy/45 text-xs flex items-center gap-1.5">
+              <div className="w-3 h-3 border-2 border-navy/30 border-t-transparent rounded-full animate-spin" />
               Saving...
             </span>
           ) : isDirty ? (
-            <span className="font-sans text-cream/25 text-xs">Unsaved</span>
+            <span className="font-sans text-navy/40 text-xs">Unsaved</span>
           ) : initialAnswers && (
-            <span className="font-sans text-cream/25 text-xs">Saved</span>
+            <span className="font-sans text-navy/40 text-xs">Saved</span>
           )}
         </div>
-        <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-7" />
+        <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-7 brightness-0" />
         <div className="w-10" />
       </nav>
 
-      <div className="relative z-10 max-w-lg mx-auto px-5 py-8 space-y-6">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="font-sans text-cream/40 text-sm">Your profile</p>
-            <h1 className="font-serif text-3xl text-cream mt-1">Edit your answers</h1>
-          </div>
+      <Stagger className="relative z-10 max-w-lg mx-auto px-5 py-8 space-y-6">
+        <Rise className="flex items-start justify-between gap-3">
+          <h1 className="font-serif font-bold text-3xl text-navy">Profile</h1>
 
           <div className="relative flex-shrink-0 mt-1">
             <button
               onClick={() => setShowAccountMenu(v => !v)}
               aria-label="Account settings"
-              className="w-9 h-9 rounded-full border border-white/10 bg-white/[0.04] flex items-center justify-center text-cream/60 hover:text-gold hover:border-gold/40 transition-colors"
+              className="w-9 h-9 rounded-full border border-navy/15 bg-white/40 flex items-center justify-center text-navy/72 hover:text-plum hover:border-plum/40 transition-colors"
             >
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="3" />
@@ -434,16 +426,16 @@ export default function EditProfile() {
             {showAccountMenu && (
               <>
                 <div className="fixed inset-0 z-20" onClick={() => setShowAccountMenu(false)} />
-                <div className="absolute right-0 top-full mt-2 w-56 bg-navy border border-white/10 rounded-xl shadow-xl overflow-hidden z-30">
+                <div className="absolute right-0 top-full mt-2 w-56 bg-cream border border-navy/15 rounded-xl shadow-xl overflow-hidden z-30">
                   <button
                     onClick={handleManageSubscription}
-                    className="w-full text-left px-4 py-3 font-sans text-base text-cream/80 hover:bg-white/[0.06] transition-colors"
+                    className="w-full text-left px-4 py-3 font-sans text-base text-navy/85 hover:bg-white/60 transition-colors"
                   >
                     Manage subscription
                   </button>
                   <button
                     onClick={handleResetPassword}
-                    className="w-full text-left px-4 py-3 font-sans text-base text-cream/80 hover:bg-white/[0.06] transition-colors border-t border-white/[0.06]"
+                    className="w-full text-left px-4 py-3 font-sans text-base text-navy/85 hover:bg-white/60 transition-colors border-t border-navy/10"
                   >
                     Reset password
                   </button>
@@ -451,10 +443,10 @@ export default function EditProfile() {
                     <button
                       onClick={handleToggleNotifications}
                       disabled={notifBusy}
-                      className="w-full text-left px-4 py-3 font-sans text-base text-cream/80 hover:bg-white/[0.06] transition-colors border-t border-white/[0.06] flex items-center justify-between gap-2 disabled:opacity-60"
+                      className="w-full text-left px-4 py-3 font-sans text-base text-navy/85 hover:bg-white/60 transition-colors border-t border-navy/10 flex items-center justify-between gap-2 disabled:opacity-60"
                     >
                       <span>Notifications</span>
-                      <span className={`font-sans text-xs ${notifState === 'granted' ? 'text-gold' : 'text-cream/30'}`}>
+                      <span className={`font-sans text-xs ${notifState === 'granted' ? 'text-plum' : 'text-navy/45'}`}>
                         {notifBusy ? '...' : notifState === 'granted' ? 'On' : 'Off'}
                       </span>
                     </button>
@@ -464,13 +456,13 @@ export default function EditProfile() {
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={() => setShowAccountMenu(false)}
-                    className="block w-full text-left px-4 py-3 font-sans text-base text-cream/80 hover:bg-white/[0.06] transition-colors border-t border-white/[0.06]"
+                    className="block w-full text-left px-4 py-3 font-sans text-base text-navy/85 hover:bg-white/60 transition-colors border-t border-navy/10"
                   >
                     Follow Heyder
                   </a>
                   <button
                     onClick={() => { setShowAccountMenu(false); setShowDeleteConfirm(true); }}
-                    className="w-full text-left px-4 py-3 font-sans text-base text-red-400 hover:bg-red-500/10 transition-colors border-t border-white/[0.06]"
+                    className="w-full text-left px-4 py-3 font-sans text-base text-red-700 hover:bg-red-500/10 transition-colors border-t border-navy/10"
                   >
                     Delete account
                   </button>
@@ -478,12 +470,12 @@ export default function EditProfile() {
               </>
             )}
           </div>
-        </div>
+        </Rise>
 
         {/* Profile photo — tapping an existing photo opens a big preview
             with the option to change it there, instead of jumping straight
             to the file picker every time. */}
-        <div className="quiz-card flex items-center gap-5">
+        <Rise className="glass-card flex items-center gap-5">
           <button
             type="button"
             onClick={() => { if (answers.photo) setShowPhotoModal(true); else photoInputRef.current?.click(); }}
@@ -496,9 +488,9 @@ export default function EditProfile() {
               className="hidden"
               onChange={e => handlePhotoSelect(e.target.files?.[0])}
             />
-            <div className="w-20 h-20 rounded-full border-2 border-dashed border-gold/30 bg-gold/5 flex items-center justify-center overflow-hidden group-hover:border-gold/60 transition-colors">
+            <div className="w-20 h-20 rounded-full border-2 border-dashed border-plum/30 bg-plum/5 flex items-center justify-center overflow-hidden group-hover:border-plum/60 transition-colors">
               {photoUploading ? (
-                <div className="w-5 h-5 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+                <div className="w-5 h-5 border-2 border-plum border-t-transparent rounded-full animate-spin" />
               ) : answers.photo ? (
                 <img src={answers.photo} alt="Your profile" className="w-full h-full object-cover" />
               ) : (
@@ -507,33 +499,32 @@ export default function EditProfile() {
             </div>
           </button>
           <div>
-            <p className="font-sans font-semibold text-cream text-sm mb-1">Profile photo</p>
-            <p className="font-sans text-cream/40 text-xs mb-2">Helps your table recognise you.</p>
+            <p className="font-sans font-semibold text-navy text-sm mb-1">Photo</p>
             {answers.photo && (
               <button
                 onClick={() => setValue('photo', null)}
-                className="font-sans text-cream/30 hover:text-red-400 text-xs transition-colors"
+                className="font-sans text-navy/45 hover:text-red-700 text-xs transition-colors"
               >
-                Remove photo
+                Remove
               </button>
             )}
           </div>
-        </div>
+        </Rise>
 
         {showPhotoModal && answers.photo && (
           <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-6" onClick={() => setShowPhotoModal(false)}>
             <div className="max-w-sm w-full space-y-4" onClick={e => e.stopPropagation()}>
-              <img src={answers.photo} alt="Your profile" className="w-full aspect-square object-cover rounded-2xl border border-white/10" />
+              <img src={answers.photo} alt="Your profile" className="w-full aspect-square object-cover rounded-2xl border border-navy/15" />
               <div className="flex gap-3">
                 <button
                   onClick={() => { setShowPhotoModal(false); photoInputRef.current?.click(); }}
-                  className="quiz-cta flex-1"
+                  className="plum-cta flex-1"
                 >
                   Change photo
                 </button>
                 <button
                   onClick={() => setShowPhotoModal(false)}
-                  className="flex-1 py-2.5 rounded-xl border border-white/10 text-cream/70 font-sans text-sm hover:bg-white/[0.04] transition-colors"
+                  className="flex-1 py-2.5 rounded-xl border border-navy/15 text-navy/80 font-sans text-sm hover:bg-white/60 transition-colors"
                 >
                   Close
                 </button>
@@ -543,40 +534,40 @@ export default function EditProfile() {
         )}
 
         {/* Locked identity fields */}
-        <div className="quiz-card">
-          <p className="font-sans font-semibold text-cream/50 text-xs uppercase tracking-widest mb-3">
-            Can't be changed here
+        <Rise className="glass-card">
+          <p className="font-sans font-semibold text-navy/65 text-xs uppercase tracking-widest mb-3">
+            Fixed
           </p>
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div>
-              <p className="text-cream/30 text-xs">Name</p>
-              <p className="text-cream/70">{locked.first_name} {locked.last_name}</p>
+              <p className="text-navy/45 text-xs">Name</p>
+              <p className="text-navy/80">{locked.first_name} {locked.last_name}</p>
             </div>
             <div>
-              <p className="text-cream/30 text-xs">Age</p>
-              <p className="text-cream/70">{getAge(locked.dob)}</p>
+              <p className="text-navy/45 text-xs">Age</p>
+              <p className="text-navy/80">{getAge(locked.dob)}</p>
             </div>
             <div>
-              <p className="text-cream/30 text-xs">Email</p>
-              <p className="text-cream/70 truncate">{locked.email}</p>
+              <p className="text-navy/45 text-xs">Email</p>
+              <p className="text-navy/80 truncate">{locked.email}</p>
             </div>
           </div>
-          <p className="font-sans text-cream/25 text-xs mt-3">
-            Need to fix one of these? Email <a href="mailto:info@heyder.nz" className="text-gold/70 hover:text-gold">info@heyder.nz</a>
+          <p className="font-sans text-navy/40 text-xs mt-3">
+            Change: <a href="mailto:info@heyder.nz" className="text-plum/70 hover:text-plum">info@heyder.nz</a>
           </p>
-        </div>
+        </Rise>
 
         {/* Contact number — editable here, unlike name/dob/email above */}
-        <div className="quiz-card">
-          <p className="font-sans font-semibold text-cream text-sm mb-1">Contact number</p>
+        <Rise className="glass-card">
+          <p className="font-sans font-semibold text-navy text-sm mb-1">Contact number</p>
           <div className="flex gap-2">
             <select
               value={answers.phoneCountryCode || '+64'}
               onChange={e => setValue('phoneCountryCode', e.target.value)}
-              className="quiz-input w-24 flex-shrink-0 px-2"
+              className="portal-login-input w-24 flex-shrink-0 px-2"
             >
               {DIAL_CODES.map(([name, code]) => (
-                <option key={name} value={code} className="bg-navy text-cream">{code}</option>
+                <option key={name} value={code} className="bg-cream text-navy">{code}</option>
               ))}
             </select>
             <input
@@ -586,15 +577,15 @@ export default function EditProfile() {
               value={answers.phone || ''}
               onChange={e => setValue('phone', e.target.value.replace(/\D/g, '').slice(0, 10))}
               maxLength={10}
-              className={`quiz-input flex-1 ${phoneError && (answers.phone || saveAttempted) ? 'border-red-400/60' : ''}`}
+              className={`portal-login-input flex-1 ${phoneError && (answers.phone || saveAttempted) ? 'border-red-400/60' : ''}`}
             />
           </div>
           {phoneError && (answers.phone || saveAttempted) && (
-            <p className="font-sans text-red-400/80 text-xs mt-1.5">
+            <p className="font-sans text-red-700/80 text-xs mt-1.5">
               {answers.phone ? 'Enter a valid phone number.' : 'Phone number is required.'}
             </p>
           )}
-        </div>
+        </Rise>
 
         {/* Editable answers, grouped by chapter */}
         {CHAPTERS.map(chap => {
@@ -602,12 +593,12 @@ export default function EditProfile() {
           if (!questions.length) return null;
           return (
             <div key={chap.id} className="space-y-4">
-              <p className="font-sans font-semibold text-cream/50 text-xs uppercase tracking-widest">
+              <Rise><p className="font-sans font-semibold text-navy/65 text-xs uppercase tracking-widest">
                 {chap.title}
-              </p>
+              </p></Rise>
               {questions.map(q => (
-                <div key={q.id} className="quiz-card">
-                  <p className="font-serif text-lg text-cream mb-3">{q.title}</p>
+                <Rise key={q.id} className="glass-card">
+                  <p className="font-serif text-lg text-navy mb-3">{q.title}</p>
 
                   {q.type === 'yes_no' && (
                     <div className="flex gap-3">
@@ -677,38 +668,35 @@ export default function EditProfile() {
                       value={answers[q.field] || ''}
                       onChange={e => setValue(q.field, e.target.value)}
                       rows={3}
-                      className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-3 text-cream placeholder-cream/25 font-sans text-sm focus:outline-none focus:border-gold/50 resize-none"
+                      className="w-full bg-white/40 border border-navy/15 rounded-xl px-4 py-3 text-navy placeholder-navy/40 font-sans text-sm focus:outline-none focus:border-plum/50 resize-none"
                     />
                   )}
-                </div>
+                </Rise>
               ))}
             </div>
           );
         })}
 
-        {isDirty && <SaveButton onClick={save} saving={saving} />}
-      </div>
+        {isDirty && <Rise><SaveButton onClick={save} saving={saving} /></Rise>}
+      </Stagger>
 
       {showExitConfirm && (
         <div className="fixed inset-0 z-50 bg-navy/80 backdrop-blur flex items-center justify-center p-6" onClick={() => setShowExitConfirm(false)}>
-          <div className="quiz-card max-w-sm w-full text-center" onClick={e => e.stopPropagation()}>
-            <p className="font-serif text-xl text-cream mb-2">Unsaved changes</p>
-            <p className="font-sans text-cream/50 text-sm mb-6">
-              Do you want to proceed without applying these changes?
-            </p>
+          <div className="glass-card max-w-sm w-full text-center" onClick={e => e.stopPropagation()}>
+            <p className="font-serif font-bold text-xl text-navy mb-5">Unsaved changes</p>
             <button
               onClick={() => { setShowExitConfirm(false); applyAndLeave(); }}
               disabled={saving}
-              className="quiz-cta w-full mb-3 disabled:opacity-60"
+              className="plum-cta w-full mb-3 disabled:opacity-60"
             >
               {saving ? 'Saving...' : 'Apply'}
             </button>
             <button
               onClick={() => { setShowExitConfirm(false); leaveWithoutApplying(); }}
               disabled={saving}
-              className="font-sans text-cream/40 hover:text-cream text-xs transition-colors disabled:opacity-50"
+              className="font-sans text-navy/55 hover:text-navy text-xs transition-colors disabled:opacity-50"
             >
-              Do not apply
+              Discard
             </button>
           </div>
         </div>
@@ -716,19 +704,18 @@ export default function EditProfile() {
 
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-5">
-          <div className="quiz-card w-full max-w-sm space-y-4">
-            <p className="font-serif text-xl text-cream">Delete your account?</p>
-            <p className="font-sans text-cream/60 text-sm leading-relaxed">
-              This permanently deletes your profile, bookings, matches, messages, photos and cancels any active subscription.
-              <span className="text-red-400"> This cannot be undone.</span>
+          <div className="glass-card w-full max-w-sm space-y-4">
+            <p className="font-serif font-bold text-xl text-navy">Delete account?</p>
+            <p className="font-sans text-navy/72 text-sm leading-relaxed">
+              Everything is deleted, including any subscription. <span className="text-red-700">No undo.</span>
             </p>
             <div>
-              <label className="font-sans text-cream/50 text-xs block mb-1.5">Type DELETE to confirm</label>
+              <label className="font-sans text-navy/65 text-xs block mb-1.5">Type DELETE</label>
               <input
                 type="text"
                 value={deleteConfirmText}
                 onChange={e => setDeleteConfirmText(e.target.value)}
-                className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2.5 text-cream font-sans text-sm focus:outline-none focus:border-red-400/50"
+                className="w-full bg-white/40 border border-navy/15 rounded-xl px-4 py-2.5 text-navy font-sans text-sm focus:outline-none focus:border-red-400/50"
                 placeholder="DELETE"
               />
             </div>
@@ -736,7 +723,7 @@ export default function EditProfile() {
               <button
                 onClick={() => { setShowDeleteConfirm(false); setDeleteConfirmText(''); }}
                 disabled={deleting}
-                className="flex-1 py-2.5 rounded-xl font-sans text-sm text-cream/70 border border-white/10 hover:bg-white/[0.04] transition-colors disabled:opacity-40"
+                className="flex-1 py-2.5 rounded-xl font-sans text-sm text-navy/80 border border-navy/15 hover:bg-white/60 transition-colors disabled:opacity-40"
               >
                 Cancel
               </button>
@@ -745,7 +732,7 @@ export default function EditProfile() {
                 disabled={deleteConfirmText !== 'DELETE' || deleting}
                 className="flex-1 py-2.5 rounded-xl font-sans text-sm text-white bg-red-500/80 hover:bg-red-500 transition-colors disabled:opacity-30 disabled:pointer-events-none"
               >
-                {deleting ? 'Deleting…' : 'Delete account'}
+                {deleting ? '...' : 'Delete'}
               </button>
             </div>
           </div>
@@ -766,7 +753,7 @@ export default function EditProfile() {
             )}
             <button
               onClick={() => setShowSubscriptionModal(false)}
-              className="w-full mt-3 font-sans text-cream/40 hover:text-cream text-xs transition-colors"
+              className="w-full mt-3 font-sans text-navy/55 hover:text-navy text-xs transition-colors"
             >
               Close
             </button>

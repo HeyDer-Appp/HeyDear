@@ -197,6 +197,48 @@
     outline: none;
   }
 
+  /* Signed-in portal theme (matches the My Table screen): warm beige with
+     the Auckland map fixed behind everything. The map lives on a fixed
+     pseudo-element rather than background-attachment:fixed, which iOS
+     Safari renders zoomed/broken. isolation keeps the -1 z-index inside
+     this element so it paints above its own beige but below its content. */
+  .portal-bg {
+    position: relative;
+    isolation: isolate;
+    background-color: #E7DFC5;
+    color: #16181d;
+  }
+  .portal-bg::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background: url('/images/auckland-map-beige.png') center / cover no-repeat;
+    pointer-events: none;
+  }
+
+  .glass-card {
+    @apply rounded-2xl p-5 transition-colors duration-300;
+    background: rgba(245, 237, 216, 0.85);
+    border: 1px solid rgba(22, 24, 29, 0.15);
+    box-shadow: 0 10px 28px rgba(22, 24, 29, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+
+  .plum-cta {
+    @apply inline-flex items-center justify-center gap-2 font-sans font-semibold text-sm tracking-widest uppercase px-8 py-4 rounded-2xl transition-all duration-200 active:scale-[0.98];
+    border: 2px solid #754471;
+    color: #754471;
+    background: rgba(231, 223, 197, 0.35);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+  .plum-cta:hover:not(:disabled) {
+    background: #754471;
+    color: #F5EDD8;
+  }
+
   .quiz-card {
     @apply rounded-2xl p-6 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg hover:shadow-black/30;
     background: rgba(231, 220, 189, 0.04);

@@ -207,35 +207,35 @@ function InlineCityPill({ value, onChange }) {
 const STATUS_CONFIG = {
   pending: {
     label: 'Finding your group',
-    color: 'text-yellow',
-    bg: 'bg-yellow/10',
-    border: 'border-yellow/20',
+    color: 'text-plum',
+    bg: 'bg-plum/10',
+    border: 'border-plum/20',
     icon: '⏳',
     description: '',
   },
   matched: {
-    label: 'Your group is locked in',
-    color: 'text-gold',
-    bg: 'bg-gold/10',
-    border: 'border-gold/20',
+    label: 'Group locked in',
+    color: 'text-plum',
+    bg: 'bg-plum/10',
+    border: 'border-plum/20',
     icon: '✦',
-    description: "Your table has been curated. A glimpse of who you're meeting drops 48 hours before dinner.",
+    description: '',
   },
   glimpse: {
     label: 'Meet your table',
-    color: 'text-purple-300',
+    color: 'text-purple-800',
     bg: 'bg-purple-500/10',
     border: 'border-purple-500/20',
     icon: '👀',
-    description: "Here's a sneak peek at your dinner companions. Restaurant revealed in 24 hours.",
+    description: '',
   },
   venue: {
     label: 'Venue',
-    color: 'text-emerald-400',
+    color: 'text-emerald-700',
     bg: 'bg-emerald-400/10',
     border: 'border-emerald-400/20',
     icon: '✓',
-    description: "Everything is locked in. See you tonight at 7pm.",
+    description: '',
   },
 };
 
@@ -247,9 +247,9 @@ function GlimpseCard({ member, revealed }) {
   const Wrapper = revealed ? Link : 'div';
   const wrapperProps = revealed ? { to: `/portal/person/${member.user_id}` } : {};
   return (
-    <Wrapper {...wrapperProps} className={`flex items-center gap-3 bg-white/[0.03] rounded-xl p-3 border border-white/5 ${revealed ? 'hover:border-gold/30 hover:scale-[1.02] transition-all duration-300' : ''}`}>
+    <Wrapper {...wrapperProps} className={`flex items-center gap-3 bg-white/30 rounded-xl p-3 border border-navy/10 ${revealed ? 'hover:border-plum/30 hover:scale-[1.02] transition-all duration-300' : ''}`}>
       {member.photo ? (
-        <div className="rounded-full overflow-hidden w-12 h-12 flex-shrink-0 border border-white/10">
+        <div className="rounded-full overflow-hidden w-12 h-12 flex-shrink-0 border border-navy/15">
           <img
             src={member.photo}
             alt=""
@@ -259,18 +259,18 @@ function GlimpseCard({ member, revealed }) {
           />
         </div>
       ) : (
-        <div className="rounded-full w-12 h-12 flex-shrink-0 border border-white/10 bg-white/5 flex items-center justify-center text-cream/20 text-lg">
+        <div className="rounded-full w-12 h-12 flex-shrink-0 border border-navy/15 bg-white/40 flex items-center justify-center text-navy/35 text-lg">
           👤
         </div>
       )}
       <div className="min-w-0">
-        <p className="font-sans text-cream/60 text-xs font-semibold mb-1 flex items-center gap-1.5">
+        <p className="font-sans text-navy/72 text-xs font-semibold mb-1 flex items-center gap-1.5">
           {revealed ? (member.first_name || 'Guest') : '•••'}
           {member.country && flagUrl(member.country) && (
             <img src={flagUrl(member.country)} alt={member.country} className="h-3.5 rounded-[2px] flex-shrink-0" />
           )}
         </p>
-        <p className="font-sans text-cream text-sm italic">
+        <p className="font-sans text-navy text-sm italic">
           "{member.career_kid || 'No answer shared'}"
         </p>
       </div>
@@ -293,22 +293,21 @@ export function GlimpseModal({ tableId, onClose }) {
   }, [tableId]);
 
   return (
-    <div className="fixed inset-0 z-50 bg-navy/80 backdrop-blur flex items-center justify-center p-6" onClick={onClose}>
-      <div className="bg-dark-card rounded-2xl border border-white/10 p-6 max-w-sm w-full max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 bg-navy/60 backdrop-blur-sm flex items-center justify-center p-6" onClick={onClose}>
+      <div className="bg-cream rounded-2xl border border-navy/15 p-6 max-w-sm w-full max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-start justify-between mb-1">
-          <h2 className="font-serif text-2xl text-cream">Group Info</h2>
-          <button onClick={onClose} className="text-cream/40 hover:text-cream text-xl">✕</button>
+          <h2 className="font-serif font-bold text-2xl text-navy">Your table</h2>
+          <button onClick={onClose} className="text-navy/55 hover:text-navy text-xl">✕</button>
         </div>
-        <p className="font-sans text-cream/50 text-sm mb-1">Just a glimpse of people you are meeting</p>
-        <p className="font-sans text-cream/30 text-xs mb-4">
-          {revealed ? 'Names and photos revealed' : 'Names & photos reveal 8pm on the night'}
+        <p className="font-sans text-navy/45 text-xs mb-4">
+          {revealed ? '' : 'Names at 8pm'}
         </p>
 
         {error ? (
-          <p className="font-sans text-cream/40 text-sm text-center py-6">Couldn't load your table yet.</p>
+          <p className="font-sans text-navy/55 text-sm text-center py-6">Not yet.</p>
         ) : glimpse === null ? (
           <div className="flex justify-center py-6">
-            <div className="w-6 h-6 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+            <div className="w-6 h-6 border-2 border-plum border-t-transparent rounded-full animate-spin" />
           </div>
         ) : (
           <div className="space-y-3">
@@ -316,8 +315,8 @@ export function GlimpseModal({ tableId, onClose }) {
           </div>
         )}
 
-        <Link to="/portal/group-chat" className="quiz-cta w-full flex items-center justify-center gap-2 mt-6">
-          💬 Go to group chat
+        <Link to="/portal/group-chat" className="plum-cta w-full flex items-center justify-center gap-2 mt-6">
+          Chat
         </Link>
       </div>
     </div>
@@ -363,35 +362,35 @@ function RevealFlow({ revealAt, venueRevealAt, tableId, dinner }) {
   return (
     <div className="mt-5">
       {!glimpseUnlocked && (
-        <p className="font-sans text-cream/40 text-xs uppercase tracking-widest mb-2 text-center">
-          Table reveal unlocks in <span className="text-cream/70 font-semibold">{format(glimpseSecondsLeft)}</span>
+        <p className="font-sans text-navy/55 text-xs uppercase tracking-widest mb-2 text-center">
+          Table in <span className="text-navy/80 font-semibold">{format(glimpseSecondsLeft)}</span>
         </p>
       )}
       {glimpseUnlocked && !venueUnlocked && venueSecondsLeft !== null && (
-        <p className="font-sans text-cream/40 text-xs uppercase tracking-widest mb-2 text-center">
-          📍 Venue reveals in <span className="text-cream/70 font-semibold">{format(venueSecondsLeft)}</span>
+        <p className="font-sans text-navy/55 text-xs uppercase tracking-widest mb-2 text-center">
+          📍 Venue in <span className="text-navy/80 font-semibold">{format(venueSecondsLeft)}</span>
         </p>
       )}
 
       {glimpseUnlocked && (
         <button
           onClick={() => setShowGlimpse(true)}
-          className="quiz-cta w-full flex items-center justify-center gap-2 whitespace-nowrap"
+          className="plum-cta w-full flex items-center justify-center gap-2 whitespace-nowrap"
         >
-          <span>👀</span><span>Group Info</span>
+          <span>👀</span><span>Your table</span>
         </button>
       )}
 
       {venueUnlocked && dinner.restaurant_name && (
-        <div className="mt-4 bg-gold/5 rounded-xl p-4 border border-gold/20">
-          <p className="font-sans text-gold text-xs uppercase tracking-widest mb-2">📍 Your restaurant</p>
-          <p className="font-sans font-semibold text-cream text-base">{dinner.restaurant_name}</p>
-          <p className="font-sans text-cream/50 text-sm mt-0.5">{dinner.restaurant_address}</p>
+        <div className="mt-4 bg-plum/5 rounded-xl p-4 border border-plum/20">
+          <p className="font-sans text-plum text-xs uppercase tracking-widest mb-2">📍 Venue</p>
+          <p className="font-sans font-semibold text-navy text-base">{dinner.restaurant_name}</p>
+          <p className="font-sans text-navy/65 text-sm mt-0.5">{dinner.restaurant_address}</p>
           {dinner.booking_name && (
-            <p className="font-sans text-cream/40 text-xs mt-2">Booking under: <span className="text-cream/70">{dinner.booking_name}</span></p>
+            <p className="font-sans text-navy/55 text-xs mt-2">Under: <span className="text-navy/80">{dinner.booking_name}</span></p>
           )}
           {dinner.menu_price_min && (
-            <p className="font-sans text-cream/40 text-xs mt-1">Set menu: <span className="text-gold">${dinner.menu_price_min}–${dinner.menu_price_max} per person</span></p>
+            <p className="font-sans text-navy/55 text-xs mt-1">Menu: <span className="text-plum">${dinner.menu_price_min}–${dinner.menu_price_max} pp</span></p>
           )}
         </div>
       )}
@@ -476,19 +475,24 @@ function DinnerCard({ dinner, onCancel, onRsvpUpdate }) {
     : dinner.preferred_date || 'Upcoming Tuesday';
 
   return (
-    <div className={`quiz-card ${config.border}`}>
+    <motion.div
+      initial={{ opacity: 0, y: 14 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+      className={`glass-card ${config.border}`}
+    >
       {/* Status badge */}
       <div className="flex items-center justify-between mb-5">
         <span className={`inline-flex items-center gap-2 text-xs font-sans font-semibold tracking-wider uppercase px-3 py-1.5 rounded-full whitespace-nowrap ${config.bg} ${config.color}`}>
           <span>{badgeIcon}</span><span>{badgeLabel}</span>
         </span>
-        {!isPast && <span className="font-sans text-cream/30 text-xs">7:00 PM</span>}
+        {!isPast && <span className="font-sans text-navy/45 text-xs">7:00 PM</span>}
       </div>
 
       {/* Date */}
-      <h2 className="font-serif text-2xl text-cream mb-1">{formattedDate}</h2>
-      <p className="font-sans text-cream/50 text-sm mb-1">{dinner.city || 'Auckland'}</p>
-      {config.description && <p className="font-sans text-cream/40 text-xs mb-4">{config.description}</p>}
+      <h2 className="font-serif font-bold text-2xl text-navy mb-1">{formattedDate}</h2>
+      <p className="font-sans text-navy/65 text-sm mb-1">{dinner.city || 'Auckland'}</p>
+      {config.description && <p className="font-sans text-navy/55 text-xs mb-4">{config.description}</p>}
 
       {/* ── STAGE 1: PENDING — what happens next ──
           Reveal timing is always relative to the fixed Tuesday 7pm dinner
@@ -505,7 +509,7 @@ function DinnerCard({ dinner, onCancel, onRsvpUpdate }) {
         const venueSecsLeft = venueRevealAt ? Math.max(0, Math.ceil((venueRevealAt - now) / 1000)) : null;
 
         const steps = [
-          { icon: '👀', step: 'Meet your table', secsLeft: groupSecsLeft, unlocked: groupUnlocked, notStarted: false },
+          { icon: '👀', step: 'Table', secsLeft: groupSecsLeft, unlocked: groupUnlocked, notStarted: false },
           { icon: '📍', step: 'Venue', secsLeft: venueSecsLeft, unlocked: venueSecsLeft !== null && venueSecsLeft <= 0, notStarted: !groupUnlocked },
         ];
 
@@ -515,13 +519,13 @@ function DinnerCard({ dinner, onCancel, onRsvpUpdate }) {
               <div key={step} className="flex items-start gap-3">
                 <span className="text-base mt-0.5">{icon}</span>
                 <div className="flex-1 flex items-start justify-between gap-4">
-                  <span className="font-sans text-cream/70 text-sm">{step}</span>
+                  <span className="font-sans text-navy/80 text-sm">{step}</span>
                   <div className="text-right flex-shrink-0">
                     {notStarted ? (
-                      <span className="font-sans text-cream/20 text-xs italic">Starts after table reveal</span>
+                      <span className="font-sans text-navy/35 text-xs italic">After table</span>
                     ) : secsLeft !== null && (
-                      <span className="font-sans text-gold text-xs font-semibold">
-                        {unlocked ? 'Any moment now' : formatCountdown(secsLeft)}
+                      <span className="font-sans text-plum text-xs font-semibold">
+                        {unlocked ? 'Now' : formatCountdown(secsLeft)}
                       </span>
                     )}
                   </div>
@@ -544,31 +548,31 @@ function DinnerCard({ dinner, onCancel, onRsvpUpdate }) {
 
       {/* Day-of RSVP — "are you actually coming tonight?" */}
       {dinner.table_status === 'confirmed' && rsvpWindowOpen && (
-        <div className="mt-5 pt-5 border-t border-white/[0.06]">
+        <div className="mt-5 pt-5 border-t border-navy/10">
           {rsvpAttending === null ? (
             <>
-              <p className="font-sans text-cream text-sm font-medium mb-3">Still coming tonight?</p>
+              <p className="font-sans text-navy text-sm font-medium mb-3">Coming tonight?</p>
               <div className="flex gap-3">
                 <button
                   onClick={() => respondRsvp(true)}
                   disabled={rsvpSubmitting}
-                  className="flex-1 py-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-sans text-sm font-medium hover:bg-emerald-500/25 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+                  className="flex-1 py-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 font-sans text-sm font-medium hover:bg-emerald-500/25 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
                 >
-                  ✓ I'm coming
+                  ✓ Yes
                 </button>
                 <button
                   onClick={() => respondRsvp(false)}
                   disabled={rsvpSubmitting}
-                  className="flex-1 py-2.5 rounded-xl bg-red-500/10 border border-red-500/25 text-red-400 font-sans text-sm font-medium hover:bg-red-500/20 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+                  className="flex-1 py-2.5 rounded-xl bg-red-500/10 border border-red-500/25 text-red-700 font-sans text-sm font-medium hover:bg-red-500/20 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
                 >
-                  ✕ Can't make it
+                  ✕ No
                 </button>
               </div>
             </>
           ) : rsvpAttending ? (
-            <p className="font-sans text-emerald-400 text-sm">✓ You confirmed you're coming tonight</p>
+            <p className="font-sans text-emerald-700 text-sm">✓ You're coming</p>
           ) : (
-            <p className="font-sans text-red-400 text-sm">✕ You said you can't make it tonight</p>
+            <p className="font-sans text-red-700 text-sm">✕ Not coming</p>
           )}
         </div>
       )}
@@ -577,12 +581,12 @@ function DinnerCard({ dinner, onCancel, onRsvpUpdate }) {
       {!isPast && (
         <button
           onClick={() => onCancel(dinner)}
-          className="mt-5 text-cream/25 hover:text-red-400 font-sans text-xs transition-colors"
+          className="mt-5 text-navy/40 hover:text-red-700 font-sans text-xs transition-colors"
         >
-          Cancel booking
+          Cancel
         </button>
       )}
-    </div>
+    </motion.div>
   );
 }
 
@@ -872,7 +876,7 @@ export default function PortalDashboard() {
       style={{ background: '#E7DFC5' }}
     >
       <nav className="relative z-10 flex items-center justify-between px-6 py-5" aria-hidden="true">
-        <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="" className="h-7 opacity-0" />
+        <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="" className="h-7 opacity-0 brightness-0" />
       </nav>
 
       <div className="relative z-10 max-w-lg mx-auto px-5 py-10 space-y-8">
@@ -899,11 +903,11 @@ export default function PortalDashboard() {
   );
 
   if (loadError) return (
-    <div className="quiz-bg min-h-screen flex items-center justify-center p-8 text-center">
+    <div className="portal-bg min-h-screen flex items-center justify-center p-8 text-center">
       <div>
-        <p className="font-serif text-2xl text-cream mb-3">Couldn't load your dashboard</p>
-        <p className="font-sans text-cream/50 text-sm mb-6">Please refresh, or contact info@heyder.nz if this keeps happening.</p>
-        <button onClick={() => window.location.reload()} className="quiz-cta text-xs py-2 px-6">Retry</button>
+        <p className="font-serif text-2xl text-navy mb-3">Couldn't load your dashboard</p>
+        <p className="font-sans text-navy/65 text-sm mb-6">Please refresh, or contact info@heyder.nz if this keeps happening.</p>
+        <button onClick={() => window.location.reload()} className="plum-cta text-xs py-2 px-6">Retry</button>
       </div>
     </div>
   );
@@ -1009,13 +1013,7 @@ export default function PortalDashboard() {
   const past = dinners.filter(d => !d.is_pending && d.date && new Date(d.date) < new Date());
 
   return (
-    <div className="quiz-bg min-h-screen relative overflow-hidden pb-24">
-      <img
-        src="/images/auckland-map-beige.png"
-        alt=""
-        aria-hidden="true"
-        className="absolute inset-0 w-full h-full object-cover pointer-events-none"
-      />
+    <div className="portal-bg min-h-screen relative overflow-hidden pb-24">
       {/* Nav */}
       <nav className="relative z-10 flex items-center justify-between px-6 py-5 backdrop-blur-md">
         <Link to="/">
@@ -1169,24 +1167,24 @@ export default function PortalDashboard() {
         {/* Past dinners */}
         {past.length > 0 && (
           <div>
-            <p className="font-sans font-semibold text-cream/50 text-xs uppercase tracking-widest mb-3">Past dinners</p>
+            <p className="font-sans font-semibold text-navy/65 text-xs uppercase tracking-widest mb-3">Past</p>
             <div className="space-y-2">
               {past.map(d => (
-                <div key={d.table_id} className="rounded-xl border border-white/5 px-5 py-4 flex items-center justify-between" style={{ background: 'rgba(231,220,189,0.02)' }}>
+                <div key={d.table_id} className="rounded-xl border border-navy/10 px-5 py-4 flex items-center justify-between" style={{ background: 'rgba(255,255,255,0.4)' }}>
                   <div>
-                    <p className="font-sans text-cream/60 text-sm">
+                    <p className="font-sans text-navy/72 text-sm">
                       {new Date(d.date).toLocaleDateString('en-NZ', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Pacific/Auckland' })}
                     </p>
-                    {d.restaurant_name && <p className="font-sans text-cream/35 text-xs mt-0.5">{d.restaurant_name}</p>}
+                    {d.restaurant_name && <p className="font-sans text-navy/50 text-xs mt-0.5">{d.restaurant_name}</p>}
                   </div>
                   {d.has_feedback ? (
-                    <span className="font-sans text-emerald-400/70 text-xs">✓ Feedback sent</span>
+                    <span className="font-sans text-emerald-700/80 text-xs">✓ Rated</span>
                   ) : (
                     <Link
                       to={`/feedback/${d.dinner_id}?uid=${attendeeUser?.uid}`}
-                      className="font-sans text-gold text-xs hover:text-yellow transition-colors"
+                      className="font-sans text-plum text-xs hover:text-plum transition-colors"
                     >
-                      Rate your experience →
+                      Rate →
                     </Link>
                   )}
                 </div>
@@ -1198,20 +1196,20 @@ export default function PortalDashboard() {
 
       {showContactModal && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-5" onClick={() => setShowContactModal(false)}>
-          <div className="quiz-card w-full max-w-sm space-y-4 text-center" onClick={e => e.stopPropagation()}>
-            <p className="font-serif text-xl text-cream">Too close to dinner to cancel</p>
-            <p className="font-sans text-cream/60 text-sm leading-relaxed">
+          <div className="glass-card w-full max-w-sm space-y-4 text-center" onClick={e => e.stopPropagation()}>
+            <p className="font-serif text-xl text-navy">Too close to cancel</p>
+            <p className="font-sans text-navy/72 text-sm leading-relaxed">
               Cancellations within 24 hours of dinner can't be self-served — the table's already been booked. Email us and we'll sort it out.
             </p>
             <a
               href="mailto:info@heyder.nz"
-              className="quiz-cta w-full flex items-center justify-center"
+              className="plum-cta w-full flex items-center justify-center"
             >
               info@heyder.nz
             </a>
             <button
               onClick={() => setShowContactModal(false)}
-              className="font-sans text-cream/40 hover:text-cream text-xs transition-colors"
+              className="font-sans text-navy/55 hover:text-navy text-xs transition-colors"
             >
               Close
             </button>
