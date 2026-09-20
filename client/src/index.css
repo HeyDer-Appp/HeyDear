@@ -217,6 +217,77 @@
     pointer-events: none;
   }
 
+  /* Screens that want the plain beige, no map (Album). */
+  .portal-bg.no-map::before {
+    display: none;
+  }
+
+  /* Doodle screens swap the map for the doodle wallpaper (see DoodleWall). */
+  .portal-bg.doodle-page::before {
+    display: none;
+  }
+  .doodle-wall {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .doodle-wall-layer {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 220vh;
+    will-change: transform;
+  }
+  .doodle-wall-drift {
+    position: absolute;
+    inset: 0;
+    background: url('/images/doodle-wall.webp') top center / 100% auto repeat-y;
+    animation: doodleDrift 110s ease-in-out infinite alternate;
+    will-change: transform;
+  }
+  .doodle-page .plum-cta { background: #F5EDD8; backdrop-filter: none; -webkit-backdrop-filter: none; }
+  .doodle-page .glass-card { background: #F5EDD8; backdrop-filter: none; -webkit-backdrop-filter: none; }
+  .doodle-wall-still { animation: none; }
+  @keyframes doodleDrift {
+    from { transform: translate3d(0, 0, 0); }
+    to { transform: translate3d(0, -34vh, 0); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .doodle-wall-drift { animation: none; }
+  }
+  /* Frosted plate so headings stay readable over the linework. */
+  .doodle-label {
+    display: inline-block;
+    padding: 0.2em 0.6em;
+    border-radius: 0.6rem;
+    background: #F5EDD8;
+    box-shadow: 0 4px 14px rgba(22, 24, 29, 0.1);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+
+  /* Album: one big hollow, borderless-looking, rounded panel that runs down to
+     the nav bar. The floor is a touch darker than the page, lit from below,
+     with a soft shadow falling from the top edge and a hairline rim, so it
+     reads as a recess cut into the screen. */
+  .album-frame {
+    /* Runs out the bottom of the screen (cancelling the page's own bottom
+       padding) so the recess is continuous behind the nav bar. */
+    margin: 0 -8px -128px;
+    min-height: calc(100vh - 178px);
+    min-height: calc(100dvh - 178px);
+    border-radius: 46px 46px 0 0;
+    padding: 34px 18px 160px;
+    background: linear-gradient(180deg, rgba(22, 24, 29, 0.09), rgba(22, 24, 29, 0.045) 40%, rgba(22, 24, 29, 0.05));
+    box-shadow:
+      inset 0 0 0 1px rgba(22, 24, 29, 0.06),
+      inset 0 14px 30px rgba(22, 24, 29, 0.16),
+      0 -1.5px 0 rgba(255, 255, 255, 0.75);
+  }
+
   .glass-card {
     @apply rounded-2xl p-5 transition-colors duration-300;
     background: rgba(245, 237, 216, 0.85);

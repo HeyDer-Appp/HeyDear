@@ -1144,12 +1144,9 @@ export default function PortalDashboard() {
         <Link to="/">
           <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-7 brightness-0" />
         </Link>
-        <div className="flex items-center gap-3">
-          <img src={profile?.photo || AVATAR} alt="Account" className="w-8 h-8 rounded-full border border-navy/20 object-cover" />
-          <button onClick={async () => { await logout(); navigate('/'); }} className="font-sans text-navy/50 text-xs hover:text-navy transition-colors">
-            Sign out
-          </button>
-        </div>
+        <Link to="/portal/profile" aria-label="Your profile" className="block w-9 h-9 rounded-full overflow-hidden border border-navy/25">
+          <img src={profile?.photo || AVATAR} alt="" className="w-full h-full object-cover" draggable={false} />
+        </Link>
       </nav>
 
       <div className="relative z-10 max-w-lg mx-auto px-5 py-8 space-y-6">

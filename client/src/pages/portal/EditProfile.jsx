@@ -254,6 +254,11 @@ export default function EditProfile() {
     }
   };
 
+  const handleSignOut = async () => {
+    await logout();
+    navigate('/');
+  };
+
   const handleDeleteAccount = async () => {
     setDeleting(true);
     try {
@@ -460,6 +465,12 @@ export default function EditProfile() {
                   >
                     Follow Heyder
                   </a>
+                  <button
+                    onClick={() => { setShowAccountMenu(false); handleSignOut(); }}
+                    className="w-full text-left px-4 py-3 font-sans text-base text-navy/85 hover:bg-white/60 transition-colors border-t border-navy/10"
+                  >
+                    Sign out
+                  </button>
                   <button
                     onClick={() => { setShowAccountMenu(false); setShowDeleteConfirm(true); }}
                     className="w-full text-left px-4 py-3 font-sans text-base text-red-700 hover:bg-red-500/10 transition-colors border-t border-navy/10"
@@ -678,6 +689,10 @@ export default function EditProfile() {
         })}
 
         {isDirty && <Rise><SaveButton onClick={save} saving={saving} /></Rise>}
+
+        <Rise className="pt-2 pb-4 text-center">
+          <button onClick={handleSignOut} className="font-sans font-medium text-sm text-navy/65 hover:text-navy border border-navy/20 hover:border-navy/40 rounded-2xl px-8 py-3 transition-colors">Sign out</button>
+        </Rise>
       </Stagger>
 
       {showExitConfirm && (

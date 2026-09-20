@@ -93,10 +93,19 @@ router.get('/', attendeeAuth, async (req, res) => {
         timing.chat_open ? groupHasUnread(tableId, req.user.id, member.lastReadAt) : Promise.resolve(false),
       ]);
 
+      // Photos only ship once the chat is open (same as the detail route);
+      // the client keeps them blurred until the 8pm reveal.
+      let members = [];
+      if (timing.chat_open) {
+        const userDocs = await Promise.all(membersSnap.docs.map(d => db.collection('users').doc(d.data().user_id).get()));
+        members = userDocs.filter(u => u.exists).map(u => ({ user_id: u.id, photo: u.data().photo || null }));
+      }
+
       return {
         table_id: tableId,
         city: dinner.city || 'Auckland',
         member_count: membersSnap.size,
+        members,
         has_unread: hasUnread,
         ...timing,
       };
