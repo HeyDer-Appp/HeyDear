@@ -206,35 +206,19 @@ function InlineCityPill({ value, onChange }) {
 
 const STATUS_CONFIG = {
   pending: {
-    label: 'Finding your group',
-    color: 'text-plum',
-    bg: 'bg-plum/10',
     border: 'border-plum/20',
-    icon: '⏳',
     description: '',
   },
   matched: {
-    label: 'Group locked in',
-    color: 'text-plum',
-    bg: 'bg-plum/10',
     border: 'border-plum/20',
-    icon: '✦',
     description: '',
   },
   glimpse: {
-    label: 'Meet your table',
-    color: 'text-purple-800',
-    bg: 'bg-purple-500/10',
     border: 'border-purple-500/20',
-    icon: '👀',
     description: '',
   },
   venue: {
-    label: 'Venue',
-    color: 'text-emerald-700',
-    bg: 'bg-emerald-400/10',
     border: 'border-emerald-400/20',
-    icon: '✓',
     description: '',
   },
 };
@@ -460,19 +444,40 @@ function DinnerCard({ dinner, onCancel, onRsvpUpdate }) {
 
   const config = STATUS_CONFIG[status];
 
-  // The badge stops saying "finding" once matching would normally have
-  // happened — Friday 9pm NZT, 94 hours before the Tuesday 7pm dinner —
-  // even if the admin's manual match hasn't actually run yet, so the card
-  // doesn't look stuck on "finding" for days. Purely cosmetic: isPending
-  // and the real countdown/cancel logic are untouched.
-  const groupFoundAt = dinnerDate ? new Date(dinnerDate.getTime() - 94 * 3600 * 1000) : null;
-  const groupFoundLabelShown = status === 'pending' && groupFoundAt && now >= groupFoundAt;
-  const badgeIcon = groupFoundLabelShown ? '✦' : config.icon;
-  const badgeLabel = groupFoundLabelShown ? 'Group found' : config.label;
-
   const formattedDate = dinnerDate
     ? dinnerDate.toLocaleDateString('en-NZ', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Pacific/Auckland' })
     : dinner.preferred_date || 'Upcoming Tuesday';
+
+  // Journey stepper — Booked / Group / Venue / Dinner. doneCount is the
+  // index (0-based) of whichever checkpoint is currently active (still in
+  // progress); everything before it is fully done, everything after is
+  // still ahead. isPast pushes it one past the last checkpoint so all four
+  // read as complete instead of the final one sitting "active" forever.
+  let doneCount = 1;
+  if (status === 'glimpse') doneCount = 2;
+  else if (status === 'venue') doneCount = 3;
+  if (isPast) doneCount = 4;
+
+  const groupRevealMs = dinnerDate ? dinnerDate.getTime() - 48 * 3600 * 1000 : null;
+  const venueRevealMs = dinnerDate ? dinnerDate.getTime() - 24 * 3600 * 1000 : null;
+  const dinnerMs = dinnerDate ? dinnerDate.getTime() : null;
+  // No real "booked at" timestamp is available here, so the first segment's
+  // start is approximated as a week before group reveal — close enough for
+  // a purely decorative fill, unlike the other two segments which use the
+  // real 24h reveal windows.
+  const bookedMs = groupRevealMs != null ? groupRevealMs - 7 * 24 * 3600 * 1000 : null;
+  const nowMs = now.getTime();
+  const segmentFill = (startMs, endMs) => {
+    if (startMs == null || endMs == null || endMs <= startMs) return 0;
+    return Math.max(0, Math.min(1, (nowMs - startMs) / (endMs - startMs)));
+  };
+  const segmentBounds = [[bookedMs, groupRevealMs], [groupRevealMs, venueRevealMs], [venueRevealMs, dinnerMs]];
+  const segProgress = segmentBounds.map(([start, end], i) => {
+    if (doneCount > i + 1) return 1;
+    if (doneCount === i + 1) return segmentFill(start, end);
+    return 0;
+  });
+  const CHECKPOINTS = ['Booked', 'Group', 'Venue', 'Dinner'];
 
   return (
     <motion.div
@@ -481,16 +486,50 @@ function DinnerCard({ dinner, onCancel, onRsvpUpdate }) {
       transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
       className={`glass-card ${config.border}`}
     >
-      {/* Status badge */}
-      <div className="flex items-center justify-between mb-5">
-        <span className={`inline-flex items-center gap-2 text-xs font-sans font-semibold tracking-wider uppercase px-3 py-1.5 rounded-full whitespace-nowrap ${config.bg} ${config.color}`}>
-          <span>{badgeIcon}</span><span>{badgeLabel}</span>
-        </span>
-        {!isPast && <span className="font-sans text-navy/45 text-xs">7:00 PM</span>}
+      {/* Journey stepper — diamond checkpoints, the line into whichever one
+          is currently active fills with plum as that milestone approaches. */}
+      <div className="flex items-center mb-1.5">
+        {CHECKPOINTS.map((label, i) => (
+          <React.Fragment key={label}>
+            <div
+              className="flex-shrink-0"
+              style={{
+                width: 13,
+                height: 13,
+                transform: 'rotate(45deg)',
+                background: i < doneCount ? '#754471' : (i === doneCount ? 'transparent' : 'rgba(22,24,29,0.12)'),
+                border: i === doneCount && !isPast ? '2px solid #754471' : 'none',
+                boxShadow: i === doneCount && !isPast ? '0 0 0 5px rgba(117,68,113,0.16)' : 'none',
+                transition: 'background 0.4s ease',
+              }}
+            />
+            {i < CHECKPOINTS.length - 1 && (
+              <div className="flex-1 relative" style={{ height: 1.5, background: 'rgba(22,24,29,0.12)', margin: '0 2px' }}>
+                <div
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    background: '#754471',
+                    width: `${segProgress[i] * 100}%`,
+                    transition: 'width 1s linear',
+                  }}
+                />
+              </div>
+            )}
+          </React.Fragment>
+        ))}
+      </div>
+      <div className="flex justify-between mb-5">
+        {CHECKPOINTS.map(label => (
+          <span key={label} className="font-sans text-navy/45 uppercase" style={{ fontSize: '8.5px', letterSpacing: '0.03em' }}>{label}</span>
+        ))}
       </div>
 
       {/* Date */}
-      <h2 className="font-serif font-bold text-2xl text-navy mb-1">{formattedDate}</h2>
+      <div className="flex items-center justify-between mb-1">
+        <h2 className="font-serif font-bold text-2xl text-navy">{formattedDate}</h2>
+        {!isPast && <span className="font-sans text-navy/45 text-xs flex-shrink-0 ml-2">7:00 PM</span>}
+      </div>
       <p className="font-sans text-navy/65 text-sm mb-1">{dinner.city || 'Auckland'}</p>
       {config.description && <p className="font-sans text-navy/55 text-xs mb-4">{config.description}</p>}
 
@@ -778,6 +817,92 @@ export default function PortalDashboard() {
     setMatchAvatars(Array.from({ length: 5 }, (_, i) => `https://i.pravatar.cc/150?u=${seed}-${i}`));
     setShowConfirmSummary(true);
   };
+
+  // The card's third and final stage — morphs into the plan choice in
+  // place instead of navigating to a separate page, same reasoning as the
+  // sentence→summary morph above. Only the profile data actually needed to
+  // submit a booking is fetched here (lazily, on "Continue to book"), not
+  // up front, since most visits never get this far.
+  const [showPayment, setShowPayment] = useState(false);
+  const [paymentAnswers, setPaymentAnswers] = useState(null);
+  const [pricing, setPricing] = useState({ oneTimeAmount: 1000, subscriptionAmount: 1500 });
+  const [selectedPlan, setSelectedPlan] = useState('one_time');
+  const [submittingPayment, setSubmittingPayment] = useState(false);
+  const stripeConfigured = !!import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+  const bookingDateField = bookingDate
+    ? bookingDate.toLocaleDateString('en-NZ', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
+    : '';
+
+  const handleContinueToBookClick = async () => {
+    try {
+      const [profileRes, pricingRes] = await Promise.all([
+        api.get('/portal/full-profile'),
+        api.get('/payments/pricing').catch(() => null),
+      ]);
+      const { locked, photo, answers: savedAnswers } = profileRes.data;
+      setPaymentAnswers({
+        first_name: locked.first_name,
+        last_name: locked.last_name,
+        phone: locked.phone,
+        dob: locked.dob,
+        gender: locked.gender,
+        country: locked.country,
+        photo: photo || undefined,
+        ...savedAnswers,
+      });
+      if (pricingRes) setPricing(pricingRes.data);
+      setShowPayment(true);
+    } catch {
+      toast.error('Could not load your profile. Please try again.');
+    }
+  };
+
+  const submitBookingInline = async (plan) => {
+    try {
+      await api.post('/profile/submit', {
+        ...paymentAnswers,
+        field_CdZldwp5q09o: bookingDateField,
+        field_OVB7lzEjSl7C: paymentAnswers.field_OVB7lzEjSl7C || [],
+        plan,
+      });
+      navigate('/profile/success', { state: { date: bookingDateField, city: bookingCity, plan } });
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Booking failed. Please try again.');
+      setSubmittingPayment(false);
+    }
+  };
+
+  const handleConfirmSubscribedInline = async () => {
+    setSubmittingPayment(true);
+    await submitBookingInline(undefined);
+  };
+
+  const handlePayInline = async () => {
+    if (!paymentAnswers) return;
+    setSubmittingPayment(true);
+    const fullAnswers = { ...paymentAnswers, field_CdZldwp5q09o: bookingDateField };
+    try {
+      if (!stripeConfigured) {
+        await submitBookingInline(selectedPlan);
+        return;
+      }
+      await api.post('/profile/submit', {
+        ...fullAnswers,
+        field_OVB7lzEjSl7C: fullAnswers.field_OVB7lzEjSl7C || [],
+        awaitingPayment: true,
+      });
+      const res = await api.post('/payments/create-checkout', {
+        email: attendeeUser?.email,
+        plan: selectedPlan,
+      });
+      sessionStorage.setItem('heyder_quiz_answers', JSON.stringify(fullAnswers));
+      sessionStorage.setItem('heyder_pending_session_id', res.data.sessionId);
+      window.location.href = res.data.url;
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Payment setup failed. Please try again.');
+      setSubmittingPayment(false);
+    }
+  };
   // Persisted per-session — without this, leaving the tab (Album, Chat, etc.)
   // and coming back unmounts/remounts this component, resetting this to
   // false and replaying the full typing animation every single visit.
@@ -1044,7 +1169,7 @@ export default function PortalDashboard() {
             >
               <motion.div
                 layout
-                layoutDependency={showConfirmSummary}
+                layoutDependency={`${showConfirmSummary}-${showPayment}`}
                 transition={{ layout: { duration: 0.45, ease: [0.32, 0.72, 0, 1] } }}
                 onMouseDown={!showConfirmSummary ? startCardDrag : undefined}
                 onTouchStart={!showConfirmSummary ? startCardDrag : undefined}
@@ -1061,7 +1186,7 @@ export default function PortalDashboard() {
                 {showConfirmSummary && (
                   <button
                     type="button"
-                    onClick={() => setShowConfirmSummary(false)}
+                    onClick={() => { setShowConfirmSummary(false); setShowPayment(false); }}
                     aria-label="Close"
                     className="absolute top-2 right-2 w-7 h-7 flex items-center justify-center rounded-full text-navy/70 hover:text-navy transition-colors"
                     style={{ background: 'rgba(22,24,29,0.08)', zIndex: 10 }}
@@ -1087,7 +1212,7 @@ export default function PortalDashboard() {
                         city.
                       </p>
                     </motion.div>
-                  ) : (
+                  ) : !showPayment ? (
                     <motion.div
                       key="summary"
                       className="relative"
@@ -1096,7 +1221,7 @@ export default function PortalDashboard() {
                       exit={{ opacity: 0, transition: { duration: 0.12 } }}
                     >
                       <p className="font-serif font-bold text-navy leading-snug pr-6" style={{ fontSize: '1.5rem' }}>
-                        Dinner + side quest on
+                        Dinner + Afterparty
                         <br />
                         {bookingDate ? formatTuesdayOption(bookingDate) : ''}
                       </p>
@@ -1132,18 +1257,78 @@ export default function PortalDashboard() {
                         ))}
                       </div>
 
-                      <Link
-                        to="/portal/book"
-                        state={{
-                          presetDate: bookingDate
-                            ? bookingDate.toLocaleDateString('en-NZ', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
-                            : undefined,
-                        }}
+                      <button
+                        type="button"
+                        onClick={handleContinueToBookClick}
                         className="inline-flex items-center justify-center gap-2 font-sans font-semibold text-sm tracking-widest uppercase px-6 py-3 rounded-2xl transition-all duration-200 w-full"
                         style={{ background: '#754471', color: '#F5EDD8' }}
                       >
                         Continue to book
-                      </Link>
+                      </button>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="payment"
+                      className="relative"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1, transition: { delay: 0.15, duration: 0.2 } }}
+                      exit={{ opacity: 0, transition: { duration: 0.12 } }}
+                    >
+                      <p className="font-serif font-bold text-navy leading-snug pr-6" style={{ fontSize: '1.5rem' }}>
+                        Choose your plan
+                      </p>
+
+                      {hasActiveSubscription ? (
+                        <div className="mt-5">
+                          <p className="font-sans text-sm text-navy/60 mb-4">Included in your membership.</p>
+                          <button
+                            type="button"
+                            onClick={handleConfirmSubscribedInline}
+                            disabled={submittingPayment}
+                            className="w-full inline-flex items-center justify-center gap-2 font-sans font-semibold text-sm tracking-widest uppercase px-6 py-3 rounded-2xl transition-all duration-200 disabled:opacity-60"
+                            style={{ background: '#754471', color: '#F5EDD8' }}
+                          >
+                            {submittingPayment ? 'Confirming…' : 'Confirm booking'}
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="space-y-3 my-5 text-left">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedPlan('one_time')}
+                              className="portal-login-input w-full text-left block transition-all duration-200"
+                              style={selectedPlan === 'one_time' ? { borderColor: '#16181d', background: 'rgba(255,255,255,0.5)' } : undefined}
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="font-sans font-semibold text-sm text-navy">One-time</span>
+                                <span className="font-serif text-xl text-navy">${(pricing.oneTimeAmount / 100).toFixed(2).replace(/\.00$/, '')}</span>
+                              </div>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setSelectedPlan('subscription')}
+                              className="portal-login-input w-full text-left block relative transition-all duration-200"
+                              style={selectedPlan === 'subscription' ? { borderColor: '#16181d', background: 'rgba(255,255,255,0.5)' } : undefined}
+                            >
+                              <span className="absolute -top-2.5 right-4 bg-navy text-cream text-[9px] font-sans font-bold uppercase tracking-widest px-2 py-0.5 rounded-full">Best value</span>
+                              <div className="flex items-center justify-between">
+                                <span className="font-sans font-semibold text-sm text-navy">Monthly</span>
+                                <span className="font-serif text-xl text-navy">${(pricing.subscriptionAmount / 100).toFixed(2).replace(/\.00$/, '')}<span className="text-xs">/mo</span></span>
+                              </div>
+                            </button>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handlePayInline}
+                            disabled={submittingPayment}
+                            className="w-full inline-flex items-center justify-center gap-2 font-sans font-semibold text-sm tracking-widest uppercase px-6 py-3 rounded-2xl transition-all duration-200 disabled:opacity-60"
+                            style={{ background: '#754471', color: '#F5EDD8' }}
+                          >
+                            {submittingPayment ? 'Processing…' : !stripeConfigured ? 'Confirm (test mode)' : 'Pay & confirm'}
+                          </button>
+                        </>
+                      )}
                     </motion.div>
                   )}
                 </AnimatePresence>

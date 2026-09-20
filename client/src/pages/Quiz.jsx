@@ -1063,13 +1063,25 @@ export default function Quiz() {
 
     setErrors(newErrors);
     if (missingIds.length) {
-      toast.error(underage ? 'You must be 18 or older to join HeyDer.' : 'Please fill in the highlighted fields.');
       // missingIds is built in field-check order (generic fields, then
       // personal, then contact), not the order those questions actually
       // appear in the flow — sorting by real step index before jumping
       // makes sure "Skip for now" always lands on the *first* incomplete
       // screen rather than whichever category happened to be checked first.
       const sortedMissingIds = [...missingIds].sort((a, b) => stepIndexForQuestionId(a) - stepIndexForQuestionId(b));
+      // "Please fill in the highlighted fields" alone left someone stuck on
+      // whatever screen they were already on with no clue what to go fix —
+      // especially jarring from "Not sure yet", which reads as a dead end
+      // instead of the one-more-thing it actually is. Naming the actual
+      // question fixes that regardless of which one it turns out to be.
+      const firstMissingTitle = QUESTIONS.find(q => q.id === sortedMissingIds[0])?.title;
+      toast.error(
+        underage
+          ? 'You must be 18 or older to join HeyDer.'
+          : firstMissingTitle
+          ? `One more thing first — "${firstMissingTitle}".`
+          : 'Please fill in the highlighted fields.'
+      );
       scrollToFirstError(sortedMissingIds);
       return false;
     }
@@ -1193,7 +1205,11 @@ export default function Quiz() {
       });
       // Skipping the date itself means no dinner was picked at all, so the
       // "you're in, booking confirmed" success screen would be misleading —
-      // straight to the dashboard instead, matching the comment above.
+      // straight to the dashboard instead, matching the comment above. That
+      // screen's own booking prompt asks the same "which Tuesday?" question
+      // again right away, which reads as if "I'll choose later" was ignored
+      // — this toast is the only acknowledgment that it wasn't.
+      if (skipDate) toast.success("No rush — book your Tuesday whenever you're ready.");
       navigate(skipDate ? '/portal/dashboard' : '/profile/success');
     } catch (err) {
       toast.error(err.response?.data?.error || 'Submission failed. Please try again.');

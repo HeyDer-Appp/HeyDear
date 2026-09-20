@@ -27,6 +27,11 @@ export default function BookDinner() {
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedPlan, setSelectedPlan] = useState('one_time');
   const [step, setStep] = useState('date');
+  // True once we've auto-jumped straight to payment because a date was
+  // already picked on the My Table sentence card — "date" here would be an
+  // unfamiliar, differently-styled screen the person never actually chose
+  // to use, so Back should return to that card instead of surfacing it.
+  const [skippedDateStep, setSkippedDateStep] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [pricing, setPricing] = useState({ oneTimeAmount: 1000, subscriptionAmount: 1500 });
   const [couponInput, setCouponInput] = useState('');
@@ -130,6 +135,7 @@ export default function BookDinner() {
       if (presetDate && choices.includes(presetDate)) {
         setSelectedDate(presetDate);
         setStep('payment');
+        setSkippedDateStep(true);
       }
     }).catch(() => setLoadError(true)).finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -417,7 +423,10 @@ export default function BookDinner() {
                 );
               })()}
             </div>
-            <button onClick={() => setStep('date')} className="font-sans text-navy/65 hover:text-navy text-sm px-2 py-3 transition-colors">
+            <button
+              onClick={() => skippedDateStep ? navigate('/portal/dashboard') : setStep('date')}
+              className="font-sans text-navy/65 hover:text-navy text-sm px-2 py-3 transition-colors"
+            >
               ← Back
             </button>
           </>
