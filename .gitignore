@@ -1,6 +1,9 @@
 node_modules/
 dist/
 build/
+
+# jewellery-erp is its own separate project, not part of this repo
+jewellery-erp/
 .env
 .env.local
 *.log
