@@ -4,9 +4,140 @@
     {
       "name": "heyder-client",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--", "--port", "5178"],
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5178"
+      ],
       "cwd": "client",
       "port": 5178,
+      "autoPort": false
+    },
+    {
+      "name": "heyder-server",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
+      "cwd": "server",
+      "port": 3001,
+      "autoPort": false
+    },
+    {
+      "name": "btf-preview",
+      "url": "http://localhost:8934",
+      "port": 8934
+    },
+    {
+      "name": "adcraft",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "--yes",
+        "serve",
+        "C:\\Users\\sammi\\Downloads\\ADCRAFT_ADS_Agency_Operating_System",
+        "-l",
+        "5174"
+      ],
+      "port": 5174
+    },
+    {
+      "name": "sales-tracker",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "--yes",
+        "serve",
+        "C:\\Users\\sammi\\Downloads\\ADCRAFT_Sales_Lead_Tracker",
+        "-l",
+        "5175"
+      ],
+      "port": 5175
+    },
+    {
+      "name": "jankis-technologies",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "--yes",
+        "serve",
+        "C:\\Users\\sammi\\Downloads\\jankis-technologies",
+        "-l",
+        "5176"
+      ],
+      "port": 5176
+    },
+    {
+      "name": "gifting-demo",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "--yes",
+        "serve",
+        "gifting-demo",
+        "-l",
+        "5177"
+      ],
+      "port": 5177
+    },
+    {
+      "name": "narayana-hospital",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "--yes",
+        "serve",
+        "narayana-hospital",
+        "-l",
+        "5180"
+      ],
+      "port": 5180
+    },
+    {
+      "name": "avaneesh-pharma",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "--yes",
+        "serve",
+        "avaneesh-pharma",
+        "-l",
+        "5179"
+      ],
+      "port": 5179
+    },
+    {
+      "name": "smartweb360-workshop",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "--yes",
+        "serve",
+        "smartweb360-workshop",
+        "-l",
+        "5181"
+      ],
+      "port": 5181
+    },
+    {
+      "name": "jewellery-erp-demo",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "demo"
+      ],
+      "cwd": "jewellery-erp",
+      "port": 5190,
+      "autoPort": false
+    },
+    {
+      "name": "jewellery-erp",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5191"
+      ],
+      "cwd": "jewellery-erp",
+      "port": 5191,
       "autoPort": false
     }
   ]

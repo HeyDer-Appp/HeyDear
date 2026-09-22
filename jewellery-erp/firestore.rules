@@ -1,0 +1,123 @@
+rules_version = '2';
+
+// Two roles, stored in users/{uid}.role:  owner | staff
+//  - owner: everything (branches, staff, inventory, settings, cancelling bills, activity log)
+//  - staff: bills + customers, and stock/bills of their own branch only
+// The UI hides things, but these rules are what actually rejects a forbidden request.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ------------------------------------------------------------ helpers
+    function signedIn() { return request.auth != null; }
+    function profile() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
+    function isActive() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && profile().active == true;
+    }
+    function isOwner() { return isActive() && profile().role == 'owner'; }
+    function isStaff() { return isActive() && profile().role == 'staff'; }
+    function myBranch() { return profile().branchId; }
+    function changed() { return request.resource.data.diff(resource.data).affectedKeys(); }
+
+    // First-run: allowed only while meta/setup does not exist, and only in the same
+    // batch that creates it.
+    function bootstrapping() {
+      return signedIn()
+        && !exists(/databases/$(database)/documents/meta/setup)
+        && existsAfter(/databases/$(database)/documents/meta/setup);
+    }
+
+    match /meta/setup {
+      allow read: if true;
+      allow create: if signedIn() && !exists(/databases/$(database)/documents/meta/setup);
+    }
+
+    match /settings/{doc} {
+      allow read: if isActive();
+      allow create: if bootstrapping();
+      allow write: if isOwner();
+    }
+
+    match /branches/{id} {
+      allow read: if isActive();
+      allow create: if bootstrapping() || isOwner();
+      allow update: if isOwner();
+    }
+
+    match /users/{uid} {
+      allow get: if signedIn() && request.auth.uid == uid; // own profile, even before it exists
+      allow read: if isOwner();
+      allow create: if (bootstrapping() && request.auth.uid == uid && request.resource.data.role == 'owner') || isOwner();
+      allow update: if isOwner();
+    }
+
+    // Counters only ever go up.
+    match /counters/{name} {
+      allow read: if isActive();
+      allow create: if (isOwner() || isStaff()) && request.resource.data.value >= 1;
+      allow update: if (isOwner() || isStaff()) && request.resource.data.value > resource.data.value;
+    }
+
+    match /customers/{id} {
+      allow read: if isActive();
+      allow create, update: if isActive();
+    }
+    match /customerMobiles/{mobile} {
+      allow read: if isActive();
+      allow create: if isActive(); // create-only: this is what keeps a mobile number unique
+    }
+
+    // ------------------------------------------------------------ stock
+    match /products/{id} {
+      allow read: if isActive();
+      allow create: if isOwner();
+      allow update: if isOwner()
+        // staff can only mark an in-stock piece of their own branch as sold
+        || (isStaff()
+            && changed().hasOnly(['status', 'soldInvoiceId', 'soldBranchId', 'soldToCustomerId', 'soldAt', 'updatedAt'])
+            && resource.data.status == 'AVAILABLE'
+            && request.resource.data.status == 'SOLD'
+            && resource.data.branchId == myBranch());
+    }
+    match /movements/{id} {
+      allow read: if isActive();
+      allow create: if isActive() && request.resource.data.userId == request.auth.uid;
+    }
+
+    // ------------------------------------------------------------ bills
+    match /invoices/{id} {
+      allow read: if isActive(); // any branch may read a bill: an old bill works at every branch
+      // create-only, with the bill number as the document ID => a number can never repeat
+      allow create: if isActive()
+        && request.resource.data.createdBy == request.auth.uid
+        && (isOwner() || request.resource.data.branchId == myBranch());
+      allow update:
+        // owner cancels
+        if (isOwner()
+            && changed().hasOnly(['status', 'cancelledAt', 'cancelledBy', 'cancelledByName', 'cancelReason', 'updatedAt'])
+            && request.resource.data.status == 'CANCELLED'
+            && resource.data.status == 'ACTIVE')
+        // any staff member may spend an unused old bill's offer, once
+        || (isActive()
+            && changed().hasOnly(['offerUsedBy', 'offerUsedAt', 'updatedAt'])
+            && resource.data.offerUsedBy == null
+            && request.resource.data.offerUsedBy is string)
+        // owner re-opens the offer when the bill that used it is cancelled
+        || (isOwner()
+            && changed().hasOnly(['offerUsedBy', 'offerUsedAt', 'updatedAt'])
+            && request.resource.data.offerUsedBy == null);
+      // never deleted
+    }
+    match /publicInvoices/{token} {
+      allow get: if true; // unguessable token; holds no phone, address or internal data
+      allow create: if isActive();
+      allow update: if isActive() && changed().hasOnly(['status', 'offerUsed', 'updatedAt']);
+    }
+
+    match /auditLogs/{id} {
+      allow read: if isOwner();
+      allow create: if isActive() && request.resource.data.userId == request.auth.uid;
+    }
+  }
+}
