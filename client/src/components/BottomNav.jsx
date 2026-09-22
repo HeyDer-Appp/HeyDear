@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { Image, Users, MessageCircle, User } from 'lucide-react';
+import { Image, Users, MessageCircle } from 'lucide-react';
 import api from '../utils/api';
 
 // Fork, plate, spoon — traced from a reference icon, filled solid instead
@@ -22,14 +22,12 @@ function PlateForkSpoonIcon() {
   );
 }
 
-// Order matters — Home stays dead center, Group Chat/My Album to its left,
-// Chat/Edit Profile to its right, per the requested layout.
+// Profile lives in the top-right (ProfileAvatar), not here.
 const ITEMS = [
   { to: '/portal/album', icon: Image, label: 'Album' },
   { to: '/portal/group-chat', icon: Users, label: 'Group' },
   { to: '/portal/dashboard', icon: PlateForkSpoonIcon, label: 'My Table' },
   { to: '/portal/chat', icon: MessageCircle, label: 'Chat' },
-  { to: '/portal/profile', icon: User, label: 'Profile' },
 ];
 
 export default function BottomNav() {

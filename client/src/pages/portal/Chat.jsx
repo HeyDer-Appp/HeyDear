@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import api from '../../utils/api';
 import { flagUrl } from '../../utils/flags';
 import BottomNav from '../../components/BottomNav';
+import ProfileAvatar from '../../components/ProfileAvatar';
 import { useCachedFetch } from '../../utils/useCachedFetch';
 import { Stagger, Rise } from '../../components/Motion';
 
@@ -117,7 +118,7 @@ export default function Chat() {
     <nav className="relative z-10 flex items-center justify-between px-6 py-5 backdrop-blur-md">
       <Link to="/portal/dashboard" className="font-sans text-navy/65 text-sm hover:text-navy transition-colors">← Back</Link>
       <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-7 brightness-0" />
-      <div className="w-10" />
+      <ProfileAvatar />
     </nav>
   );
 

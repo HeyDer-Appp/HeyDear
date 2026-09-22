@@ -4,10 +4,13 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
 import BottomNav from '../../components/BottomNav';
+import ProfileAvatar from '../../components/ProfileAvatar';
 import { flagUrl } from '../../utils/flags';
 import { GlimpseModal } from './Dashboard';
 import { useCachedFetch } from '../../utils/useCachedFetch';
 import { Stagger, Rise } from '../../components/Motion';
+import { ChevronRight } from 'lucide-react';
+import DoodleWall from '../../components/DoodleWall';
 
 const AVATAR_FALLBACK = 'https://heyder.nz/wp-content/uploads/2026/06/account-2.png';
 
@@ -50,7 +53,7 @@ function Avatar({ photo, blurred, size = 32 }) {
 function NameTag({ name, country }) {
   if (!name) return null;
   return (
-    <p className="font-sans text-navy/45 text-[10px] mb-1 ml-1 flex items-center gap-1">
+    <p className="font-sans text-navy/55 text-[10px] mb-1 ml-1 inline-flex items-center gap-1 bg-cream rounded-full px-2 py-0.5">
       {name}
       {country && flagUrl(country) && <img src={flagUrl(country)} alt={country} className="h-2.5 rounded-[1px]" />}
     </p>
@@ -89,7 +92,7 @@ function PromptOptions({ options, onSelect }) {
             className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl border text-left font-sans text-xs transition-all duration-200 ${
               active
                 ? 'border-plum bg-plum/10 text-navy shadow-[0_4px_20px_rgba(232,168,84,0.15)]'
-                : 'border-navy/15 bg-white/30 text-navy/80 hover:border-plum/40 hover:bg-white/60'
+                : 'border-navy/15 bg-cream text-navy/80 hover:border-plum/40 hover:bg-cream'
             } ${submitting && !active ? 'opacity-35' : ''}`}
           >
             <span className={`flex-shrink-0 w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors duration-200 ${
@@ -111,18 +114,18 @@ function PromptMessage({ msg, photo, name, country, blurred, onAnswer, isOwn, my
       <Avatar photo={photo} blurred={blurred} />
       <div className={`max-w-[75%] ${isOwn ? 'text-right' : ''}`}>
         {!isOwn && <NameTag name={name} country={country} />}
-        <div className={`rounded-2xl px-4 py-2.5 ${isOwn ? 'bg-plum text-cream rounded-br-sm' : 'bg-cream/90 text-navy rounded-bl-sm'}`}>
-          <p className={`font-sans text-[10px] uppercase tracking-widest mb-1 ${isOwn ? 'text-navy/50' : 'text-navy/50'}`}>Asked</p>
-          <p className="font-serif text-base leading-snug">{msg.prompt_text}</p>
+        <div className={`rounded-2xl px-4 py-2.5 ${isOwn ? 'bg-plum text-cream rounded-br-sm' : 'bg-cream text-navy rounded-bl-sm'}`}>
+          <p className={`font-sans text-[10px] uppercase tracking-widest mb-1 ${isOwn ? 'text-cream/80' : 'text-navy/50'}`}>Asked</p>
+          <p className={isOwn ? 'font-sans text-sm font-medium' : 'font-serif text-base leading-snug'}>{msg.prompt_text}</p>
         </div>
         {/* You can't answer your own question — server enforces this too,
             this just keeps the picker from showing up in the first place. Once
             you've answered, the picker is replaced with what you picked —
             same server-side rule (one answer per prompt) backs this too. */}
         {isOwn ? (
-          <p className="mt-1.5 font-sans text-navy/40 text-[11px] italic">Your question — waiting on answers</p>
+          <p className="mt-1.5 inline-block bg-cream rounded-full px-2.5 py-0.5 font-sans text-navy/55 text-[11px] italic">Your question — waiting on answers</p>
         ) : myAnswer ? (
-          <p className="mt-1.5 font-sans text-navy/55 text-[11px]">You answered: <span className="text-plum font-medium">{myAnswer}</span></p>
+          <p className="mt-1.5 inline-block bg-cream rounded-full px-2.5 py-0.5 font-sans text-navy/65 text-[11px]">You answered: <span className="text-plum font-medium">{myAnswer}</span></p>
         ) : (
           <PromptOptions options={msg.prompt_options || []} onSelect={(opt) => onAnswer(msg.id, opt)} />
         )}
@@ -139,10 +142,10 @@ function AnswerMessage({ msg, photo, name, country, blurred, isOwn }) {
         {!isOwn && <NameTag name={name} country={country} />}
         <div
           className={`rounded-2xl px-4 py-2.5 ${
-            isOwn ? 'bg-plum text-cream rounded-br-sm' : 'bg-cream/90 text-navy rounded-bl-sm'
+            isOwn ? 'bg-plum text-cream rounded-br-sm' : 'bg-cream text-navy rounded-bl-sm'
           }`}
         >
-          <p className={`font-sans text-[10px] uppercase tracking-widest mb-1 ${isOwn ? 'text-navy/50' : 'text-navy/55'}`}>
+          <p className={`font-sans text-[10px] uppercase tracking-widest mb-1 ${isOwn ? 'text-cream/80' : 'text-navy/55'}`}>
             ↳ replied to "{msg.prompt_text}"
           </p>
           <p className="font-sans text-sm font-medium">{msg.option}</p>
@@ -160,7 +163,7 @@ function TextMessage({ msg, photo, name, country, isOwn }) {
         {!isOwn && <NameTag name={name} country={country} />}
         <div
           className={`rounded-2xl px-4 py-2.5 font-sans text-sm ${
-            isOwn ? 'bg-plum text-cream rounded-br-sm' : 'bg-cream/90 text-navy rounded-bl-sm'
+            isOwn ? 'bg-plum text-cream font-medium rounded-br-sm' : 'bg-cream text-navy rounded-bl-sm'
           }`}
         >
           {msg.text}
@@ -174,36 +177,51 @@ const header = (
   <nav className="relative z-10 flex items-center justify-between px-6 py-5 backdrop-blur-md">
     <Link to="/portal/dashboard" className="font-sans text-navy/65 text-sm hover:text-navy transition-colors">← Back</Link>
     <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-7 brightness-0" />
-    <div className="w-10" />
+    <ProfileAvatar />
   </nav>
 );
 
-// Only worth flagging when there's something to tell someone before they
-// tap in — locked (nothing to see yet) or already attended. Open is the
-// normal, expected state once a chat's unlocked, so it shows nothing here
-// rather than a badge that just duplicates the "Open chat" button below it.
-function StatusBadge({ g }) {
-  if (g.revealed) return <span className="text-emerald-700 text-[10px] font-sans font-semibold uppercase tracking-widest">Attended</span>;
-  if (g.chat_open) return null;
-  return <span className="text-navy/45 text-[10px] font-sans font-semibold uppercase tracking-widest">Locked</span>;
+function formatRowDate(iso) {
+  if (!iso) return { weekday: '', day: '' };
+  const d = new Date(iso);
+  const opts = { timeZone: 'Pacific/Auckland' };
+  return {
+    weekday: d.toLocaleDateString('en-NZ', { ...opts, weekday: 'long' }),
+    day: d.toLocaleDateString('en-NZ', { ...opts, day: 'numeric', month: 'long' }),
+  };
 }
 
-function GroupListCard({ g, onOpen, onExit }) {
+function GroupListCard({ g, onOpen }) {
+  const members = g.members || [];
+  const shown = members.slice(0, 3);
+  const { weekday, day } = formatRowDate(g.dinner_date);
   return (
-    <div className="glass-card">
-      <div className="flex items-center justify-between mb-1">
-        <p className="font-serif text-lg text-navy flex items-center gap-2">
-          {formatDinnerDate(g.dinner_date)}
-          {g.has_unread && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0" />}
+    <button onClick={() => onOpen(g.table_id)} className="group-row w-full text-left flex items-center gap-3">
+      <div className="min-w-0 flex-1">
+        <p className="font-sans font-semibold text-navy/50 text-[10px] uppercase tracking-[0.18em] flex items-center gap-1.5">
+          {weekday}
+          {g.has_unread && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0" />}
         </p>
-        <StatusBadge g={g} />
+        <p className="font-serif font-bold text-navy text-xl leading-tight whitespace-nowrap">{day}</p>
       </div>
-      <p className="font-sans text-navy/55 text-xs mb-4">{g.member_count} people</p>
-      <div className="flex items-center gap-4">
-        <button onClick={() => onOpen(g.table_id)} className="plum-cta text-xs py-2 px-5">Open</button>
-        {onExit && <button onClick={() => onExit(g.table_id)} className="font-sans text-navy/45 hover:text-red-700 text-xs transition-colors">Leave</button>}
-      </div>
-    </div>
+      {shown.length > 0 ? (
+        <div className="flex items-center flex-shrink-0">
+          {shown.map((m, i) => (
+            <div key={m.user_id} className={`rounded-full ${i ? '-ml-2.5' : ''}`} style={{ boxShadow: '0 0 0 2px #F5EDD8' }}>
+              <Avatar photo={m.photo} blurred={!g.revealed} size={32} />
+            </div>
+          ))}
+          {members.length > shown.length && (
+            <div className="-ml-2.5 w-[32px] h-[32px] rounded-full bg-[#E7DFC5] flex items-center justify-center text-navy text-[11px] font-sans font-semibold" style={{ boxShadow: '0 0 0 2px #F5EDD8' }}>
+              +{members.length - shown.length}
+            </div>
+          )}
+        </div>
+      ) : (
+        <span className="font-sans text-navy/50 text-xs flex-shrink-0">{g.member_count} people</span>
+      )}
+      <ChevronRight size={18} strokeWidth={2} className="text-navy/35 flex-shrink-0" />
+    </button>
   );
 }
 
@@ -211,7 +229,7 @@ function GroupListCard({ g, onOpen, onExit }) {
 // upcoming Tuesday (still building up to the reveal) and dinners already
 // attended (fully unlocked). Each is independently selectable and exitable.
 function GroupList({ onOpen }) {
-  const { data: groups, loading, error: loadError, refetch, setData: setGroups } = useCachedFetch(
+  const { data: groups, loading, error: loadError, refetch } = useCachedFetch(
     'portal_groups',
     async () => (await api.get('/group')).data.groups || []
   );
@@ -221,23 +239,13 @@ function GroupList({ onOpen }) {
     return () => clearInterval(poll);
   }, [refetch]);
 
-  const handleExit = async (tableId) => {
-    if (!confirm("Remove this group from your list? You won't see it here anymore.")) return;
-    try {
-      await api.post(`/group/${tableId}/exit`);
-      setGroups(prev => (prev || []).filter(g => g.table_id !== tableId));
-      toast.success('Left the group.');
-    } catch (err) {
-      toast.error(err.response?.data?.error || 'Could not leave that group.');
-    }
-  };
-
   if (loading) {
     return (
-      <div className="portal-bg min-h-screen relative overflow-hidden pb-24">
+      <div className="portal-bg doodle-page min-h-screen relative overflow-hidden pb-24">
+        <DoodleWall />
         {header}
         <div className="relative z-10 max-w-lg mx-auto px-5 py-8 space-y-8">
-          <h1 className="font-serif font-bold text-3xl text-navy">Groups</h1>
+          <h1 className="doodle-label font-serif font-bold text-3xl text-navy">Groups</h1>
           <div className="space-y-3 animate-pulse">
             {[0, 1].map(i => (
               <div key={i} className="glass-card space-y-3">
@@ -255,7 +263,8 @@ function GroupList({ onOpen }) {
 
   if (loadError && !groups) {
     return (
-      <div className="portal-bg min-h-screen relative overflow-hidden pb-24">
+      <div className="portal-bg doodle-page min-h-screen relative overflow-hidden pb-24">
+        <DoodleWall />
         {header}
         <div className="relative z-10 max-w-lg mx-auto px-5 py-20 text-center">
           <p className="font-serif text-2xl text-navy mb-3">Couldn't load.</p>
@@ -266,32 +275,29 @@ function GroupList({ onOpen }) {
     );
   }
 
-  const upcoming = (groups || []).filter(g => !g.revealed);
-  const attended = (groups || []).filter(g => g.revealed);
+  // Only the next dinner not yet attended is listed — later ones stay hidden
+  // until it's been attended (revealed), then the following one takes its place.
+  const nextUpcoming = (groups || [])
+    .filter(g => !g.revealed)
+    .sort((a, b) => new Date(a.dinner_date) - new Date(b.dinner_date))[0];
+  const visibleGroups = (groups || []).filter(g => g.revealed || g === nextUpcoming);
 
   return (
-    <div className="portal-bg min-h-screen relative overflow-hidden pb-24">
+    <div className="portal-bg doodle-page min-h-screen relative overflow-hidden pb-24">
+      <DoodleWall />
       {header}
       <Stagger className="relative z-10 max-w-lg mx-auto px-5 py-8 space-y-8">
-        <Rise><h1 className="font-serif font-bold text-3xl text-navy">Groups</h1></Rise>
+        <Rise><h1 className="doodle-label font-serif font-bold text-3xl text-navy">Groups</h1></Rise>
 
-        {(groups || []).length === 0 && (
+        {visibleGroups.length === 0 && (
           <Rise className="glass-card text-center py-10">
             <p className="font-sans text-navy/55 text-sm">Opens 48h before dinner.</p>
           </Rise>
         )}
 
-        {upcoming.length > 0 && (
+        {visibleGroups.length > 0 && (
           <div className="space-y-3">
-            <Rise><p className="font-sans font-semibold text-navy/65 text-xs uppercase tracking-widest">Upcoming</p></Rise>
-            {upcoming.map(g => <Rise key={g.table_id}><GroupListCard g={g} onOpen={onOpen} /></Rise>)}
-          </div>
-        )}
-
-        {attended.length > 0 && (
-          <div className="space-y-3">
-            <Rise><p className="font-sans font-semibold text-navy/65 text-xs uppercase tracking-widest">Past</p></Rise>
-            {attended.map(g => <Rise key={g.table_id}><GroupListCard g={g} onOpen={onOpen} onExit={handleExit} /></Rise>)}
+            {visibleGroups.map(g => <Rise key={g.table_id}><GroupListCard g={g} onOpen={onOpen} /></Rise>)}
           </div>
         )}
       </Stagger>
@@ -386,13 +392,14 @@ function GroupDetail({ tableId, onBack }) {
     <nav className="relative z-10 flex items-center justify-between px-6 py-5 backdrop-blur-md">
       <button onClick={onBack} className="font-sans text-navy/65 text-sm hover:text-navy transition-colors">← All groups</button>
       <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-7 brightness-0" />
-      <div className="w-16" />
+      <ProfileAvatar />
     </nav>
   );
 
   if (loading) {
     return (
-      <div className="portal-bg min-h-screen relative overflow-hidden pb-24">
+      <div className="portal-bg doodle-page min-h-screen relative overflow-hidden pb-24">
+        <DoodleWall still />
         {detailHeader}
         <div className="relative z-10 max-w-lg mx-auto px-5 py-8 space-y-3 animate-pulse">
           {[0, 1, 2].map(i => (
@@ -408,7 +415,8 @@ function GroupDetail({ tableId, onBack }) {
 
   if (loadError && !data) {
     return (
-      <div className="portal-bg min-h-screen relative overflow-hidden pb-24">
+      <div className="portal-bg doodle-page min-h-screen relative overflow-hidden pb-24">
+        <DoodleWall still />
         {detailHeader}
         <div className="relative z-10 max-w-lg mx-auto px-5 py-20 text-center">
           <p className="font-serif text-2xl text-navy mb-3">Couldn't load.</p>
@@ -422,7 +430,8 @@ function GroupDetail({ tableId, onBack }) {
   if (!data?.chat_open) {
     const msLeft = data ? new Date(data.chat_opens_at) - now : 0;
     return (
-      <div className="portal-bg min-h-screen relative overflow-hidden pb-24">
+      <div className="portal-bg doodle-page min-h-screen relative overflow-hidden pb-24">
+        <DoodleWall still />
         {detailHeader}
         <div className="relative z-10 max-w-lg mx-auto px-5 py-8">
           <div className="glass-card text-center py-12">
@@ -437,13 +446,14 @@ function GroupDetail({ tableId, onBack }) {
   }
 
   return (
-    <div className="portal-bg min-h-screen relative overflow-hidden">
+    <div className="portal-bg doodle-page min-h-screen relative overflow-hidden">
+      <DoodleWall still />
       {detailHeader}
 
       {/* Compact group-info bar — tap to see everyone, WhatsApp-style */}
       <button
         onClick={() => setShowGroupInfo(true)}
-        className="relative z-10 w-full max-w-lg mx-auto px-5 py-3 flex items-center gap-3 text-left border-b border-navy/10"
+        className="relative z-10 w-full max-w-lg mx-auto px-5 py-3 flex items-center gap-3 text-left border-b border-navy/10 bg-beige"
       >
         <div className="flex -space-x-2 flex-shrink-0">
           {(data.members || []).slice(0, 5).map(m => (
@@ -452,7 +462,7 @@ function GroupDetail({ tableId, onBack }) {
             </div>
           ))}
           {(data.members || []).length > 5 && (
-            <div className="w-7 h-7 rounded-full ring-2 ring-beige bg-white/50 flex items-center justify-center text-navy/72 text-[10px] font-sans font-semibold">
+            <div className="w-7 h-7 rounded-full ring-2 ring-beige bg-cream flex items-center justify-center text-navy/72 text-[10px] font-sans font-semibold">
               +{data.members.length - 5}
             </div>
           )}
@@ -490,7 +500,7 @@ function GroupDetail({ tableId, onBack }) {
       </div>
 
       {/* Composer */}
-      <div className="fixed bottom-16 inset-x-0 z-30 bg-beige/70 backdrop-blur-md px-4 py-2.5">
+      <div className="fixed bottom-16 inset-x-0 z-30 bg-beige px-4 py-2.5">
         <div className="max-w-lg mx-auto flex items-center gap-2">
           <button
             onClick={() => setShowPicker(true)}
@@ -506,7 +516,7 @@ function GroupDetail({ tableId, onBack }) {
                 onChange={e => setText(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSend()}
                 placeholder="Message"
-                className="flex-1 bg-white/40 border border-navy/15 rounded-full px-4 py-2.5 text-navy text-sm font-sans focus:outline-none focus:border-plum/40"
+                className="flex-1 bg-cream border border-navy/15 rounded-full px-4 py-2.5 text-navy text-sm font-sans focus:outline-none focus:border-plum/40"
               />
               <button
                 onClick={handleSend}

@@ -254,6 +254,11 @@ export default function EditProfile() {
     }
   };
 
+  const handleSignOut = async () => {
+    await logout();
+    navigate('/');
+  };
+
   const handleDeleteAccount = async () => {
     setDeleting(true);
     try {
@@ -342,17 +347,26 @@ export default function EditProfile() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [answers]);
 
-  // Leaving with unsaved changes asks first instead of silently discarding
-  // them — "Apply" saves then leaves, "Do not apply" leaves without saving.
+  // Leaving with unsaved changes saves them first, same as autosave would
+  // do a moment later anyway — tapping Back right after a change used to
+  // race the 900ms autosave debounce and pop an "Unsaved changes" dialog
+  // almost every time, since a real edit is rarely followed by an idle
+  // pause before the user moves on. Saving synchronously on the way out
+  // gets the exact same result without ever interrupting them; the dialog
+  // is now reserved for when that save itself fails (offline, server
+  // error) — the one case where leaving really does risk losing something.
   const handleBackClick = (e) => {
-    if (isDirty) {
-      e.preventDefault();
-      setShowExitConfirm(true);
-    }
+    if (!isDirty) return;
+    e.preventDefault();
+    applyAndLeave();
   };
   const applyAndLeave = async () => {
-    const saved = await save();
+    const saved = await save({ silent: true });
     if (saved) navigate('/portal');
+    // A failed save (offline, server error — not a validation error, which
+    // save() already toasts on its own) is the one time leaving needs a
+    // real choice instead of just quietly succeeding.
+    else if (!phoneError) setShowExitConfirm(true);
   };
   const leaveWithoutApplying = () => navigate('/portal');
 
@@ -460,6 +474,12 @@ export default function EditProfile() {
                   >
                     Follow Heyder
                   </a>
+                  <button
+                    onClick={() => { setShowAccountMenu(false); handleSignOut(); }}
+                    className="w-full text-left px-4 py-3 font-sans text-base text-navy/85 hover:bg-white/60 transition-colors border-t border-navy/10"
+                  >
+                    Sign out
+                  </button>
                   <button
                     onClick={() => { setShowAccountMenu(false); setShowDeleteConfirm(true); }}
                     className="w-full text-left px-4 py-3 font-sans text-base text-red-700 hover:bg-red-500/10 transition-colors border-t border-navy/10"
@@ -678,25 +698,32 @@ export default function EditProfile() {
         })}
 
         {isDirty && <Rise><SaveButton onClick={save} saving={saving} /></Rise>}
+
+        <Rise className="pt-2 pb-4 text-center">
+          <button onClick={handleSignOut} className="font-sans font-medium text-sm text-navy/65 hover:text-navy border border-navy/20 hover:border-navy/40 rounded-2xl px-8 py-3 transition-colors">Sign out</button>
+        </Rise>
       </Stagger>
 
+      {/* Only reachable now if leaving actually failed to save (see
+          applyAndLeave) — a real choice, not a routine nag. */}
       {showExitConfirm && (
         <div className="fixed inset-0 z-50 bg-navy/80 backdrop-blur flex items-center justify-center p-6" onClick={() => setShowExitConfirm(false)}>
           <div className="glass-card max-w-sm w-full text-center" onClick={e => e.stopPropagation()}>
-            <p className="font-serif font-bold text-xl text-navy mb-5">Unsaved changes</p>
+            <p className="font-serif font-bold text-xl text-navy mb-2">Couldn't save your changes</p>
+            <p className="font-sans text-navy/65 text-sm mb-5">Check your connection and try again, or leave without saving.</p>
             <button
               onClick={() => { setShowExitConfirm(false); applyAndLeave(); }}
               disabled={saving}
               className="plum-cta w-full mb-3 disabled:opacity-60"
             >
-              {saving ? 'Saving...' : 'Apply'}
+              {saving ? 'Saving...' : 'Try again'}
             </button>
             <button
               onClick={() => { setShowExitConfirm(false); leaveWithoutApplying(); }}
               disabled={saving}
               className="font-sans text-navy/55 hover:text-navy text-xs transition-colors disabled:opacity-50"
             >
-              Discard
+              Leave without saving
             </button>
           </div>
         </div>

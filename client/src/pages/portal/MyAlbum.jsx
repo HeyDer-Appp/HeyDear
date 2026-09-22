@@ -6,6 +6,7 @@ import api from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 import { fileToDataUrl, cropAndResizeImage } from '../../utils/image';
 import BottomNav from '../../components/BottomNav';
+import ProfileAvatar from '../../components/ProfileAvatar';
 import { Stagger, Rise } from '../../components/Motion';
 import PhotoCropModal from '../../components/PhotoCropModal';
 import { useCachedFetch } from '../../utils/useCachedFetch';
@@ -50,7 +51,7 @@ function PhotoStack({ photos, dateLabel, onOpen }) {
     // square image + date line) is taller than it is wide, so a plain
     // square box was too short — the card's bottom (including the date
     // text) spilled out past it and sat on top of the buttons below.
-    <button type="button" onClick={onOpen} className="relative block w-full max-w-[128px] aspect-[4/5] mx-auto">
+    <button type="button" onClick={onOpen} className="relative block w-full max-w-[104px] aspect-[4/5] mx-auto">
       {stacked.map((p, i) => {
         const rotate = (i - (stacked.length - 1) / 2) * 6;
         const y = (stacked.length - 1 - i) * 2;
@@ -142,17 +143,17 @@ export default function MyAlbum() {
 
   if (loading) {
     return (
-      <div className="portal-bg min-h-screen relative overflow-hidden pb-24">
+      <div className="portal-bg no-map min-h-screen relative overflow-hidden pb-24">
         <nav className="relative z-10 flex items-center justify-between px-6 py-5 backdrop-blur-md">
           <Link to="/portal/dashboard" className="font-sans text-navy/65 text-sm hover:text-navy transition-colors">← Back</Link>
           <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-7 brightness-0" />
-          <div className="w-10" />
+          <ProfileAvatar />
         </nav>
         <div className="relative z-10 max-w-lg mx-auto px-5 py-8">
           <h1 className="font-serif font-bold text-3xl text-navy mb-6">Album</h1>
           <div className="grid grid-cols-2 gap-5 animate-pulse">
             {[0, 1, 2, 3].map(i => (
-              <div key={i} className="w-full max-w-[128px] aspect-square rounded-sm bg-white/40" />
+              <div key={i} className="w-full max-w-[104px] aspect-square rounded-sm bg-white/40" />
             ))}
           </div>
         </div>
@@ -166,29 +167,28 @@ export default function MyAlbum() {
   const openPhoto = openDinner && openPhotoIndex !== null ? openDinner.photos[openPhotoIndex] : null;
 
   return (
-    <div className="portal-bg min-h-screen relative overflow-hidden pb-24">
+    <div className="portal-bg no-map min-h-screen relative overflow-hidden pb-24">
       <nav className="relative z-10 flex items-center justify-between px-6 py-5 backdrop-blur-md">
         <Link to="/portal/dashboard" className="font-sans text-navy/65 text-sm hover:text-navy transition-colors">← Back</Link>
         <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-7 brightness-0" />
-        <div className="w-10" />
+        <ProfileAvatar />
       </nav>
 
       <Stagger className="relative z-10 max-w-lg mx-auto px-5 py-8">
         <Rise><h1 className="font-serif font-bold text-3xl text-navy mb-6">Album</h1></Rise>
 
+        <div className="album-frame">
         {dinners.length === 0 && (
-          <Rise className="glass-card text-center py-10">
-            <p className="font-sans text-navy/65 text-sm">No dinners yet.</p>
-          </Rise>
+          <p className="font-sans text-navy/55 text-sm text-center pt-24">No dinners yet.</p>
         )}
 
-        <div className="grid grid-cols-2 gap-5 items-start">
+        <div className="grid grid-cols-2 gap-x-5 gap-y-9 items-start">
           {dinners.map(dinner => {
             const dateLabel = formatDinnerDate(dinner.date);
             return (
               <Rise key={dinner.table_id} className="flex flex-col items-center">
                 {dinner.photos.length === 0 ? (
-                  <div className="w-full max-w-[128px] aspect-square flex flex-col items-center justify-center text-center">
+                  <div className="w-full max-w-[104px] aspect-square flex flex-col items-center justify-center text-center">
                     <p className="font-sans text-navy/45 text-xs">{dateLabel}</p>
                     <p className="font-sans text-navy/45 text-xs italic mt-1">Empty</p>
                   </div>
@@ -203,7 +203,7 @@ export default function MyAlbum() {
                   // (and swallow clicks meant for) these buttons underneath.
                   // White/cream background (not transparent) so both read as
                   // real buttons sitting under the polaroid, not stray icons.
-                  <div className="relative z-20 flex gap-1.5 mt-2.5 w-full max-w-[128px]">
+                  <div className="relative z-20 flex gap-1.5 mt-2.5 w-full max-w-[104px]">
                     <label className={`flex-1 bg-cream text-[#2a2a2a] rounded-lg text-base py-2 flex items-center justify-center cursor-pointer shadow-[0_2px_8px_rgba(22,24,29,0.2)] hover:bg-white transition-colors ${uploadingFor === dinner.table_id ? 'opacity-60 pointer-events-none' : ''}`}>
                       {uploadingFor === dinner.table_id ? '…' : '📷'}
                       <input
@@ -228,6 +228,7 @@ export default function MyAlbum() {
               </Rise>
             );
           })}
+        </div>
         </div>
       </Stagger>
 

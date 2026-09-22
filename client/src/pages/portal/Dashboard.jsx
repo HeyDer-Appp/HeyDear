@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -9,6 +9,7 @@ import OnboardingTour from '../../components/OnboardingTour';
 import { flagUrl } from '../../utils/flags';
 import { useCachedFetch } from '../../utils/useCachedFetch';
 import { prefetchPortalData } from '../../utils/prefetch';
+import { Users, MapPin, Clock } from 'lucide-react';
 
 const AVATAR = 'https://heyder.nz/wp-content/uploads/2026/06/account-2.png';
 
@@ -206,35 +207,19 @@ function InlineCityPill({ value, onChange }) {
 
 const STATUS_CONFIG = {
   pending: {
-    label: 'Finding your group',
-    color: 'text-plum',
-    bg: 'bg-plum/10',
     border: 'border-plum/20',
-    icon: '⏳',
     description: '',
   },
   matched: {
-    label: 'Group locked in',
-    color: 'text-plum',
-    bg: 'bg-plum/10',
     border: 'border-plum/20',
-    icon: '✦',
     description: '',
   },
   glimpse: {
-    label: 'Meet your table',
-    color: 'text-purple-800',
-    bg: 'bg-purple-500/10',
     border: 'border-purple-500/20',
-    icon: '👀',
     description: '',
   },
   venue: {
-    label: 'Venue',
-    color: 'text-emerald-700',
-    bg: 'bg-emerald-400/10',
     border: 'border-emerald-400/20',
-    icon: '✓',
     description: '',
   },
 };
@@ -460,19 +445,49 @@ function DinnerCard({ dinner, onCancel, onRsvpUpdate }) {
 
   const config = STATUS_CONFIG[status];
 
-  // The badge stops saying "finding" once matching would normally have
-  // happened — Friday 9pm NZT, 94 hours before the Tuesday 7pm dinner —
-  // even if the admin's manual match hasn't actually run yet, so the card
-  // doesn't look stuck on "finding" for days. Purely cosmetic: isPending
-  // and the real countdown/cancel logic are untouched.
-  const groupFoundAt = dinnerDate ? new Date(dinnerDate.getTime() - 94 * 3600 * 1000) : null;
-  const groupFoundLabelShown = status === 'pending' && groupFoundAt && now >= groupFoundAt;
-  const badgeIcon = groupFoundLabelShown ? '✦' : config.icon;
-  const badgeLabel = groupFoundLabelShown ? 'Group found' : config.label;
-
   const formattedDate = dinnerDate
     ? dinnerDate.toLocaleDateString('en-NZ', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Pacific/Auckland' })
     : dinner.preferred_date || 'Upcoming Tuesday';
+
+  const dateParts = dinnerDate ? (() => {
+    const o = { timeZone: 'Pacific/Auckland' };
+    return {
+      weekday: dinnerDate.toLocaleDateString('en-NZ', { ...o, weekday: 'long' }),
+      day: dinnerDate.toLocaleDateString('en-NZ', { ...o, day: 'numeric', month: 'long' }),
+      year: dinnerDate.toLocaleDateString('en-NZ', { ...o, year: 'numeric' }),
+    };
+  })() : null;
+
+  // Journey stepper — Booked / Group / Venue / Dinner. doneCount is the
+  // index (0-based) of whichever checkpoint is currently active (still in
+  // progress); everything before it is fully done, everything after is
+  // still ahead. isPast pushes it one past the last checkpoint so all four
+  // read as complete instead of the final one sitting "active" forever.
+  let doneCount = 1;
+  if (status === 'glimpse') doneCount = 2;
+  else if (status === 'venue') doneCount = 3;
+  if (isPast) doneCount = 4;
+
+  const groupRevealMs = dinnerDate ? dinnerDate.getTime() - 48 * 3600 * 1000 : null;
+  const venueRevealMs = dinnerDate ? dinnerDate.getTime() - 24 * 3600 * 1000 : null;
+  const dinnerMs = dinnerDate ? dinnerDate.getTime() : null;
+  // No real "booked at" timestamp is available here, so the first segment's
+  // start is approximated as a week before group reveal — close enough for
+  // a purely decorative fill, unlike the other two segments which use the
+  // real 24h reveal windows.
+  const bookedMs = groupRevealMs != null ? groupRevealMs - 7 * 24 * 3600 * 1000 : null;
+  const nowMs = now.getTime();
+  const segmentFill = (startMs, endMs) => {
+    if (startMs == null || endMs == null || endMs <= startMs) return 0;
+    return Math.max(0, Math.min(1, (nowMs - startMs) / (endMs - startMs)));
+  };
+  const segmentBounds = [[bookedMs, groupRevealMs], [groupRevealMs, venueRevealMs], [venueRevealMs, dinnerMs]];
+  const segProgress = segmentBounds.map(([start, end], i) => {
+    if (doneCount > i + 1) return 1;
+    if (doneCount === i + 1) return segmentFill(start, end);
+    return 0;
+  });
+  const CHECKPOINTS = ['Booked', 'Group', 'Venue', 'Dinner'];
 
   return (
     <motion.div
@@ -481,18 +496,70 @@ function DinnerCard({ dinner, onCancel, onRsvpUpdate }) {
       transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
       className={`glass-card ${config.border}`}
     >
-      {/* Status badge */}
-      <div className="flex items-center justify-between mb-5">
-        <span className={`inline-flex items-center gap-2 text-xs font-sans font-semibold tracking-wider uppercase px-3 py-1.5 rounded-full whitespace-nowrap ${config.bg} ${config.color}`}>
-          <span>{badgeIcon}</span><span>{badgeLabel}</span>
-        </span>
-        {!isPast && <span className="font-sans text-navy/45 text-xs">7:00 PM</span>}
+      {/* Date */}
+      <div className="flex items-center justify-between mb-2">
+        <p className="font-sans font-semibold text-plum text-[9px] uppercase tracking-[0.22em]">{dateParts ? dateParts.weekday : 'Upcoming'}</p>
+        {!isPast && <span className="font-sans text-navy/70 text-[10px] font-medium border border-navy/15 rounded-full px-2 py-0.5 tabular-nums">7:00 PM</span>}
+      </div>
+      {dateParts ? (
+        <>
+          <h2 className="font-serif font-bold text-navy text-2xl leading-none">{dateParts.day}</h2>
+          <p className="font-sans text-navy/60 text-xs mt-2 flex items-center gap-1.5">
+            {dateParts.year}
+            <span className="text-navy/25">·</span>
+            <MapPin size={12} strokeWidth={2} className="text-plum" />
+            {dinner.city || 'Auckland'}
+          </p>
+        </>
+      ) : (
+        <>
+          <h2 className="font-serif font-bold text-navy text-3xl leading-tight">{formattedDate}</h2>
+          <p className="font-sans text-navy/60 text-sm mt-2">{dinner.city || 'Auckland'}</p>
+        </>
+      )}
+      {config.description && <p className="font-sans text-navy/55 text-xs mt-3">{config.description}</p>}
+
+      <div className="h-px bg-navy/10 my-4" />
+
+      {/* Journey stepper — diamond checkpoints, the line into whichever one
+          is currently active fills with plum as that milestone approaches. */}
+      <div className="flex items-center mb-2">
+        {CHECKPOINTS.map((label, i) => (
+          <React.Fragment key={label}>
+            <div
+              className="flex-shrink-0"
+              style={{
+                width: 13,
+                height: 13,
+                transform: 'rotate(45deg)',
+                background: i < doneCount ? '#754471' : (i === doneCount ? 'transparent' : 'rgba(22,24,29,0.12)'),
+                border: i === doneCount && !isPast ? '2px solid #754471' : 'none',
+                boxShadow: i === doneCount && !isPast ? '0 0 0 5px rgba(117,68,113,0.16)' : 'none',
+                transition: 'background 0.4s ease',
+              }}
+            />
+            {i < CHECKPOINTS.length - 1 && (
+              <div className="flex-1 relative" style={{ height: 1.5, background: 'rgba(22,24,29,0.12)', margin: '0 2px' }}>
+                <div
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    background: '#754471',
+                    width: `${segProgress[i] * 100}%`,
+                    transition: 'width 1s linear',
+                  }}
+                />
+              </div>
+            )}
+          </React.Fragment>
+        ))}
+      </div>
+      <div className="flex justify-between">
+        {CHECKPOINTS.map(label => (
+          <span key={label} className="font-sans text-navy/45 uppercase" style={{ fontSize: '8.5px', letterSpacing: '0.03em' }}>{label}</span>
+        ))}
       </div>
 
-      {/* Date */}
-      <h2 className="font-serif font-bold text-2xl text-navy mb-1">{formattedDate}</h2>
-      <p className="font-sans text-navy/65 text-sm mb-1">{dinner.city || 'Auckland'}</p>
-      {config.description && <p className="font-sans text-navy/55 text-xs mb-4">{config.description}</p>}
 
       {/* ── STAGE 1: PENDING — what happens next ──
           Reveal timing is always relative to the fixed Tuesday 7pm dinner
@@ -508,27 +575,36 @@ function DinnerCard({ dinner, onCancel, onRsvpUpdate }) {
         const venueRevealAt = dinnerDate ? new Date(dinnerDate.getTime() - 24 * 3600 * 1000) : null;
         const venueSecsLeft = venueRevealAt ? Math.max(0, Math.ceil((venueRevealAt - now) / 1000)) : null;
 
+        // Venue only appears once the group itself has been revealed —
+        // showing it ahead of time (even as a greyed-out "after table" row)
+        // implied it was its own independent countdown, when it's really a
+        // second step that only makes sense once the first has happened.
         const steps = [
-          { icon: '👀', step: 'Table', secsLeft: groupSecsLeft, unlocked: groupUnlocked, notStarted: false },
-          { icon: '📍', step: 'Venue', secsLeft: venueSecsLeft, unlocked: venueSecsLeft !== null && venueSecsLeft <= 0, notStarted: !groupUnlocked },
+          { Icon: Users, step: 'Your table', sub: '48h before dinner', secsLeft: groupSecsLeft, unlocked: groupUnlocked },
+          ...(groupUnlocked
+            ? [{ Icon: MapPin, step: 'Venue', sub: '24h before dinner', secsLeft: venueSecsLeft, unlocked: venueSecsLeft !== null && venueSecsLeft <= 0 }]
+            : []),
         ];
 
         return (
-          <div className="mt-5 space-y-3">
-            {steps.map(({ icon, step, secsLeft, unlocked, notStarted }) => (
-              <div key={step} className="flex items-start gap-3">
-                <span className="text-base mt-0.5">{icon}</span>
-                <div className="flex-1 flex items-start justify-between gap-4">
-                  <span className="font-sans text-navy/80 text-sm">{step}</span>
-                  <div className="text-right flex-shrink-0">
-                    {notStarted ? (
-                      <span className="font-sans text-navy/35 text-xs italic">After table</span>
-                    ) : secsLeft !== null && (
-                      <span className="font-sans text-plum text-xs font-semibold">
-                        {unlocked ? 'Now' : formatCountdown(secsLeft)}
-                      </span>
-                    )}
-                  </div>
+          <div className="mt-4 divide-y divide-navy/10">
+            {steps.map(({ Icon, step, sub, secsLeft, unlocked }) => (
+              <div key={step} className="flex items-center gap-3 py-2.5 first:pt-0.5 last:pb-0.5">
+                <span className="w-8 h-8 rounded-full bg-plum/10 text-plum flex items-center justify-center flex-shrink-0">
+                  <Icon size={15} strokeWidth={1.75} />
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="font-serif font-semibold text-navy text-base leading-tight">{step}</p>
+                  <p className="font-sans text-navy/45 text-[10px] mt-0.5">{sub}</p>
+                </div>
+                <div className="flex-shrink-0 text-right">
+                  {unlocked ? (
+                    <span className="inline-flex items-center gap-1.5 font-sans text-plum text-[10px] font-semibold bg-plum/10 rounded-full px-2.5 py-0.5">
+                      <span className="w-1 h-1 rounded-full bg-plum" />Open now
+                    </span>
+                  ) : secsLeft !== null && (
+                    <span className="font-sans text-plum text-xs font-semibold tabular-nums">{formatCountdown(secsLeft)}</span>
+                  )}
                 </div>
               </div>
             ))}
@@ -577,14 +653,21 @@ function DinnerCard({ dinner, onCancel, onRsvpUpdate }) {
         </div>
       )}
 
-      {/* Cancel */}
-      {!isPast && (
-        <button
-          onClick={() => onCancel(dinner)}
-          className="mt-5 text-navy/40 hover:text-red-700 font-sans text-xs transition-colors"
-        >
-          Cancel
-        </button>
+      {/* Cancel — hidden once a confirmed dinner is past (nothing left to
+          cancel), but a pending booking that never got matched to a table
+          stays cancellable even past its date. Its own cancel-pending
+          endpoint has no 24h cutoff (nothing was ever reserved), and
+          without this, a booking stuck in that state has no way to clear
+          it and blocks rebooking forever. */}
+      {(!isPast || isPending) && (
+        <div className="mt-4 pt-3 border-t border-navy/10">
+          <button
+            onClick={() => onCancel(dinner)}
+            className="text-navy/45 hover:text-red-700 font-sans text-xs tracking-wide transition-colors"
+          >
+            Cancel booking
+          </button>
+        </div>
       )}
     </motion.div>
   );
@@ -738,38 +821,9 @@ export default function PortalDashboard() {
   const [location, setLocation] = useState('');
   const [bookingDate, setBookingDate] = useState(null);
   const [bookingCity, setBookingCity] = useState('Auckland');
-  // Temporary — lets the booking-sentence card be dragged live while
-  // deciding where it should sit. Drag starts anywhere on the card except
-  // its buttons, so the date/city pills keep working normally.
-  const [cardOffset, setCardOffset] = useState({ x: 0, y: 85 });
-  const cardDragRef = useRef(null);
-  const startCardDrag = (e) => {
-    if (e.target.closest('button')) return;
-    e.preventDefault();
-    const point = e.touches ? e.touches[0] : e;
-    cardDragRef.current = { startX: point.clientX, startY: point.clientY, origX: cardOffset.x, origY: cardOffset.y };
-    window.addEventListener('mousemove', moveCardDrag);
-    window.addEventListener('mouseup', endCardDrag);
-    window.addEventListener('touchmove', moveCardDrag, { passive: false });
-    window.addEventListener('touchend', endCardDrag);
-  };
-  const moveCardDrag = (e) => {
-    if (!cardDragRef.current) return;
-    const point = e.touches ? e.touches[0] : e;
-    setCardOffset({
-      x: cardDragRef.current.origX + (point.clientX - cardDragRef.current.startX),
-      y: cardDragRef.current.origY + (point.clientY - cardDragRef.current.startY),
-    });
-  };
-  const endCardDrag = () => {
-    cardDragRef.current = null;
-    window.removeEventListener('mousemove', moveCardDrag);
-    window.removeEventListener('mouseup', endCardDrag);
-    window.removeEventListener('touchmove', moveCardDrag, { passive: false });
-    window.removeEventListener('touchend', endCardDrag);
-  };
   const [howItWorksOpen, setHowItWorksOpen] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
+  const [showPastDinners, setShowPastDinners] = useState(false);
   const [showConfirmSummary, setShowConfirmSummary] = useState(false);
   const [matchAvatars, setMatchAvatars] = useState([]);
   const handleConfirmClick = () => {
@@ -777,6 +831,117 @@ export default function PortalDashboard() {
     const seed = Math.random().toString(36).slice(2);
     setMatchAvatars(Array.from({ length: 5 }, (_, i) => `https://i.pravatar.cc/150?u=${seed}-${i}`));
     setShowConfirmSummary(true);
+  };
+
+  // The card's third and final stage — morphs into the plan choice in
+  // place instead of navigating to a separate page, same reasoning as the
+  // sentence→summary morph above. Only the profile data actually needed to
+  // submit a booking is fetched here (lazily, on "Continue to book"), not
+  // up front, since most visits never get this far.
+  const [showPayment, setShowPayment] = useState(false);
+  const [paymentAnswers, setPaymentAnswers] = useState(null);
+  const [pricing, setPricing] = useState({ oneTimeAmount: 1000, subscriptionAmount: 1500 });
+  const [selectedPlan, setSelectedPlan] = useState('one_time');
+  const [submittingPayment, setSubmittingPayment] = useState(false);
+  const stripeConfigured = !!import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+  const bookingDateField = bookingDate
+    ? bookingDate.toLocaleDateString('en-NZ', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
+    : '';
+
+  const [continuingToBook, setContinuingToBook] = useState(false);
+  const handleContinueToBookClick = async () => {
+    if (continuingToBook) return;
+    setContinuingToBook(true);
+    try {
+      const [profileRes, pricingRes] = await Promise.all([
+        api.get('/portal/full-profile'),
+        api.get('/payments/pricing').catch(() => null),
+      ]);
+      const { locked, photo, answers: savedAnswers } = profileRes.data;
+      setPaymentAnswers({
+        first_name: locked.first_name,
+        last_name: locked.last_name,
+        phone: locked.phone,
+        dob: locked.dob,
+        gender: locked.gender,
+        country: locked.country,
+        photo: photo || undefined,
+        ...savedAnswers,
+      });
+      if (pricingRes) setPricing(pricingRes.data);
+      setShowPayment(true);
+    } catch {
+      // Fixed id so a user who taps "Continue" again after a flaky
+      // connection sees the same toast refresh, instead of a new one
+      // stacking on top of the last one still on screen.
+      toast.error('Could not load your profile. Please try again.', { id: 'continue-to-book-error' });
+    } finally {
+      setContinuingToBook(false);
+    }
+  };
+
+  // A 409 here means a booking of ours already exists (most likely made by
+  // an earlier tap of this same button that the UI hadn't caught up to
+  // yet) — retrying it would only 409 again and, enough times, trip the
+  // /profile/submit rate limit. Refetching + backing out of the payment
+  // flow instead swaps this screen over to that real booking's DinnerCard,
+  // which is the state the account is actually in.
+  const submitBookingInline = async (plan) => {
+    try {
+      await api.post('/profile/submit', {
+        ...paymentAnswers,
+        field_CdZldwp5q09o: bookingDateField,
+        field_OVB7lzEjSl7C: paymentAnswers.field_OVB7lzEjSl7C || [],
+        plan,
+      });
+      navigate('/profile/success', { state: { date: bookingDateField, city: bookingCity, plan } });
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Booking failed. Please try again.', { id: 'booking-submit-error' });
+      setSubmittingPayment(false);
+      if (err.response?.status === 409) {
+        setShowPayment(false);
+        setShowConfirmSummary(false);
+        refetchDinners().catch(() => {});
+      }
+    }
+  };
+
+  const handleConfirmSubscribedInline = async () => {
+    if (submittingPayment) return;
+    setSubmittingPayment(true);
+    await submitBookingInline(undefined);
+  };
+
+  const handlePayInline = async () => {
+    if (!paymentAnswers || submittingPayment) return;
+    setSubmittingPayment(true);
+    const fullAnswers = { ...paymentAnswers, field_CdZldwp5q09o: bookingDateField };
+    try {
+      if (!stripeConfigured) {
+        await submitBookingInline(selectedPlan);
+        return;
+      }
+      await api.post('/profile/submit', {
+        ...fullAnswers,
+        field_OVB7lzEjSl7C: fullAnswers.field_OVB7lzEjSl7C || [],
+        awaitingPayment: true,
+      });
+      const res = await api.post('/payments/create-checkout', {
+        email: attendeeUser?.email,
+        plan: selectedPlan,
+      });
+      sessionStorage.setItem('heyder_quiz_answers', JSON.stringify(fullAnswers));
+      sessionStorage.setItem('heyder_pending_session_id', res.data.sessionId);
+      window.location.href = res.data.url;
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Payment setup failed. Please try again.', { id: 'payment-setup-error' });
+      setSubmittingPayment(false);
+      if (err.response?.status === 409) {
+        setShowPayment(false);
+        setShowConfirmSummary(false);
+        refetchDinners().catch(() => {});
+      }
+    }
   };
   // Persisted per-session — without this, leaving the tab (Album, Chat, etc.)
   // and coming back unmounts/remounts this component, resetting this to
@@ -808,7 +973,7 @@ export default function PortalDashboard() {
     }
   });
 
-  const { data: dinnersData, loading: dinnersLoading, setData: setDinnersData } = useCachedFetch(
+  const { data: dinnersData, loading: dinnersLoading, setData: setDinnersData, refetch: refetchDinners } = useCachedFetch(
     'portal_dinners',
     async () => (await api.get('/portal/dinners')).data.dinners || []
   );
@@ -1020,10 +1185,18 @@ export default function PortalDashboard() {
           <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-7 brightness-0" />
         </Link>
         <div className="flex items-center gap-3">
-          <img src={profile?.photo || AVATAR} alt="Account" className="w-8 h-8 rounded-full border border-navy/20 object-cover" />
-          <button onClick={async () => { await logout(); navigate('/'); }} className="font-sans text-navy/50 text-xs hover:text-navy transition-colors">
-            Sign out
-          </button>
+          {past.length > 0 && (
+            <button
+              onClick={() => setShowPastDinners(true)}
+              aria-label="Past dinners"
+              className="relative w-9 h-9 rounded-full border border-navy/20 text-navy/65 hover:text-navy hover:border-navy/40 flex items-center justify-center transition-colors"
+            >
+              <Clock size={17} strokeWidth={1.75} />
+            </button>
+          )}
+          <Link to="/portal/profile" aria-label="Your profile" className="block w-9 h-9 rounded-full overflow-hidden border border-navy/25">
+            <img src={profile?.photo || AVATAR} alt="" className="w-full h-full object-cover" draggable={false} />
+          </Link>
         </div>
       </nav>
 
@@ -1038,30 +1211,24 @@ export default function PortalDashboard() {
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center gap-6" style={{ minHeight: '55vh' }}>
-            <div
-              className="flex flex-col items-center gap-6"
-              style={{ transform: `translate(${cardOffset.x}px, ${cardOffset.y}px)` }}
-            >
+            <div className="flex flex-col items-center gap-6" style={{ marginTop: 85 }}>
               <motion.div
                 layout
-                layoutDependency={showConfirmSummary}
+                layoutDependency={`${showConfirmSummary}-${showPayment}`}
                 transition={{ layout: { duration: 0.45, ease: [0.32, 0.72, 0, 1] } }}
-                onMouseDown={!showConfirmSummary ? startCardDrag : undefined}
-                onTouchStart={!showConfirmSummary ? startCardDrag : undefined}
-                className="relative rounded-2xl px-7 py-6 text-center"
+                className={`relative rounded-2xl text-center ${showConfirmSummary ? 'px-7 py-6' : 'px-5 py-6'}`}
                 style={{
                   background: 'rgba(245,237,216,0.85)',
                   border: '1px solid rgba(22,24,29,0.15)',
                   boxShadow: '0 20px 44px rgba(22,24,29,0.2), inset 0 1px 0 rgba(255,255,255,0.4)',
-                  cursor: showConfirmSummary ? 'default' : 'grab',
-                  width: showConfirmSummary ? 'min(360px, 88vw)' : 'fit-content',
+                  width: showConfirmSummary ? 'min(360px, 88vw)' : 'min(440px, 92vw)',
                   overflow: showConfirmSummary ? 'hidden' : 'visible',
                 }}
               >
                 {showConfirmSummary && (
                   <button
                     type="button"
-                    onClick={() => setShowConfirmSummary(false)}
+                    onClick={() => { setShowConfirmSummary(false); setShowPayment(false); }}
                     aria-label="Close"
                     className="absolute top-2 right-2 w-7 h-7 flex items-center justify-center rounded-full text-navy/70 hover:text-navy transition-colors"
                     style={{ background: 'rgba(22,24,29,0.08)', zIndex: 10 }}
@@ -1079,15 +1246,20 @@ export default function PortalDashboard() {
                       animate={{ opacity: 1, transition: { delay: 0.15, duration: 0.2 } }}
                       exit={{ opacity: 0, transition: { duration: 0.12 } }}
                     >
-                      <p className="font-serif font-bold text-navy leading-relaxed" style={{ fontSize: '1.7rem' }}>
-                        Book my dinner on{' '}
-                        <InlineDatePill value={bookingDate} onChange={setBookingDate} />{' '}
-                        in{' '}
-                        <InlineCityPill value={bookingCity} onChange={setBookingCity} />{' '}
-                        city.
+                      {/* Fixed two-line break (not left to natural wrap) — the
+                          available width still varies phone to phone, and
+                          wrapping on its own put a third line in on some
+                          screens and two on others. Breaking here always,
+                          and letting the size shrink a touch on narrow
+                          phones instead, keeps the same two-line shape
+                          everywhere. */}
+                      <p className="font-serif font-bold text-navy leading-relaxed" style={{ fontSize: 'clamp(1.1rem, 5.4vw, 1.7rem)' }}>
+                        <span style={{ whiteSpace: 'nowrap' }}>Book my dinner on <InlineDatePill value={bookingDate} onChange={setBookingDate} /></span>
+                        <br />
+                        <span style={{ whiteSpace: 'nowrap' }}>in <InlineCityPill value={bookingCity} onChange={setBookingCity} /> city.</span>
                       </p>
                     </motion.div>
-                  ) : (
+                  ) : !showPayment ? (
                     <motion.div
                       key="summary"
                       className="relative"
@@ -1096,7 +1268,7 @@ export default function PortalDashboard() {
                       exit={{ opacity: 0, transition: { duration: 0.12 } }}
                     >
                       <p className="font-serif font-bold text-navy leading-snug pr-6" style={{ fontSize: '1.5rem' }}>
-                        Dinner + side quest on
+                        Dinner + Afterparty
                         <br />
                         {bookingDate ? formatTuesdayOption(bookingDate) : ''}
                       </p>
@@ -1132,18 +1304,79 @@ export default function PortalDashboard() {
                         ))}
                       </div>
 
-                      <Link
-                        to="/portal/book"
-                        state={{
-                          presetDate: bookingDate
-                            ? bookingDate.toLocaleDateString('en-NZ', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
-                            : undefined,
-                        }}
-                        className="inline-flex items-center justify-center gap-2 font-sans font-semibold text-sm tracking-widest uppercase px-6 py-3 rounded-2xl transition-all duration-200 w-full"
+                      <button
+                        type="button"
+                        onClick={handleContinueToBookClick}
+                        disabled={continuingToBook}
+                        className="inline-flex items-center justify-center gap-2 font-sans font-semibold text-sm tracking-widest uppercase px-6 py-3 rounded-2xl transition-all duration-200 w-full disabled:opacity-60"
                         style={{ background: '#754471', color: '#F5EDD8' }}
                       >
-                        Continue to book
-                      </Link>
+                        {continuingToBook ? 'Loading…' : 'Continue to book'}
+                      </button>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="payment"
+                      className="relative"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1, transition: { delay: 0.15, duration: 0.2 } }}
+                      exit={{ opacity: 0, transition: { duration: 0.12 } }}
+                    >
+                      <p className="font-serif font-bold text-navy leading-snug pr-6" style={{ fontSize: '1.5rem' }}>
+                        Choose your plan
+                      </p>
+
+                      {hasActiveSubscription ? (
+                        <div className="mt-5">
+                          <p className="font-sans text-sm text-navy/60 mb-4">Included in your membership.</p>
+                          <button
+                            type="button"
+                            onClick={handleConfirmSubscribedInline}
+                            disabled={submittingPayment}
+                            className="w-full inline-flex items-center justify-center gap-2 font-sans font-semibold text-sm tracking-widest uppercase px-6 py-3 rounded-2xl transition-all duration-200 disabled:opacity-60"
+                            style={{ background: '#754471', color: '#F5EDD8' }}
+                          >
+                            {submittingPayment ? 'Confirming…' : 'Confirm booking'}
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="space-y-3 my-5 text-left">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedPlan('one_time')}
+                              className="portal-login-input w-full text-left block transition-all duration-200"
+                              style={selectedPlan === 'one_time' ? { borderColor: '#16181d', background: 'rgba(255,255,255,0.5)' } : undefined}
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="font-sans font-semibold text-sm text-navy">One-time</span>
+                                <span className="font-serif text-xl text-navy">${(pricing.oneTimeAmount / 100).toFixed(2).replace(/\.00$/, '')}</span>
+                              </div>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setSelectedPlan('subscription')}
+                              className="portal-login-input w-full text-left block relative transition-all duration-200"
+                              style={selectedPlan === 'subscription' ? { borderColor: '#16181d', background: 'rgba(255,255,255,0.5)' } : undefined}
+                            >
+                              <span className="absolute -top-2.5 right-4 bg-navy text-cream text-[9px] font-sans font-bold uppercase tracking-widest px-2 py-0.5 rounded-full">Best value</span>
+                              <div className="flex items-center justify-between">
+                                <span className="font-sans font-semibold text-sm text-navy">Monthly</span>
+                                <span className="font-serif text-xl text-navy">${(pricing.subscriptionAmount / 100).toFixed(2).replace(/\.00$/, '')}<span className="text-xs">/mo</span></span>
+                              </div>
+                            </button>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handlePayInline}
+                            disabled={submittingPayment}
+                            className="w-full inline-flex items-center justify-center gap-2 font-sans font-semibold text-sm tracking-widest uppercase px-6 py-3 rounded-2xl transition-all duration-200 disabled:opacity-60"
+                            style={{ background: '#754471', color: '#F5EDD8' }}
+                          >
+                            {submittingPayment ? 'Processing…' : !stripeConfigured ? 'Confirm (test mode)' : 'Pay & confirm'}
+                          </button>
+                        </>
+                      )}
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -1164,12 +1397,37 @@ export default function PortalDashboard() {
           </div>
         )}
 
-        {/* Past dinners */}
-        {past.length > 0 && (
-          <div>
-            <p className="font-sans font-semibold text-navy/65 text-xs uppercase tracking-widest mb-3">Past</p>
+      </div>
+
+      {/* Past dinners — opened from the clock button up in the nav rather
+          than living inline, so a long history doesn't push the booking
+          card down the page. Animated (not just mounted/unmounted) so it
+          reads as sliding up from behind the bottom nav, and eases back
+          down the same way on close. */}
+      <AnimatePresence>
+        {showPastDinners && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25, ease: 'easeOut' }}
+            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end justify-center"
+            onClick={() => setShowPastDinners(false)}
+          >
+          <motion.div
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ type: 'spring', damping: 32, stiffness: 340 }}
+            className="w-full max-w-lg bg-cream rounded-t-3xl max-h-[75vh] overflow-y-auto p-5 pb-8"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <p className="font-serif font-bold text-xl text-navy">Past dinners</p>
+              <button onClick={() => setShowPastDinners(false)} className="font-sans text-navy/55 hover:text-navy text-xs transition-colors">Close</button>
+            </div>
             <div className="space-y-2">
-              {past.map(d => (
+              {[...past].sort((a, b) => new Date(b.date) - new Date(a.date)).map(d => (
                 <div key={d.table_id} className="rounded-xl border border-navy/10 px-5 py-4 flex items-center justify-between" style={{ background: 'rgba(255,255,255,0.4)' }}>
                   <div>
                     <p className="font-sans text-navy/72 text-sm">
@@ -1190,9 +1448,10 @@ export default function PortalDashboard() {
                 </div>
               ))}
             </div>
-          </div>
+          </motion.div>
+          </motion.div>
         )}
-      </div>
+      </AnimatePresence>
 
       {showContactModal && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-5" onClick={() => setShowContactModal(false)}>
