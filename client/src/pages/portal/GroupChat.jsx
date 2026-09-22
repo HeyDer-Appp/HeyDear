@@ -9,6 +9,7 @@ import { flagUrl } from '../../utils/flags';
 import { GlimpseModal } from './Dashboard';
 import { useCachedFetch } from '../../utils/useCachedFetch';
 import { Stagger, Rise } from '../../components/Motion';
+import { ChevronRight } from 'lucide-react';
 import DoodleWall from '../../components/DoodleWall';
 
 const AVATAR_FALLBACK = 'https://heyder.nz/wp-content/uploads/2026/06/account-2.png';
@@ -180,36 +181,46 @@ const header = (
   </nav>
 );
 
-function formatCardDate(iso) {
-  if (!iso) return '';
-  return new Date(iso).toLocaleDateString('en-NZ', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Pacific/Auckland' }).replace(',', '');
+function formatRowDate(iso) {
+  if (!iso) return { weekday: '', day: '' };
+  const d = new Date(iso);
+  const opts = { timeZone: 'Pacific/Auckland' };
+  return {
+    weekday: d.toLocaleDateString('en-NZ', { ...opts, weekday: 'long' }),
+    day: d.toLocaleDateString('en-NZ', { ...opts, day: 'numeric', month: 'long' }),
+  };
 }
 
 function GroupListCard({ g, onOpen }) {
   const members = g.members || [];
-  const shown = members.slice(0, 4);
+  const shown = members.slice(0, 3);
+  const { weekday, day } = formatRowDate(g.dinner_date);
   return (
-    <button onClick={() => onOpen(g.table_id)} className="glass-card w-full text-left flex items-center justify-between gap-3 active:scale-[0.99]">
-      <p className="font-serif text-lg text-navy flex items-center gap-2 min-w-0">
-        <span className="truncate">{formatCardDate(g.dinner_date)}</span>
-        {g.has_unread && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0" />}
-      </p>
+    <button onClick={() => onOpen(g.table_id)} className="group-row w-full text-left flex items-center gap-3">
+      <div className="min-w-0 flex-1">
+        <p className="font-sans font-semibold text-navy/50 text-[10px] uppercase tracking-[0.18em] flex items-center gap-1.5">
+          {weekday}
+          {g.has_unread && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0" />}
+        </p>
+        <p className="font-serif font-bold text-navy text-xl leading-tight whitespace-nowrap">{day}</p>
+      </div>
       {shown.length > 0 ? (
-        <div className="flex -space-x-2 flex-shrink-0">
-          {shown.map(m => (
-            <div key={m.user_id} className="rounded-full" style={{ boxShadow: '0 0 0 2px #F5EDD8' }}>
-              <Avatar photo={m.photo} blurred={!g.revealed} size={30} />
+        <div className="flex items-center flex-shrink-0">
+          {shown.map((m, i) => (
+            <div key={m.user_id} className={`rounded-full ${i ? '-ml-2.5' : ''}`} style={{ boxShadow: '0 0 0 2px #F5EDD8' }}>
+              <Avatar photo={m.photo} blurred={!g.revealed} size={32} />
             </div>
           ))}
           {members.length > shown.length && (
-            <div className="w-[30px] h-[30px] rounded-full bg-cream flex items-center justify-center text-navy/72 text-[10px] font-sans font-semibold" style={{ boxShadow: '0 0 0 2px #F5EDD8' }}>
+            <div className="-ml-2.5 w-[32px] h-[32px] rounded-full bg-[#E7DFC5] flex items-center justify-center text-navy text-[11px] font-sans font-semibold" style={{ boxShadow: '0 0 0 2px #F5EDD8' }}>
               +{members.length - shown.length}
             </div>
           )}
         </div>
       ) : (
-        <span className="font-sans text-navy/45 text-xs flex-shrink-0">{g.member_count} people</span>
+        <span className="font-sans text-navy/50 text-xs flex-shrink-0">{g.member_count} people</span>
       )}
+      <ChevronRight size={18} strokeWidth={2} className="text-navy/35 flex-shrink-0" />
     </button>
   );
 }
@@ -264,6 +275,13 @@ function GroupList({ onOpen }) {
     );
   }
 
+  // Only the next dinner not yet attended is listed — later ones stay hidden
+  // until it's been attended (revealed), then the following one takes its place.
+  const nextUpcoming = (groups || [])
+    .filter(g => !g.revealed)
+    .sort((a, b) => new Date(a.dinner_date) - new Date(b.dinner_date))[0];
+  const visibleGroups = (groups || []).filter(g => g.revealed || g === nextUpcoming);
+
   return (
     <div className="portal-bg doodle-page min-h-screen relative overflow-hidden pb-24">
       <DoodleWall />
@@ -271,15 +289,15 @@ function GroupList({ onOpen }) {
       <Stagger className="relative z-10 max-w-lg mx-auto px-5 py-8 space-y-8">
         <Rise><h1 className="doodle-label font-serif font-bold text-3xl text-navy">Groups</h1></Rise>
 
-        {(groups || []).length === 0 && (
+        {visibleGroups.length === 0 && (
           <Rise className="glass-card text-center py-10">
             <p className="font-sans text-navy/55 text-sm">Opens 48h before dinner.</p>
           </Rise>
         )}
 
-        {(groups || []).length > 0 && (
+        {visibleGroups.length > 0 && (
           <div className="space-y-3">
-            {groups.map(g => <Rise key={g.table_id}><GroupListCard g={g} onOpen={onOpen} /></Rise>)}
+            {visibleGroups.map(g => <Rise key={g.table_id}><GroupListCard g={g} onOpen={onOpen} /></Rise>)}
           </div>
         )}
       </Stagger>
