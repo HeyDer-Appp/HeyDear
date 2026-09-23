@@ -93,7 +93,11 @@ export default function QuizSuccess() {
             real, physical-feeling thing rather than a form's success state. */}
         <div
           className="w-full rounded-[22px] overflow-hidden"
-          style={{ background: 'rgba(245,237,216,0.94)', boxShadow: '0 20px 44px rgba(22,24,29,0.25)' }}
+          style={{
+            background: 'rgba(245,237,216,0.94)',
+            border: '1px solid #57365e',
+            boxShadow: '0 20px 44px rgba(22,24,29,0.25), 0 0 9px rgba(117,68,113,0.4)',
+          }}
         >
           <div className="px-6 pt-7 pb-4 text-center">
             <p className="font-sans font-bold text-[10px] tracking-[0.12em] uppercase mb-1.5" style={{ color: '#754471' }}>
