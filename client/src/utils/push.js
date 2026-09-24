@@ -57,27 +57,38 @@ async function subscribeToPushNative(userId) {
 
     return new Promise((resolve) => {
       let settled = false;
+      const handles = [];
       const finish = (result) => {
         if (settled) return;
         settled = true;
+        // Drop these listeners once done — this can run several times in a
+        // session (first open, login, settings toggle), and stacking a new
+        // pair each time would post the token repeatedly.
+        handles.forEach((h) => h?.remove?.());
         resolve(result);
       };
-      PushNotifications.addListener('registration', async (token) => {
-        if (settled) return;
-        try {
-          await api.post('/push/register-fcm', { userId, fcmToken: token.value });
-          localStorage.setItem('heyder_fcm_registered', 'true');
-          finish({ success: true });
-        } catch (err) {
-          console.error('FCM token registration failed:', err);
+      (async () => {
+        handles.push(await PushNotifications.addListener('registration', async (token) => {
+          if (settled) return;
+          try {
+            // The server takes the account (if any) from the login token that
+            // rides along on this request — a guest with no account simply
+            // registers as a guest, and still gets broadcast notifications.
+            await api.post('/push/register-fcm', { fcmToken: token.value });
+            localStorage.setItem('heyder_fcm_token', token.value);
+            localStorage.setItem('heyder_fcm_registered', 'true');
+            finish({ success: true });
+          } catch (err) {
+            console.error('FCM token registration failed:', err);
+            finish({ error: 'subscribe_failed' });
+          }
+        }));
+        handles.push(await PushNotifications.addListener('registrationError', (err) => {
+          console.error('FCM registration failed:', err);
           finish({ error: 'subscribe_failed' });
-        }
-      });
-      PushNotifications.addListener('registrationError', (err) => {
-        console.error('FCM registration failed:', err);
-        finish({ error: 'subscribe_failed' });
-      });
-      PushNotifications.register();
+        }));
+        PushNotifications.register();
+      })().catch(() => finish({ error: 'subscribe_failed' }));
     });
   })().catch((err) => {
     console.error('Native push subscribe failed:', err);
@@ -89,6 +100,23 @@ async function subscribeToPushNative(userId) {
   } finally {
     clearTimeout(timer);
   }
+}
+
+// Re-attaches this device's already-known token to whoever is signed in now
+// (or leaves it a guest) — no permission prompt, no native call, just a
+// tell-the-server. Used right after login.
+export async function linkStoredPushToken() {
+  const fcmToken = localStorage.getItem('heyder_fcm_token');
+  if (!Capacitor.isNativePlatform() || !fcmToken) return;
+  try { await api.post('/push/register-fcm', { fcmToken }); } catch { /* best effort */ }
+}
+
+// On logout: keep the device subscribed (so it still gets general
+// announcements) but stop it receiving the previous account's notifications.
+export async function unlinkStoredPushToken() {
+  const fcmToken = localStorage.getItem('heyder_fcm_token');
+  if (!Capacitor.isNativePlatform() || !fcmToken) return;
+  try { await api.post('/push/register-fcm', { fcmToken, anonymous: true }); } catch { /* best effort */ }
 }
 
 export async function registerSW() {

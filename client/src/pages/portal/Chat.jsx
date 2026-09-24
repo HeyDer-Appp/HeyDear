@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../../utils/api';
+import { success as hapticSuccess } from '../../utils/haptics';
 import { flagUrl } from '../../utils/flags';
 import BottomNav from '../../components/BottomNav';
 import ProfileAvatar from '../../components/ProfileAvatar';
@@ -106,11 +107,13 @@ export default function Chat() {
   const handleConnect = (person) => withBusy(person.user_id, async () => {
     await api.post('/connections/request', { toUserId: person.user_id });
     toast.success('Connect request sent!');
+    hapticSuccess();
   });
   const handleDismiss = (person) => withBusy(person.user_id, () => api.post(`/connections/${person.user_id}/dismiss`));
   const handleAccept = (person) => withBusy(person.user_id, async () => {
     await api.post(`/connections/requests/${person.request_id}/accept`);
     toast.success('Connected!');
+    hapticSuccess();
   });
   const handleDecline = (person) => withBusy(person.user_id, () => api.post(`/connections/requests/${person.request_id}/decline`));
 

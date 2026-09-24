@@ -101,9 +101,11 @@ async function checkReveals() {
 function start() {
   checkReveals().catch((err) => console.error('scheduler: initial checkReveals failed', err));
   checkFindGroupReminders().catch((err) => console.error('scheduler: initial checkFindGroupReminders failed', err));
+  pushService.runDueCampaigns().catch((err) => console.error('scheduler: initial runDueCampaigns failed', err));
   setInterval(() => {
     checkReveals().catch((err) => console.error('scheduler: checkReveals failed', err));
     checkFindGroupReminders().catch((err) => console.error('scheduler: checkFindGroupReminders failed', err));
+    pushService.runDueCampaigns().catch((err) => console.error('scheduler: runDueCampaigns failed', err));
   }, CHECK_INTERVAL_MS);
 }
 

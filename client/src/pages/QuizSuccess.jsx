@@ -3,6 +3,7 @@ import { useSearchParams, useLocation, Link } from 'react-router-dom';
 import api from '../utils/api';
 import PushPrompt from '../components/PushPrompt';
 import { clearCached } from '../utils/cache';
+import { success as hapticSuccess } from '../utils/haptics';
 
 const PLAN_LABEL = { one_time: 'One-time', subscription: 'Monthly' };
 
@@ -12,6 +13,8 @@ export default function QuizSuccess() {
   const [submitted, setSubmitted] = useState(false);
   const [userId, setUserId] = useState(null);
   const sessionId = searchParams.get('session_id');
+
+  useEffect(() => { hapticSuccess(); }, []);
 
   // Coming straight from the My Table confirm card already knows the date/
   // city/plan (state) — everyone else (a real Stripe redirect, which loses

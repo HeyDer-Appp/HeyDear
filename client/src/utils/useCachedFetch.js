@@ -40,6 +40,14 @@ export function useCachedFetch(key, fetcher, deps = []) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, ...deps]);
 
+  // Pull-to-refresh, coming back online, and returning to the app after a
+  // while all just fire this — every screen using this hook quietly refreshes.
+  useEffect(() => {
+    const onRefresh = () => { load({ silent: true }).catch(() => {}); };
+    window.addEventListener('heyder:refresh', onRefresh);
+    return () => window.removeEventListener('heyder:refresh', onRefresh);
+  }, [load]);
+
   // Lets a component update both what's on screen and the cached copy the
   // instant it makes a local change (RSVP, cancel a booking, delete a
   // photo...), rather than only updating its own in-memory state — without

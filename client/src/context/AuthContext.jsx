@@ -8,6 +8,7 @@ import {
 } from 'firebase/auth';
 import { auth } from '../firebase';
 import { clearAllCached } from '../utils/cache';
+import { unlinkStoredPushToken } from '../utils/push';
 
 const AuthContext = createContext(null);
 
@@ -68,7 +69,13 @@ export function AuthProvider({ children }) {
   // Cleared here (not just on delete-account) so a different account
   // logging into the same device — common on shared/test devices during
   // beta testing — never briefly sees the previous person's cached data.
-  const logout = () => { clearAllCached(); return signOut(auth); };
+  // The device stays subscribed as a guest (still gets general announcements),
+  // but is detached from this account while the login token still works.
+  const logout = async () => {
+    await unlinkStoredPushToken();
+    clearAllCached();
+    return signOut(auth);
+  };
 
   const resetPassword = (email) => sendPasswordResetEmail(auth, email);
 

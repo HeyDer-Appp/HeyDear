@@ -23,6 +23,12 @@
     text-size-adjust: 100%;
   }
 
+  /* Snappier taps: no grey flash on tap, no 300ms double-tap-zoom delay. */
+  button, a, [role='button'], select, summary, label {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
   body {
     background-color: #16181d;
     color: #F5EDD8;
@@ -208,6 +214,20 @@
     background-color: #E7DFC5;
     color: #16181d;
   }
+  /* Each signed-in screen eases in instead of snapping. */
+  .portal-bg {
+    animation: portalIn 0.35s ease-out both;
+  }
+  @keyframes portalIn {
+    /* Opacity only — a transform here would briefly make this element the
+       containing block for the fixed map and any fixed modals inside it. */
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .portal-bg { animation: none; }
+  }
+
   .portal-bg::before {
     content: '';
     position: fixed;

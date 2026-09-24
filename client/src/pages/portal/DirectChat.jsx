@@ -3,6 +3,7 @@ import { Link, useParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
+import { success as hapticSuccess } from '../../utils/haptics';
 import ReportUserModal from '../../components/ReportUserModal';
 
 const AVATAR_FALLBACK = 'https://heyder.nz/wp-content/uploads/2026/06/account-2.png';
@@ -44,6 +45,7 @@ export default function DirectChat() {
       const res = await api.post(`/connections/${connectionId}/messages`, { text: value });
       setData(prev => ({ ...prev, messages: [...(prev.messages || []), res.data.message] }));
       setText('');
+      hapticSuccess();
     } catch (err) {
       toast.error(err.response?.data?.error || 'Could not send that message.');
     } finally {

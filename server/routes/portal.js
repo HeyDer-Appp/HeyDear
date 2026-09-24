@@ -153,6 +153,14 @@ router.post('/subscription/renew', attendeeAuth, async (req, res) => {
     if (subSnap.empty) return res.status(400).json({ error: 'No subscription on file to renew.' });
 
     const latest = subSnap.docs.sort((a, b) => (b.data().updatedAt?.toMillis?.() || 0) - (a.data().updatedAt?.toMillis?.() || 0))[0];
+    // This just pushes a date forward — no payment is taken. Fine for the
+    // simulated memberships test mode creates, but on a real Stripe
+    // subscription it would hand out free months to anyone calling the
+    // endpoint (the app never hides it from the API). Real ones renew
+    // themselves through Stripe's webhook.
+    if (!latest.id.startsWith('sim_')) {
+      return res.status(400).json({ error: 'Your membership renews automatically.' });
+    }
     const currentEnd = toDate(latest.data().currentPeriodEnd) || new Date();
     const base = currentEnd > new Date() ? currentEnd : new Date();
     const newEnd = new Date(base.getTime() + 30 * 24 * 60 * 60 * 1000);
@@ -637,8 +645,10 @@ router.post('/cancel-pending/:bookingId', attendeeAuth, async (req, res) => {
 // Deletes the account and everything tied to it: cancels any live Stripe
 // subscription first (otherwise the user keeps being billed after their
 // data is gone), then wipes every Firestore doc keyed to this uid, then
-// removes the Firebase Auth account itself. Table group chat messages are
-// left in place since they're shared history other members still see.
+// removes the Firebase Auth account itself. Their feedback goes too. Table
+// group chat is shared history other members still see, so free-text messages
+// they wrote are deleted, and the fixed icebreaker prompts/answers (which
+// carry no personal text) stay but are detached from them.
 router.delete('/account', attendeeAuth, async (req, res) => {
   const uid = req.user.id;
   try {
@@ -653,7 +663,7 @@ router.delete('/account', attendeeAuth, async (req, res) => {
     const [
       bookingsSnap, paymentsSnap, tableMembersSnap, dinnerPhotosSnap,
       connectionsA, connectionsB, requestsTo, requestsFrom,
-      dismissalsBy, dismissalsOf, pushSubsSnap,
+      dismissalsBy, dismissalsOf, pushSubsSnap, feedbackSnap, groupMsgsSnap,
     ] = await Promise.all([
       db.collection('bookings').where('userId', '==', uid).get(),
       db.collection('payments').where('userId', '==', uid).get(),
@@ -666,7 +676,11 @@ router.delete('/account', attendeeAuth, async (req, res) => {
       db.collection('connectionDismissals').where('dismisserId', '==', uid).get(),
       db.collection('connectionDismissals').where('targetId', '==', uid).get(),
       db.collection('pushSubscriptions').where('userId', '==', uid).get(),
+      db.collection('feedback').where('userId', '==', uid).get(),
+      db.collection('groupMessages').where('userId', '==', uid).get(),
     ]);
+    const ownTextMsgs = groupMsgsSnap.docs.filter((d) => d.data().type === 'text');
+    const otherMsgs = groupMsgsSnap.docs.filter((d) => d.data().type !== 'text');
 
     const connectionDocs = [...connectionsA.docs, ...connectionsB.docs];
     const connectionIds = connectionDocs.map((d) => d.id);
@@ -687,12 +701,20 @@ router.delete('/account', attendeeAuth, async (req, res) => {
       ...dismissalsBy.docs.map((d) => d.ref),
       ...dismissalsOf.docs.map((d) => d.ref),
       ...pushSubsSnap.docs.map((d) => d.ref),
+      ...feedbackSnap.docs.map((d) => d.ref),
+      ...ownTextMsgs.map((d) => d.ref),
       ...dmSnaps.flatMap((snap) => snap.docs.map((d) => d.ref)),
     ];
 
     for (let i = 0; i < refs.length; i += 400) {
       const batch = db.batch();
       refs.slice(i, i + 400).forEach((ref) => batch.delete(ref));
+      await batch.commit();
+    }
+
+    for (let i = 0; i < otherMsgs.length; i += 400) {
+      const batch = db.batch();
+      otherMsgs.slice(i, i + 400).forEach((d) => batch.set(d.ref, { userId: null }, { merge: true }));
       await batch.commit();
     }
 

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
+import { success as hapticSuccess } from '../../utils/haptics';
 import BottomNav from '../../components/BottomNav';
 import ProfileAvatar from '../../components/ProfileAvatar';
 import { flagUrl } from '../../utils/flags';
@@ -381,6 +382,7 @@ function GroupDetail({ tableId, onBack }) {
       const res = await api.post(`/group/${tableId}/messages`, { text: value });
       setData(prev => ({ ...prev, messages: [...(prev.messages || []), res.data.message] }));
       setText('');
+      hapticSuccess();
     } catch (err) {
       toast.error(err.response?.data?.error || 'Could not send that message.');
     } finally {

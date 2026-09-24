@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import api from '../utils/api';
+import { tick } from '../utils/haptics';
 import { useAuth } from '../context/AuthContext';
 import { fileToResizedBase64 } from '../utils/image';
 import { DIAL_CODES, COUNTRY_LIST } from '../utils/flags';
@@ -435,7 +436,7 @@ export function ScaleSlider({ q, value, onChange, theme = 'dark' }) {
   const maybeVibrate = (v) => {
     if (lastVibrateValue.current === v) return;
     lastVibrateValue.current = v;
-    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(8);
+    tick();
   };
 
   // Bypasses the native <input type="range">'s own drag handling entirely —

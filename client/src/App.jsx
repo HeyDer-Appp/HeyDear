@@ -4,6 +4,9 @@ import { Toaster } from 'react-hot-toast';
 import { Capacitor } from '@capacitor/core';
 import { App as CapacitorApp } from '@capacitor/app';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import NativePushBootstrap from './components/NativePushBootstrap';
+import PullToRefresh from './components/PullToRefresh';
+import OfflineBanner from './components/OfflineBanner';
 
 class ErrorBoundary extends React.Component {
   state = { error: null };
@@ -117,6 +120,8 @@ function useResumeToDashboard() {
       if (sessionStorage.getItem('heyder_pending_session_id')) return;
       if (location.pathname.startsWith('/admin')) return;
       if (location.pathname === '/portal/dashboard') return;
+      // Just tapped a notification — that tap is taking us somewhere specific.
+      if (Date.now() - (window.__heyderNotifTapAt || 0) < 4000) return;
       navigate('/portal/dashboard');
     });
     return () => { listenerPromise.then(l => l.remove()); };
@@ -125,7 +130,12 @@ function useResumeToDashboard() {
 
 function AppRoutes() {
   useResumeToDashboard();
+  const { pathname } = useLocation();
   return (
+    <>
+    <NativePushBootstrap />
+    <OfflineBanner />
+    {pathname.startsWith('/portal') && <PullToRefresh />}
     <Routes>
       <Route path="/" element={<HomeRoute />} />
       <Route path="/about" element={<About />} />
@@ -165,6 +175,7 @@ function AppRoutes() {
       <Route path="/admin/feedback" element={<AdminRoute><AdminFeedback /></AdminRoute>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </>
   );
 }
 

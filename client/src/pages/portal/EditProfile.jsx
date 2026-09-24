@@ -12,6 +12,7 @@ import BottomNav from '../../components/BottomNav';
 import { Stagger, Rise } from '../../components/Motion';
 import PhotoCropModal from '../../components/PhotoCropModal';
 import { isPushSupported, getPermissionState, subscribeToPush, unsubscribeFromPush } from '../../utils/push';
+import { hapticsEnabled, setHapticsEnabled, tap as hapticTap } from '../../utils/haptics';
 
 const choiceIdle =
   'border-transparent bg-navy/[0.05] text-navy/70 hover:bg-navy/[0.09] hover:text-navy';
@@ -54,11 +55,7 @@ function SubscriptionCard({ renewsAt, dinnersAttended, onRenew, renewing, onMana
         </div>
       </div>
       {showRenew && (
-        <>
-          <button onClick={onRenew} disabled={renewing} className="plum-cta w-full disabled:opacity-60 mb-2">
-            {renewing ? '...' : 'Renew'}
-          </button>
-        </>
+        <p className="font-sans text-navy/55 text-xs mb-3">Renews automatically.</p>
       )}
       <button
         onClick={onManageBilling}
@@ -140,6 +137,7 @@ export default function EditProfile() {
   const [notifState, setNotifState] = useState(() => getPermissionState());
   const [notifBusy, setNotifBusy] = useState(false);
   const [managingBilling, setManagingBilling] = useState(false);
+  const [hapticsOn, setHapticsOn] = useState(() => hapticsEnabled());
   const photoInputRef = useRef(null);
   const seededRef = useRef(false);
 
@@ -452,6 +450,13 @@ export default function EditProfile() {
                     className="w-full text-left px-4 py-3 font-sans text-base text-navy/85 hover:bg-white/60 transition-colors border-t border-navy/10"
                   >
                     Reset password
+                  </button>
+                  <button
+                    onClick={() => { const next = !hapticsOn; setHapticsEnabled(next); setHapticsOn(next); if (next) hapticTap(); }}
+                    className="w-full text-left px-4 py-3 font-sans text-base text-navy/85 hover:bg-white/60 transition-colors border-t border-navy/10 flex items-center justify-between gap-2"
+                  >
+                    <span>Vibration</span>
+                    <span className={`font-sans text-xs ${hapticsOn ? 'text-plum' : 'text-navy/45'}`}>{hapticsOn ? 'On' : 'Off'}</span>
                   </button>
                   {isPushSupported() && (
                     <button

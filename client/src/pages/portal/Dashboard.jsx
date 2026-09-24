@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
+import { success as hapticSuccess } from '../../utils/haptics';
 import BottomNav from '../../components/BottomNav';
 import OnboardingTour from '../../components/OnboardingTour';
 import { flagUrl } from '../../utils/flags';
@@ -428,6 +429,7 @@ function DinnerCard({ dinner, onCancel, onRsvpUpdate }) {
     try {
       await api.patch(`/portal/rsvp/${dinner.table_id}`, { attending: value });
       setRsvpAttending(value);
+      hapticSuccess();
       onRsvpUpdate?.(dinner.table_id, value);
     } catch {
       toast.error('Could not save your response. Try again.');
