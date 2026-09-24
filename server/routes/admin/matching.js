@@ -5,6 +5,8 @@ const { adminAuth } = require('../../middleware/auth');
 const emailService = require('../../services/email');
 const pushService = require('../../services/push');
 const { bookingToPerson } = require('../../utils/bookingView');
+const { matchGroups, validateTable } = require('../../services/matching');
+const { buildInsights, publicInsights } = require('../../services/matchingLearning');
 
 function dinnerDateKey(dinner) {
   return dinner.date.toDate().toISOString().split('T')[0];
@@ -155,6 +157,7 @@ router.get('/tables/:dinnerId', adminAuth, async (req, res) => {
         restaurant_address: restaurant?.address,
         booking_name: table.bookingName || null,
         members,
+        ...validateTable(members),
       };
     }));
 
@@ -191,11 +194,12 @@ router.post('/tables', adminAuth, async (req, res) => {
 router.patch('/tables/:tableId', adminAuth, async (req, res) => {
   try {
     const { tableId } = req.params;
-    const { restaurantId, tableNumber, bookingName } = req.body;
+    const { restaurantId, tableNumber, bookingName, name } = req.body;
     const updates = { updatedAt: admin.firestore.FieldValue.serverTimestamp() };
     if ('restaurantId' in req.body) updates.restaurantId = restaurantId || null;
     if (tableNumber !== undefined) updates.table_number = tableNumber;
     if ('bookingName' in req.body) updates.bookingName = bookingName || null;
+    if (typeof name === 'string') updates.name = name.trim().slice(0, 40) || null;
 
     const ref = db.collection('tables').doc(tableId);
     const snap = await ref.get();
@@ -214,6 +218,23 @@ router.patch('/tables/:tableId', adminAuth, async (req, res) => {
       restaurant_name: restaurant?.name || null,
       restaurant_address: restaurant?.address || null,
     });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Removes an empty, unconfirmed group.
+router.delete('/tables/:tableId', adminAuth, async (req, res) => {
+  try {
+    const ref = db.collection('tables').doc(req.params.tableId);
+    const snap = await ref.get();
+    if (!snap.exists) return res.json({ success: true });
+    if (snap.data().status === 'confirmed') return res.status(400).json({ error: 'Unlock the group first.' });
+    const members = await db.collection('tableMembers').where('tableId', '==', ref.id).get();
+    if (!members.empty) return res.status(400).json({ error: 'Move the people out first.' });
+    await ref.delete();
+    res.json({ success: true });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
@@ -248,49 +269,7 @@ router.post('/tables/:tableId/assign', adminAuth, async (req, res) => {
     if (bookingDoc.data().paid === false) {
       return res.status(400).json({ error: "This booking hasn't been paid for yet — can't seat them until it is." });
     }
-    const person = bookingToPerson(bookingDoc.id, bookingDoc.data());
-
-    await Promise.all([
-      memberRef.set({
-        tableId,
-        dinnerId: table.dinnerId,
-        user_id: userId,
-        confirmed: false,
-        unique_fact: null,
-        held_over: false,
-        no_show_risk: false,
-        admin_note: null,
-        email_confirmation_sent: false,
-        email_group_found_sent: false,
-        email_glimpse_sent: false,
-        email_venue_sent: false,
-        email_reminder_sent: false,
-        email_feedback_sent: false,
-        firstName: person.first_name,
-        lastName: person.last_name,
-        email: person.email,
-        phone: person.phone,
-        gender: person.gender,
-        country: person.country,
-        dob: person.dob,
-        intent: person.intent,
-        personality: person.personality,
-        budget: person.budget,
-        reliability_score: person.reliability_score,
-        dietary: person.dietary,
-        dietary_other: person.dietary_other,
-        group_role: person.group_role,
-        conflict_style: person.conflict_style,
-        connection_trigger: person.connection_trigger,
-        social_recharge: person.social_recharge,
-        conversation_avoid: person.conversation_avoid,
-        first_meeting_style: person.first_meeting_style,
-        career_description: person.career_description,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      }),
-      bookingDoc.ref.set({ matched: true, tableId, dinnerId: table.dinnerId }, { merge: true }),
-    ]);
+    await seatBooking(tableId, table.dinnerId, userId, bookingDoc);
 
     res.json({ success: true });
   } catch (err) {
@@ -316,33 +295,36 @@ router.delete('/tables/:tableId/members/:userId', adminAuth, async (req, res) =>
   }
 });
 
+async function confirmTableInternal(tableId, adminId) {
+  const tableRef = db.collection('tables').doc(tableId);
+  const tableSnap = await tableRef.get();
+  if (!tableSnap.exists) return false;
+
+  await tableRef.set({
+    status: 'confirmed',
+    confirmedAt: admin.firestore.FieldValue.serverTimestamp(),
+    confirmedBy: adminId,
+  }, { merge: true });
+
+  const membersSnap = await db.collection('tableMembers').where('tableId', '==', tableId).get();
+  const batch = db.batch();
+  membersSnap.docs.forEach(d => batch.set(d.ref, { confirmed: true }, { merge: true }));
+  await batch.commit();
+
+  const table = tableSnap.data();
+  const dinnerSnap = await db.collection('dinners').doc(table.dinnerId).get();
+  const dinnerDate = dinnerSnap.exists ? dinnerSnap.data().date.toDate() : null;
+  const formattedDate = dinnerDate
+    ? dinnerDate.toLocaleDateString('en-NZ', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Pacific/Auckland' })
+    : 'Tuesday';
+  pushService.sendToTable(tableId, pushService.notifications.groupFound(formattedDate)).catch(() => {});
+  return true;
+}
+
 router.post('/tables/:tableId/confirm', adminAuth, async (req, res) => {
   try {
-    const { tableId } = req.params;
-
-    const tableRef = db.collection('tables').doc(tableId);
-    const tableSnap = await tableRef.get();
-    if (!tableSnap.exists) return res.status(404).json({ error: 'Table not found' });
-
-    await tableRef.set({
-      status: 'confirmed',
-      confirmedAt: admin.firestore.FieldValue.serverTimestamp(),
-      confirmedBy: req.admin.id,
-    }, { merge: true });
-
-    const membersSnap = await db.collection('tableMembers').where('tableId', '==', tableId).get();
-    const batch = db.batch();
-    membersSnap.docs.forEach(d => batch.set(d.ref, { confirmed: true }, { merge: true }));
-    await batch.commit();
-
-    const table = tableSnap.data();
-    const dinnerSnap = await db.collection('dinners').doc(table.dinnerId).get();
-    const dinnerDate = dinnerSnap.exists ? dinnerSnap.data().date.toDate() : null;
-    const formattedDate = dinnerDate
-      ? dinnerDate.toLocaleDateString('en-NZ', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Pacific/Auckland' })
-      : 'Tuesday';
-    pushService.sendToTable(tableId, pushService.notifications.groupFound(formattedDate)).catch(() => {});
-
+    const ok = await confirmTableInternal(req.params.tableId, req.admin.id);
+    if (!ok) return res.status(404).json({ error: 'Table not found' });
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
@@ -486,5 +468,164 @@ function countryToFlag(country) {
   };
   return flags[country] || '🌏';
 }
+
+function memberDocFor(tableId, dinnerId, userId, person) {
+  return {
+    tableId,
+    dinnerId,
+    user_id: userId,
+    confirmed: false,
+    unique_fact: null,
+    held_over: false,
+    no_show_risk: false,
+    admin_note: null,
+    email_confirmation_sent: false,
+    email_group_found_sent: false,
+    email_glimpse_sent: false,
+    email_venue_sent: false,
+    email_reminder_sent: false,
+    email_feedback_sent: false,
+    firstName: person.first_name,
+    lastName: person.last_name,
+    email: person.email,
+    phone: person.phone,
+    gender: person.gender,
+    country: person.country,
+    dob: person.dob,
+    intent: person.intent,
+    personality: person.personality,
+    budget: person.budget,
+    reliability_score: person.reliability_score,
+    dietary: person.dietary,
+    dietary_other: person.dietary_other,
+    group_role: person.group_role,
+    conflict_style: person.conflict_style,
+    connection_trigger: person.connection_trigger,
+    social_recharge: person.social_recharge,
+    conversation_avoid: person.conversation_avoid,
+    first_meeting_style: person.first_meeting_style,
+    career_description: person.career_description,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  };
+}
+
+// ── Automatic group allocation ────────────────────────────────────────────────
+
+const GROUP_NAMES = ['Bali', 'Tokyo', 'Lisbon', 'Rome', 'Kyoto', 'Oslo', 'Cairo', 'Lima', 'Havana', 'Seoul', 'Athens', 'Dublin', 'Vienna', 'Prague', 'Cusco', 'Hanoi', 'Marrakech', 'Santorini', 'Bergen', 'Porto', 'Tulum', 'Zurich', 'Sydney', 'Paris'];
+
+async function seatBooking(tableId, dinnerId, userId, bookingDoc) {
+  const person = bookingToPerson(bookingDoc.id, bookingDoc.data());
+  await Promise.all([
+    db.collection('tableMembers').doc(`${tableId}_${userId}`).set(memberDocFor(tableId, dinnerId, userId, person)),
+    bookingDoc.ref.set({ matched: true, tableId, dinnerId }, { merge: true }),
+  ]);
+}
+
+// What the learning step has found so far, in plain language.
+router.get('/insights', adminAuth, async (req, res) => {
+  try {
+    res.json({ insights: publicInsights(await buildInsights()) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Builds the groups for a dinner from everyone still unplaced, following the
+// allocation rules. Tables already confirmed are left alone; any unconfirmed
+// draft tables are cleared and rebuilt (people return to the pool first, so a
+// re-run reshuffles everyone who isn't locked in).
+router.post('/auto/:dinnerId', adminAuth, async (req, res) => {
+  try {
+    const { dinnerId } = req.params;
+    const useLearning = req.body?.useLearning !== false;
+    const seed = Number.isFinite(req.body?.seed) ? req.body.seed : Math.floor(Math.random() * 1e6);
+
+    const dinnerSnap = await db.collection('dinners').doc(dinnerId).get();
+    if (!dinnerSnap.exists) return res.status(404).json({ error: 'Dinner not found' });
+    const dateKey = dinnerDateKey(dinnerSnap.data());
+
+    const tablesSnap = await db.collection('tables').where('dinnerId', '==', dinnerId).get();
+    const openTables = tablesSnap.docs.filter((d) => d.data().status !== 'confirmed');
+    const confirmedTables = tablesSnap.docs.filter((d) => d.data().status === 'confirmed');
+
+    // 1. Put everyone from the draft tables back in the pool.
+    for (const t of openTables) {
+      const members = await db.collection('tableMembers').where('tableId', '==', t.id).get();
+      const bookings = await db.collection('bookings').where('tableId', '==', t.id).get();
+      await Promise.all([
+        ...members.docs.map((m) => m.ref.delete()),
+        ...bookings.docs.map((b) => b.ref.set({ matched: false, tableId: null, dinnerId: null }, { merge: true })),
+      ]);
+    }
+    await Promise.all(openTables.map((t) => t.ref.delete()));
+
+    // 2. Everyone unplaced and paid for (people held over to next week are skipped).
+    const poolSnap = await db.collection('bookings').where('tuesdayDate', '==', dateKey).where('matched', '==', false).get();
+    const pool = poolSnap.docs.filter((d) => d.data().paid !== false && !d.data().held_over);
+    if (!pool.length) return res.json({ tables: 0, placed: 0, unplaced: [], warnings: [], note: 'Nobody is waiting to be placed.' });
+    const people = pool.map((d) => bookingToPerson(d.id, d.data()));
+    const bookingByUser = Object.fromEntries(pool.map((d) => [d.data().userId, d]));
+
+    // 3. Learning: history of who has met + what makes tables work.
+    let insights = null;
+    if (useLearning) insights = await buildInsights().catch(() => null);
+    const result = matchGroups(people, {
+      seed,
+      history: insights?.history || null,
+      learnedFn: insights?.learnedFn || null,
+    });
+
+    // 4. Create the tables and seat everyone.
+    const usedNames = new Set(confirmedTables.map((t) => t.data().name).filter(Boolean));
+    const nextName = () => GROUP_NAMES.find((n) => !usedNames.has(n)) || `Group ${usedNames.size + 1}`;
+    let number = Math.max(0, ...confirmedTables.map((t) => t.data().table_number || 0));
+    const created = [];
+    for (const memberIds of result.tables) {
+      number += 1;
+      const name = nextName(); usedNames.add(name);
+      const ref = await db.collection('tables').add({
+        dinnerId, restaurantId: null, table_number: number, name, bookingName: `HeyDer ${name}`,
+        status: 'open', autoAllocated: true,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(), updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      for (const uid of memberIds) await seatBooking(ref.id, dinnerId, uid, bookingByUser[uid]);
+      created.push(ref.id);
+    }
+
+    res.json({
+      tables: created.length,
+      placed: result.tables.reduce((n, t) => n + t.length, 0),
+      unplaced: result.unplaced.map((u) => ({ ...u, name: (people.find((p) => p.id === u.id)?.first_name) || '' })),
+      warnings: result.warnings,
+      score: result.score,
+      learning: insights?.learnedFn ? { responses: insights.responses } : { responses: insights?.responses || 0, note: 'Not enough feedback yet — rules only.' },
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Could not build the groups' });
+  }
+});
+
+// Locks in every draft table that has people in it, in one go.
+router.post('/confirm-all/:dinnerId', adminAuth, async (req, res) => {
+  try {
+    const { dinnerId } = req.params;
+    const tablesSnap = await db.collection('tables').where('dinnerId', '==', dinnerId).get();
+    let confirmed = 0;
+    for (const t of tablesSnap.docs) {
+      if (t.data().status === 'confirmed') continue;
+      const members = await db.collection('tableMembers').where('tableId', '==', t.id).get();
+      if (members.size < 2) continue;
+      await confirmTableInternal(t.id, req.admin.id);
+      confirmed += 1;
+    }
+    res.json({ success: true, confirmed });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
 
 module.exports = router;

@@ -11,7 +11,7 @@ const { bookingToPerson } = require('../../utils/bookingView');
 // scale (hundreds, not millions, of signups per dinner).
 router.get('/', adminAuth, async (req, res) => {
   try {
-    const { date, intent, gender, city, search, page = 1, limit = 50 } = req.query;
+    const { date, intent, gender, city, search, status, page = 1, limit = 50 } = req.query;
 
     let query = db.collection('bookings');
     if (date) query = query.where('tuesdayDate', '==', date);
@@ -27,6 +27,10 @@ router.get('/', adminAuth, async (req, res) => {
       const { submittedAt, ...raw } = data;
       return { ...person, is_matched: !!data.matched, table_id: data.tableId || null, raw };
     });
+
+    // "new" = signed up and paid but not yet placed in a group
+    if (status === 'new') signups = signups.filter(s => !s.is_matched && s.raw.paid !== false);
+    else if (status === 'placed') signups = signups.filter(s => s.is_matched);
 
     if (intent) {
       const needle = intent.toLowerCase();
@@ -52,7 +56,16 @@ router.get('/', adminAuth, async (req, res) => {
       submitted_at: s.submitted_at?.toDate?.().toISOString() || null,
     }));
 
-    res.json({ signups: paged, total, page: pageNum, pages: Math.ceil(total / limitNum) });
+    // Whole-database numbers (ignoring the filters above) for the headline counters.
+    const all = await db.collection('bookings').select('matched', 'paid', 'userId').get();
+    const everyone = all.docs.map(d => d.data());
+    const stats = {
+      total_signups: everyone.length,
+      total_people: new Set(everyone.map(b => b.userId).filter(Boolean)).size,
+      new_signups: everyone.filter(b => !b.matched && b.paid !== false).length,
+    };
+
+    res.json({ signups: paged, total, page: pageNum, pages: Math.ceil(total / limitNum), stats });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });

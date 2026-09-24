@@ -3,6 +3,7 @@ const router = express.Router();
 const { admin, db } = require('../firebase');
 const { adminAuth } = require('../middleware/auth');
 const { feedbackLimiter } = require('../middleware/rateLimiter');
+const pushService = require('../services/push');
 
 router.post('/submit', feedbackLimiter, async (req, res) => {
   try {
@@ -74,6 +75,72 @@ router.get('/', adminAuth, async (req, res) => {
     };
 
     res.json({ feedback, stats });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Every diner at a dinner, with their table and what they said (or that they
+// haven't yet) — the "see feedback of each and every diner" view.
+async function dinnerDiners(dinnerId) {
+  const tablesSnap = await db.collection('tables').where('dinnerId', '==', dinnerId).get();
+  const tables = Object.fromEntries(tablesSnap.docs.map(d => [d.id, { id: d.id, ...d.data() }]));
+  const [membersSnap, fbSnap] = await Promise.all([
+    db.collection('tableMembers').where('dinnerId', '==', dinnerId).get(),
+    db.collection('feedback').where('dinnerId', '==', dinnerId).get(),
+  ]);
+  const fbByUser = {};
+  fbSnap.docs.forEach(d => { if (d.data().userId) fbByUser[d.data().userId] = { id: d.id, ...d.data() }; });
+  const diners = membersSnap.docs
+    .map(d => d.data())
+    .filter(m => tables[m.tableId] && tables[m.tableId].status === 'confirmed')
+    .map(m => {
+      const f = fbByUser[m.user_id];
+      return {
+        user_id: m.user_id,
+        name: [m.firstName, m.lastName].filter(Boolean).join(' ') || 'Guest',
+        table_id: m.tableId,
+        table_name: tables[m.tableId].name || null,
+        table_number: tables[m.tableId].tableNumber || null,
+        submitted: !!f,
+        overall_rating: f ? f.overall_rating ?? null : null,
+        group_fit: f ? f.group_fit ?? null : null,
+        venue_rating: f ? f.venue_rating ?? null : null,
+        notes: f ? f.experience_notes || null : null,
+        submitted_at: f && f.submittedAt && f.submittedAt.toDate ? f.submittedAt.toDate().toISOString() : null,
+      };
+    })
+    .sort((a, b) => String(a.table_name || a.table_number || '').localeCompare(String(b.table_name || b.table_number || '')) || a.name.localeCompare(b.name));
+  return diners;
+}
+
+router.get('/by-dinner/:dinnerId', adminAuth, async (req, res) => {
+  try {
+    const diners = await dinnerDiners(req.params.dinnerId);
+    const rated = diners.filter(d => d.submitted);
+    const avg = (k) => { const v = rated.filter(d => d[k] != null); return v.length ? v.reduce((s, d) => s + d[k], 0) / v.length : null; };
+    res.json({
+      diners,
+      stats: { diners: diners.length, responded: rated.length, avg_rating: avg('overall_rating'), avg_group_fit: avg('group_fit'), avg_venue_rating: avg('venue_rating') },
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Nudge the diners who haven't given feedback yet.
+router.post('/request/:dinnerId', adminAuth, async (req, res) => {
+  try {
+    const { dinnerId } = req.params;
+    const pending = (await dinnerDiners(dinnerId)).filter(d => !d.submitted && d.user_id);
+    let sent = 0;
+    for (const d of pending) {
+      const payload = pushService.notifications.custom('How was your dinner? 💬', 'Two minutes to share your feedback — it shapes every dinner.', `/feedback/${dinnerId}?uid=${d.user_id}`);
+      try { sent += await pushService.sendToUser(d.user_id, payload); } catch { /* skip */ }
+    }
+    res.json({ success: true, pending: pending.length, sent });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });

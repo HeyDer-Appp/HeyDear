@@ -1,6 +1,7 @@
 const { db } = require('../firebase');
 const { nzTime } = require('../utils/nzTime');
 const pushService = require('./push');
+const reminders = require('./reminders');
 
 // Mirrors portal.js's glimpseRevealAt/venueRevealAt (48h / 24h before the
 // 7pm dinner) — kept in sync manually since these live in separate route
@@ -99,12 +100,12 @@ async function checkReveals() {
 }
 
 function start() {
-  checkReveals().catch((err) => console.error('scheduler: initial checkReveals failed', err));
-  checkFindGroupReminders().catch((err) => console.error('scheduler: initial checkFindGroupReminders failed', err));
+  // Glimpse / venue / RSVP / feedback / booking nudges all run through the
+  // editable reminder rules now (services/reminders.js).
+  reminders.runReminders().catch((err) => console.error('scheduler: initial runReminders failed', err));
   pushService.runDueCampaigns().catch((err) => console.error('scheduler: initial runDueCampaigns failed', err));
   setInterval(() => {
-    checkReveals().catch((err) => console.error('scheduler: checkReveals failed', err));
-    checkFindGroupReminders().catch((err) => console.error('scheduler: checkFindGroupReminders failed', err));
+    reminders.runReminders().catch((err) => console.error('scheduler: runReminders failed', err));
     pushService.runDueCampaigns().catch((err) => console.error('scheduler: runDueCampaigns failed', err));
   }, CHECK_INTERVAL_MS);
 }
