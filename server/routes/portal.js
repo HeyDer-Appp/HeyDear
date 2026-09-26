@@ -570,6 +570,35 @@ async function refundLatestPayment(uid) {
   }
 }
 
+// Cancelling deletes the booking, so keep a small record for the admin's
+// "Cancelled" list (who, which dinner, whether they'd been placed, refund).
+async function recordCancellation({ uid, booking, member, table, tableId, dinnerId, kind, refunded }) {
+  try {
+    const b = booking || {};
+    const m = member || {};
+    let tuesdayDate = b.tuesdayDate || null;
+    if (!tuesdayDate && dinnerId) {
+      const d = await db.collection('dinners').doc(dinnerId).get();
+      const dt = d.exists ? toDate(d.data().date) : null;
+      tuesdayDate = dt ? dt.toISOString().split('T')[0] : null;
+    }
+    await db.collection('cancellations').add({
+      userId: uid,
+      firstName: b.firstName || b.first_name || m.firstName || null,
+      lastName: b.lastName || b.last_name || m.lastName || null,
+      email: b.email || m.email || null,
+      phone: b.phone || m.phone || null,
+      dinnerId: dinnerId || b.dinnerId || null,
+      tuesdayDate,
+      tableId: tableId || null,
+      tableName: table ? (table.name || null) : null,
+      kind, // 'pending' = cancelled before being placed, 'placed' = cancelled from a group
+      refunded: !!refunded,
+      cancelledAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  } catch (e) { console.error('recordCancellation failed', e.message); }
+}
+
 router.post('/cancel/:tableId', attendeeAuth, async (req, res) => {
   try {
     const { tableId } = req.params;
@@ -602,9 +631,11 @@ router.post('/cancel/:tableId', attendeeAuth, async (req, res) => {
       .where('userId', '==', req.user.id)
       .where('tableId', '==', tableId)
       .get();
+    const bookingData = bookingSnap.docs[0] ? bookingSnap.docs[0].data() : null;
     await Promise.all(bookingSnap.docs.map(d => d.ref.delete()));
 
     const refunded = await refundLatestPayment(req.user.id);
+    await recordCancellation({ uid: req.user.id, booking: bookingData, member: memberSnap.data(), table, tableId, dinnerId: table.dinnerId, kind: 'placed', refunded });
 
     res.json({
       success: true,
@@ -635,6 +666,7 @@ router.post('/cancel-pending/:bookingId', attendeeAuth, async (req, res) => {
 
     await ref.delete();
     const refunded = await refundLatestPayment(req.user.id);
+    await recordCancellation({ uid: req.user.id, booking, dinnerId: booking.dinnerId, kind: 'pending', refunded });
 
     res.json({
       success: true,
@@ -669,7 +701,7 @@ router.delete('/account', attendeeAuth, async (req, res) => {
     const [
       bookingsSnap, paymentsSnap, tableMembersSnap, dinnerPhotosSnap,
       connectionsA, connectionsB, requestsTo, requestsFrom,
-      dismissalsBy, dismissalsOf, pushSubsSnap, feedbackSnap, groupMsgsSnap,
+      dismissalsBy, dismissalsOf, pushSubsSnap, feedbackSnap, groupMsgsSnap, cancellationsSnap,
     ] = await Promise.all([
       db.collection('bookings').where('userId', '==', uid).get(),
       db.collection('payments').where('userId', '==', uid).get(),
@@ -684,6 +716,7 @@ router.delete('/account', attendeeAuth, async (req, res) => {
       db.collection('pushSubscriptions').where('userId', '==', uid).get(),
       db.collection('feedback').where('userId', '==', uid).get(),
       db.collection('groupMessages').where('userId', '==', uid).get(),
+      db.collection('cancellations').where('userId', '==', uid).get(),
     ]);
     const ownTextMsgs = groupMsgsSnap.docs.filter((d) => d.data().type === 'text');
     const otherMsgs = groupMsgsSnap.docs.filter((d) => d.data().type !== 'text');
@@ -708,6 +741,7 @@ router.delete('/account', attendeeAuth, async (req, res) => {
       ...dismissalsOf.docs.map((d) => d.ref),
       ...pushSubsSnap.docs.map((d) => d.ref),
       ...feedbackSnap.docs.map((d) => d.ref),
+      ...cancellationsSnap.docs.map((d) => d.ref),
       ...ownTextMsgs.map((d) => d.ref),
       ...dmSnaps.flatMap((snap) => snap.docs.map((d) => d.ref)),
     ];

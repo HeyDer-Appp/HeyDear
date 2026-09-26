@@ -241,6 +241,56 @@ router.delete('/tables/:tableId', adminAuth, async (req, res) => {
   }
 });
 
+// Everyone who dropped out of this dinner: cancelled bookings (before or after
+// being placed) plus seated diners who answered "not coming" on the night.
+router.get('/cancelled/:dinnerId', adminAuth, async (req, res) => {
+  try {
+    const { dinnerId } = req.params;
+    const dinnerSnap = await db.collection('dinners').doc(dinnerId).get();
+    if (!dinnerSnap.exists) return res.status(404).json({ error: 'Dinner not found' });
+    const dateKey = dinnerDateKey(dinnerSnap.data());
+
+    const [byDate, byId, tablesSnap] = await Promise.all([
+      db.collection('cancellations').where('tuesdayDate', '==', dateKey).get(),
+      db.collection('cancellations').where('dinnerId', '==', dinnerId).get(),
+      db.collection('tables').where('dinnerId', '==', dinnerId).get(),
+    ]);
+    const seen = new Set();
+    const iso = (t) => (t && t.toDate ? t.toDate().toISOString() : null);
+    const out = [];
+    for (const d of [...byDate.docs, ...byId.docs]) {
+      if (seen.has(d.id)) continue; seen.add(d.id);
+      const c = d.data();
+      out.push({
+        id: d.id, user_id: c.userId,
+        name: [c.firstName, c.lastName].filter(Boolean).join(' ') || 'Unknown',
+        email: c.email || null, phone: c.phone || null,
+        reason: c.kind === 'placed' ? 'Cancelled after being placed' : 'Cancelled before being placed',
+        table_name: c.tableName || null, refunded: !!c.refunded, at: iso(c.cancelledAt),
+      });
+    }
+
+    // Seated but said "not coming" in the app on the night
+    const tableName = Object.fromEntries(tablesSnap.docs.map(t => [t.id, t.data().name || (t.data().table_number ? 'Table ' + t.data().table_number : null)]));
+    const membersSnap = await db.collection('tableMembers').where('dinnerId', '==', dinnerId).get();
+    for (const m of membersSnap.docs) {
+      const md = m.data();
+      if (md.rsvpAttending !== false) continue;
+      out.push({
+        id: m.id, user_id: md.user_id,
+        name: [md.firstName, md.lastName].filter(Boolean).join(' ') || 'Unknown',
+        email: md.email || null, phone: md.phone || null,
+        reason: 'Said not coming', table_name: tableName[md.tableId] || null, refunded: null, at: null,
+      });
+    }
+    out.sort((a, b) => (b.at || '').localeCompare(a.at || ''));
+    res.json({ cancelled: out });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 router.post('/tables/:tableId/assign', adminAuth, async (req, res) => {
   try {
     const { tableId } = req.params;
