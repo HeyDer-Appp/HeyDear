@@ -853,6 +853,23 @@ export default function PortalDashboard() {
   const [pricing, setPricing] = useState({ oneTimeAmount: 1000, subscriptionAmount: 1500 });
   const [selectedPlan, setSelectedPlan] = useState('one_time');
   const [submittingPayment, setSubmittingPayment] = useState(false);
+  const [showCoupon, setShowCoupon] = useState(false);
+  const [couponInput, setCouponInput] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [couponError, setCouponError] = useState('');
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
+  const applyCoupon = async () => {
+    if (!couponInput.trim()) return;
+    setValidatingCoupon(true); setCouponError('');
+    try {
+      const res = await api.post('/payments/validate-coupon', { code: couponInput.trim(), plan: selectedPlan });
+      setAppliedCoupon({ code: res.data.code, discountPercent: res.data.discountPercent });
+    } catch (err) {
+      setAppliedCoupon(null);
+      setCouponError(err.response?.data?.error || 'That code is invalid or has expired.');
+    } finally { setValidatingCoupon(false); }
+  };
+  const removeCoupon = () => { setAppliedCoupon(null); setCouponInput(''); setCouponError(''); };
   const stripeConfigured = !!import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
   const bookingDateField = bookingDate
     ? bookingDate.toLocaleDateString('en-NZ', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
@@ -939,6 +956,7 @@ export default function PortalDashboard() {
       const res = await api.post('/payments/create-checkout', {
         email: attendeeUser?.email,
         plan: selectedPlan,
+        couponCode: appliedCoupon?.code,
       });
       sessionStorage.setItem('heyder_quiz_answers', JSON.stringify(fullAnswers));
       sessionStorage.setItem('heyder_pending_session_id', res.data.sessionId);
@@ -956,9 +974,6 @@ export default function PortalDashboard() {
   // Persisted per-session — without this, leaving the tab (Album, Chat, etc.)
   // and coming back unmounts/remounts this component, resetting this to
   // false and replaying the full typing animation every single visit.
-  const [introHoldDone, setIntroHoldDone] = useState(() => {
-    try { return sessionStorage.getItem('heyder_intro_seen') === '1'; } catch { return false; }
-  });
 
   // Cached (stale-while-revalidate): a repeat visit shows what was here last
   // time instantly, while a fresh copy loads quietly in the background — see
@@ -989,7 +1004,7 @@ export default function PortalDashboard() {
   );
 
   const loading = profileLoading || dinnersLoading;
-  const showIntro = loading || !introHoldDone;
+  const showIntro = loading;
   const loadError = profileLoadError;
   const needsProfile = profileData?.needsProfile ?? false;
   const profile = profileData?.user ?? null;
@@ -1046,34 +1061,8 @@ export default function PortalDashboard() {
   // off immediately (no fade of its own) — the real screen's other
   // elements fade in around that already-visible word instead.
   if (showIntro) return (
-    <div
-      className="min-h-screen relative overflow-hidden"
-      style={{ background: '#E7DFC5' }}
-    >
-      <nav className="relative z-10 flex items-center justify-between px-6 py-5" aria-hidden="true">
-        <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="" className="h-7 opacity-0 brightness-0" />
-      </nav>
-
-      <div className="relative z-10 max-w-lg mx-auto px-5 py-10 space-y-8">
-        <div className="text-center" aria-hidden="true">
-          <p className="font-sans text-xs tracking-[0.2em] uppercase mb-3 opacity-0">Welcome to HeyDer</p>
-        </div>
-
-        <div className="pl-2">
-          <IntroText
-            line1={INTRO_LINE_1}
-            line2={INTRO_LINE_2}
-            finalWord="Location"
-            start
-            onDone={() => {
-              setIntroHoldDone(true);
-              try { sessionStorage.setItem('heyder_intro_seen', '1'); } catch {}
-            }}
-            className="text-navy leading-snug"
-            style={{ fontFamily: "'Permanent Marker', cursive" }}
-          />
-        </div>
-      </div>
+    <div className="min-h-screen flex items-center justify-center" style={{ background: '#E7DFC5' }}>
+      <div className="w-7 h-7 border-2 border-plum border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
@@ -1354,7 +1343,7 @@ export default function PortalDashboard() {
                           <div className="space-y-3 my-5 text-left">
                             <button
                               type="button"
-                              onClick={() => setSelectedPlan('one_time')}
+                              onClick={() => { setSelectedPlan('one_time'); if (appliedCoupon) removeCoupon(); }}
                               className="portal-login-input w-full text-left block transition-all duration-200"
                               style={selectedPlan === 'one_time' ? { borderColor: '#16181d', background: 'rgba(255,255,255,0.5)' } : undefined}
                             >
@@ -1365,7 +1354,7 @@ export default function PortalDashboard() {
                             </button>
                             <button
                               type="button"
-                              onClick={() => setSelectedPlan('subscription')}
+                              onClick={() => { setSelectedPlan('subscription'); if (appliedCoupon) removeCoupon(); }}
                               className="portal-login-input w-full text-left block relative transition-all duration-200"
                               style={selectedPlan === 'subscription' ? { borderColor: '#16181d', background: 'rgba(255,255,255,0.5)' } : undefined}
                             >
@@ -1376,6 +1365,30 @@ export default function PortalDashboard() {
                               </div>
                             </button>
                           </div>
+                          {appliedCoupon ? (
+                            <div className="flex items-center justify-between mb-3 font-sans text-sm text-navy/70">
+                              <span>✓ Code <span className="font-mono">{appliedCoupon.code}</span> — {appliedCoupon.discountPercent}% off</span>
+                              <button type="button" onClick={removeCoupon} className="text-navy/50 hover:text-navy text-xs">Remove</button>
+                            </div>
+                          ) : showCoupon ? (
+                            <div className="mb-3">
+                              <div className="flex gap-2">
+                                <input
+                                  className="portal-login-input !py-2.5 flex-1 uppercase"
+                                  placeholder="Coupon code"
+                                  value={couponInput}
+                                  onChange={e => { setCouponInput(e.target.value.toUpperCase()); setCouponError(''); }}
+                                  autoFocus
+                                />
+                                <button type="button" onClick={applyCoupon} disabled={validatingCoupon || !couponInput.trim()} className="px-4 rounded-2xl font-sans text-sm font-semibold disabled:opacity-50" style={{ background: '#754471', color: '#F5EDD8' }}>
+                                  {validatingCoupon ? '…' : 'Apply'}
+                                </button>
+                              </div>
+                              {couponError && <p className="font-sans text-red-600 text-xs mt-1.5 text-left">{couponError}</p>}
+                            </div>
+                          ) : (
+                            <button type="button" onClick={() => setShowCoupon(true)} className="block mx-auto mb-3 font-sans text-xs text-navy/55 underline underline-offset-2">Have a coupon code?</button>
+                          )}
                           <button
                             type="button"
                             onClick={handlePayInline}

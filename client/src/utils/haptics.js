@@ -43,9 +43,12 @@ export function tap() {
 
 // One notch of a slider / picker.
 export function tick() {
-  if (!hapticsEnabled() || throttled(25)) return;
-  if (mod) mod.Haptics.selectionChanged().catch(() => {});
-  else vibrate(6);
+  if (!hapticsEnabled() || throttled(30)) return;
+  // Impact rather than selectionChanged: on Android the latter is too faint to
+  // feel while a finger is moving. 14ms is about the shortest buzz a phone
+  // motor actually produces.
+  if (mod) mod.Haptics.impact({ style: mod.ImpactStyle.Light }).catch(() => {});
+  else vibrate(14);
 }
 
 export function medium() {

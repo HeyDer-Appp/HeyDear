@@ -109,6 +109,11 @@ function HomeRoute() {
 // payment went through; forcing a navigate away here would race and break
 // that check.
 function useResumeToDashboard() {
+  useEffect(() => {
+    const mark = (e) => { if (e.target && e.target.type === 'file') window.__heyderPickerAt = Date.now(); };
+    document.addEventListener('click', mark, true);
+    return () => document.removeEventListener('click', mark, true);
+  }, []);
   const navigate = useNavigate();
   const location = useLocation();
   const { attendeeUser } = useAuth();
@@ -120,6 +125,9 @@ function useResumeToDashboard() {
       if (sessionStorage.getItem('heyder_pending_session_id')) return;
       if (location.pathname.startsWith('/admin')) return;
       if (location.pathname === '/portal/dashboard') return;
+      // Coming back from the phone's photo picker (also an app pause/resume).
+      if (Date.now() - (window.__heyderPickerAt || 0) < 5 * 60 * 1000) return;
+      if (location.pathname.startsWith('/portal/profile') || location.pathname === '/profile') return;
       // Just tapped a notification — that tap is taking us somewhere specific.
       if (Date.now() - (window.__heyderNotifTapAt || 0) < 4000) return;
       navigate('/portal/dashboard');
