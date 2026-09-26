@@ -67,7 +67,7 @@ function AdminRoute({ children }) {
 
 function PortalRoute({ children }) {
   const { attendeeUser, loading } = useAuth();
-  if (loading) return <div className="min-h-screen bg-navy flex items-center justify-center"><div className="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin" /></div>;
+  if (loading) return <div className="min-h-screen flex items-center justify-center" style={{ background: '#E7DFC5' }}><div className="w-8 h-8 border-2 border-plum border-t-transparent rounded-full animate-spin" /></div>;
   return attendeeUser ? children : <Navigate to="/portal/login" replace />;
 }
 
@@ -131,11 +131,20 @@ function useResumeToDashboard() {
 function AppRoutes() {
   useResumeToDashboard();
   const { pathname } = useLocation();
+  // The page behind everything is dark by default; on the beige app screens
+  // that showed as a dark blink whenever one screen left before the next drew.
+  const beige = pathname.startsWith('/portal') || pathname.startsWith('/profile');
+  useEffect(() => {
+    const c = beige ? '#E7DFC5' : '';
+    document.documentElement.style.backgroundColor = c;
+    document.body.style.backgroundColor = c;
+  }, [beige]);
   return (
     <>
     <NativePushBootstrap />
     <OfflineBanner />
     {pathname.startsWith('/portal') && <PullToRefresh />}
+    <div key={pathname} className={beige ? 'route-fade' : undefined}>
     <Routes>
       <Route path="/" element={<HomeRoute />} />
       <Route path="/about" element={<About />} />
@@ -175,6 +184,7 @@ function AppRoutes() {
       <Route path="/admin/feedback" element={<AdminRoute><AdminFeedback /></AdminRoute>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </div>
     </>
   );
 }

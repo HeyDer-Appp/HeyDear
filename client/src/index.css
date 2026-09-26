@@ -156,6 +156,11 @@
     will-change: left, width;
   }
 
+  /* Screen changes fade in instead of popping, so nothing flashes between pages. */
+  .route-fade { animation: routeFade 180ms ease-out both; }
+  @keyframes routeFade { from { opacity: 0; } to { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .route-fade { animation: none; } }
+
   .quiz-cta {
     @apply inline-flex items-center justify-center gap-2 font-sans font-medium text-sm tracking-widest uppercase px-8 py-4 rounded-2xl transition-all duration-200 active:scale-[0.98];
     border: 1px solid rgba(231, 220, 189, 0.45);

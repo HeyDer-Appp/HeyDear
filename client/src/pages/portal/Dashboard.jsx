@@ -1220,8 +1220,8 @@ export default function PortalDashboard() {
             ))}
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center gap-6" style={{ minHeight: '55vh' }}>
-            <div className="flex flex-col items-center gap-6" style={{ marginTop: 85 }}>
+          <div className="flex flex-col items-center justify-center gap-6" style={{ minHeight: 'calc(100dvh - 250px)' }}>
+            <div className="flex flex-col items-center gap-6">
               <motion.div
                 layout
                 layoutDependency={`${showConfirmSummary}-${showPayment}`}
@@ -1395,10 +1395,11 @@ export default function PortalDashboard() {
                 <button
                   type="button"
                   onClick={handleConfirmClick}
-                  className="inline-flex items-center justify-center gap-2 border-2 font-sans font-semibold text-sm tracking-widest uppercase px-6 py-3 rounded-2xl backdrop-blur-md transition-all duration-200"
-                  style={{ borderColor: '#754471', color: '#754471', background: 'rgba(231,223,197,0.35)' }}
-                  onMouseEnter={e => { e.currentTarget.style.background = '#754471'; e.currentTarget.style.color = '#F5EDD8'; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(231,223,197,0.35)'; e.currentTarget.style.color = '#754471'; }}
+                  className="inline-flex items-center justify-center gap-2 border-2 font-sans font-semibold text-sm tracking-widest uppercase px-6 py-3 rounded-2xl backdrop-blur-md transition-all duration-300"
+                  // Turns solid purple as soon as both the date and the city are chosen.
+                  style={bookingDate && bookingCity
+                    ? { borderColor: '#754471', color: '#F5EDD8', background: '#754471', boxShadow: '0 8px 24px rgba(117,68,113,0.35)' }
+                    : { borderColor: '#754471', color: '#754471', background: 'rgba(231,223,197,0.35)' }}
                 >
                   Confirm
                 </button>

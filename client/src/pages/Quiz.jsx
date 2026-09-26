@@ -524,13 +524,14 @@ export function ScaleSlider({ q, value, onChange, theme = 'dark' }) {
         )}
         <div
           ref={fillRef}
-          className={`quiz-slider-fill absolute left-0 top-1/2 -translate-y-1/2 h-2 rounded-full pointer-events-none ${light ? 'bg-navy' : 'bg-gold'}`}
+          className="quiz-slider-fill absolute left-0 top-1/2 -translate-y-1/2 h-2 rounded-full pointer-events-none" style={{ background: '#754471' }}
         />
         <div
           ref={thumbRef}
-          className={`quiz-slider-thumb-visual absolute top-1/2 w-8 h-8 -translate-y-1/2 -translate-x-1/2 rounded-full flex items-center justify-center pointer-events-none ${light ? 'bg-navy' : 'bg-gold'}`}
+          className="quiz-slider-thumb-visual absolute top-1/2 w-8 h-8 -translate-y-1/2 -translate-x-1/2 rounded-full flex items-center justify-center pointer-events-none"
+          style={{ background: '#754471' }}
         >
-          <span ref={numberRef} className={`font-sans text-xs font-bold leading-none select-none ${light ? 'text-cream' : 'text-black'}`} />
+          <span ref={numberRef} className="font-sans text-xs font-bold leading-none select-none text-cream" />
         </div>
         {/* Kept for keyboard access only (Tab + arrow keys) — pointer
             interaction is fully handled above instead of relying on this. */}
