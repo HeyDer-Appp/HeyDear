@@ -308,6 +308,7 @@ router.get('/dinners', attendeeAuth, async (req, res) => {
         table_name: table.name || null,
         area: venueRevealed ? (dinner.area || restaurant.area || null) : null,
         afterparty_name: venueRevealed ? (dinner.afterparty?.name || null) : null,
+        afterparty_activity: venueRevealed ? (dinner.afterparty?.activity || null) : null,
         afterparty_address: venueRevealed ? (dinner.afterparty?.address || null) : null,
         afterparty_note: venueRevealed ? (dinner.afterpartyNote || null) : null,
         booking_name: venueRevealed ? table.bookingName : null,

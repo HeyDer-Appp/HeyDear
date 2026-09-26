@@ -84,7 +84,7 @@ router.put('/:id', adminAuth, async (req, res) => {
         const v = await db.collection('restaurants').doc(afterpartyId).get();
         if (!v.exists) return res.status(400).json({ error: 'That after-party venue no longer exists.' });
         updates.afterpartyId = afterpartyId;
-        updates.afterparty = { name: v.data().name, address: v.data().address || null, area: v.data().area || null };
+        updates.afterparty = { name: v.data().name, address: v.data().address || null, area: v.data().area || null, activity: v.data().activity || null };
       }
     }
 

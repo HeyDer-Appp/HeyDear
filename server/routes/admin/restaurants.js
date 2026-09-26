@@ -23,7 +23,7 @@ router.get('/', adminAuth, async (req, res) => {
 
 router.post('/', adminAuth, async (req, res) => {
   try {
-    const { name, address, booking_time, menu_price_min, menu_price_max, capacity, notes, kind, area } = req.body;
+    const { name, address, booking_time, menu_price_min, menu_price_max, capacity, notes, kind, area, activity } = req.body;
     if (!name || !address) return res.status(400).json({ error: 'Name and address are required' });
     const ref = await db.collection('restaurants').add({
       name,
@@ -35,6 +35,7 @@ router.post('/', adminAuth, async (req, res) => {
       notes: notes || null,
       kind: kind === 'afterparty' ? 'afterparty' : 'restaurant',
       area: (area || '').trim() || null,
+      activity: (activity || '').trim().slice(0, 60) || null,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
@@ -49,7 +50,7 @@ router.put('/:id', adminAuth, async (req, res) => {
   try {
     const fieldMap = {
       name: 'name', address: 'address', booking_time: 'bookingTime',
-      menu_price_min: 'menuPriceMin', menu_price_max: 'menuPriceMax', capacity: 'capacity', notes: 'notes', kind: 'kind', area: 'area',
+      menu_price_min: 'menuPriceMin', menu_price_max: 'menuPriceMax', capacity: 'capacity', notes: 'notes', kind: 'kind', area: 'area', activity: 'activity',
     };
     const updates = { updatedAt: admin.firestore.FieldValue.serverTimestamp() };
     for (const [bodyKey, docKey] of Object.entries(fieldMap)) {

@@ -381,7 +381,7 @@ function RevealFlow({ revealAt, venueRevealAt, tableId, dinner }) {
           {dinner.afterparty_name && (
             <div className="mt-3 pt-3 border-t border-plum/15">
               <p className="font-sans text-plum text-xs uppercase tracking-widest mb-1">🎉 After-party</p>
-              <p className="font-sans font-semibold text-navy text-sm">{dinner.afterparty_name}</p>
+              <p className="font-sans font-semibold text-navy text-sm">{dinner.afterparty_activity ? `${dinner.afterparty_activity} · ` : ''}{dinner.afterparty_name}</p>
               {dinner.afterparty_address && <p className="font-sans text-navy/65 text-xs mt-0.5">{dinner.afterparty_address}</p>}
               {dinner.afterparty_note && <p className="font-sans text-navy/55 text-xs mt-1">{dinner.afterparty_note}</p>}
             </div>
