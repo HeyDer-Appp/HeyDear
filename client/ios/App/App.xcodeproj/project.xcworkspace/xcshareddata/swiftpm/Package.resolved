@@ -1,0 +1,15 @@
+{
+  "originHash" : "301e88b74fcc788b245e74cb47553e35a9b8f58fdbda6da3c6e5558ab78c9d35",
+  "pins" : [
+    {
+      "identity" : "capacitor-swift-pm",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/HeyDer-Appp/capacitor-swift-pm.git",
+      "state" : {
+        "revision" : "b89ed3818f68160da526b914a4da598d407534a2",
+        "version" : "8.5.2"
+      }
+    }
+  ],
+  "version" : 3
+}
