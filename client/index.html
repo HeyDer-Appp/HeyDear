@@ -3,7 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" href="https://heyder.nz/wp-content/uploads/2026/04/cropped-fav-270x270.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- viewport-fit=cover: the native iOS app's WKWebView renders edge-to-
+         edge, under the status bar/notch/Dynamic Island — without this, the
+         page has no idea that space exists and env(safe-area-inset-*)
+         always reports 0, so anything fixed to the top of the viewport
+         (the Home logo, the offline banner) renders straight under the
+         notch instead of below it. Harmless on a normal browser tab. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="description" content="HeyDer — Weekly dinners with people looking for someone like YOU. Auckland's curated social dining experience. Every Tuesday at 7pm." />
     <meta name="theme-color" content="#0a0f1a" />
     <meta property="og:title" content="HeyDer — Weekly Tuesday Dinners" />

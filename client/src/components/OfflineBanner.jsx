@@ -15,7 +15,15 @@ export default function OfflineBanner() {
 
   if (online) return null;
   return (
-    <div className="fixed top-0 inset-x-0 z-[70] text-center font-sans text-xs py-1.5" style={{ background: '#754471', color: '#F5EDD8' }}>
+    <div
+      className="fixed top-0 inset-x-0 z-[70] text-center font-sans text-xs"
+      style={{
+        background: '#754471',
+        color: '#F5EDD8',
+        paddingTop: 'calc(0.375rem + env(safe-area-inset-top))',
+        paddingBottom: '0.375rem',
+      }}
+    >
       You're offline — showing what we have
     </div>
   );

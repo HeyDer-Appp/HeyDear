@@ -42,7 +42,8 @@ export default function Home() {
       <Link
         to="/"
         onClick={e => e.stopPropagation()}
-        className={`fixed top-0 left-0 z-50 px-6 py-5 transition-opacity duration-200 ${exiting ? 'opacity-0' : 'opacity-100'}`}
+        className={`fixed top-0 left-0 z-50 px-6 transition-opacity duration-200 ${exiting ? 'opacity-0' : 'opacity-100'}`}
+        style={{ paddingTop: 'calc(1.25rem + env(safe-area-inset-top))', paddingBottom: '1.25rem' }}
       >
         <img
           src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png"
