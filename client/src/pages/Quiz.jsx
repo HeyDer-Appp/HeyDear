@@ -563,27 +563,19 @@ export function QuestionShell({ number, title, required, description, error, chi
       initial="hidden"
       animate="visible"
     >
-      <div className="flex items-start gap-4 mb-3">
-        <motion.span
-          variants={fadeUpVariant}
-          className="flex-shrink-0 w-9 h-9 rounded-lg bg-navy text-cream font-sans font-bold text-sm flex items-center justify-center mt-0.5"
+      <motion.div variants={fadeUpVariant} className="mb-3">
+        <p
+          className={titleFont === 'marker' ? 'text-3xl md:text-4xl text-navy leading-snug' : 'font-serif font-bold text-2xl md:text-3xl text-navy leading-snug'}
+          style={titleFont === 'marker' ? { fontFamily: "'Permanent Marker', cursive" } : undefined}
         >
-          {number}
-        </motion.span>
-        <motion.div variants={fadeUpVariant}>
-          <p
-            className={titleFont === 'marker' ? 'text-3xl md:text-4xl text-navy leading-snug' : 'font-serif font-bold text-2xl md:text-3xl text-navy leading-snug'}
-            style={titleFont === 'marker' ? { fontFamily: "'Permanent Marker', cursive" } : undefined}
-          >
-            {title}
-            {/* Non-breaking space so the asterisk can't wrap onto its own
-                line, orphaned below the title on narrow screens. */}
-            {required && <span className="text-navy/50 align-super text-base">{' *'}</span>}
-          </p>
-          {description && <p className="font-sans text-navy/45 text-sm mt-2">{description}</p>}
-        </motion.div>
-      </div>
-      <div className="pl-[52px]">{children}</div>
+          {title}
+          {/* Non-breaking space so the asterisk can't wrap onto its own
+              line, orphaned below the title on narrow screens. */}
+          {required && <span className="text-navy/50 align-super text-base">{' *'}</span>}
+        </p>
+        {description && <p className="font-sans text-navy/45 text-sm mt-2">{description}</p>}
+      </motion.div>
+      <div>{children}</div>
     </motion.div>
   );
 }
