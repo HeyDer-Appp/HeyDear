@@ -370,7 +370,10 @@ export default function EditProfile() {
 
   if (loading) return (
     <div className="portal-bg min-h-screen relative overflow-hidden pb-24">
-      <nav className="sticky top-0 z-20 flex items-center justify-between px-6 py-5 backdrop-blur-md bg-beige/70">
+      <nav
+        className="sticky top-0 z-20 flex items-center justify-between px-6 pb-5 backdrop-blur-md bg-beige/70"
+        style={{ paddingTop: 'calc(1.25rem + env(safe-area-inset-top))' }}
+      >
         <span className="font-sans text-navy/65 text-sm">← Back</span>
         <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-7 brightness-0" />
         <div className="w-10" />
@@ -401,7 +404,10 @@ export default function EditProfile() {
 
   return (
     <div className="portal-bg min-h-screen relative overflow-hidden pb-24">
-      <nav className="sticky top-0 z-20 flex items-center justify-between px-6 py-5 backdrop-blur-md bg-beige/70">
+      <nav
+        className="sticky top-0 z-20 flex items-center justify-between px-6 pb-5 backdrop-blur-md bg-beige/70"
+        style={{ paddingTop: 'calc(1.25rem + env(safe-area-inset-top))' }}
+      >
         <div className="flex items-center gap-3">
           <Link to="/portal" onClick={handleBackClick} className="font-sans text-navy/65 text-sm hover:text-navy transition-colors">← Back</Link>
           {saving ? (

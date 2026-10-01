@@ -1257,7 +1257,10 @@ export default function Quiz() {
       transition={{ duration: 1.1, ease: 'easeInOut' }}
     >
       {/* Header */}
-      <div className="relative z-20 flex items-center justify-between px-6 py-5 border-b border-navy/10">
+      <div
+        className="relative z-20 flex items-center justify-between px-6 pb-5 border-b border-navy/10"
+        style={{ paddingTop: 'calc(1.25rem + env(safe-area-inset-top))' }}
+      >
         <a href="/"><img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-8 brightness-0" /></a>
         <div className="flex items-center gap-3">
           {savedAt && (

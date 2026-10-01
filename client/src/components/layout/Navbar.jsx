@@ -6,7 +6,10 @@ export default function Navbar() {
   const { attendeeUser, loading } = useAuth();
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-5">
+    <nav
+      className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 pb-5"
+      style={{ paddingTop: 'calc(1.25rem + env(safe-area-inset-top))' }}
+    >
       <Link to="/" className="relative z-50">
         <img
           src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png"

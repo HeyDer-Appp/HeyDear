@@ -225,7 +225,10 @@ export default function BookDinner() {
   const removeCoupon = () => { setAppliedCoupon(null); setCouponInput(''); setCouponError(''); };
 
   const header = (
-    <nav className="relative z-10 flex items-center justify-between px-6 py-5 border-b border-navy/10 backdrop-blur">
+    <nav
+      className="relative z-10 flex items-center justify-between px-6 pb-5 border-b border-navy/10 backdrop-blur"
+      style={{ paddingTop: 'calc(1.25rem + env(safe-area-inset-top))' }}
+    >
       <Link to="/portal/dashboard" className="font-sans text-navy/65 text-sm hover:text-navy transition-colors">← Back</Link>
       <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-7 brightness-0" />
       <div className="w-10" />
