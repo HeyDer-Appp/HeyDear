@@ -770,6 +770,7 @@ export default function Quiz() {
   const [savedAt, setSavedAt] = useState(null);
   const [stepIndex, setStepIndex] = useState(0);
   const [showPhotoBubble, setShowPhotoBubble] = useState(true);
+  const [showCompletionVideo, setShowCompletionVideo] = useState(false);
   // Falls back to the same $10/$15 defaults the server uses until the real
   // (admin-editable) price loads — never a placeholder like $0.
   const [pricing, setPricing] = useState({ oneTimeAmount: 1000, subscriptionAmount: 1500 });
@@ -1214,14 +1215,14 @@ export default function Quiz() {
         field_OVB7lzEjSl7C: answers.field_OVB7lzEjSl7C || [],
         skip_booking: true,
       });
-      // Skipping the date itself means no dinner was picked at all, so the
-      // "you're in, booking confirmed" success screen would be misleading —
-      // straight to the dashboard instead, matching the comment above. That
-      // screen's own booking prompt asks the same "which Tuesday?" question
-      // again right away, which reads as if "I'll choose later" was ignored
-      // — this toast is the only acknowledgment that it wasn't.
-      if (skipDate) toast.success("No rush — book your Tuesday whenever you're ready.");
-      navigate(skipDate ? '/portal/dashboard' : '/profile/success');
+      // Finishing the last question plays the completion video instead of
+      // navigating straight to the dashboard — the video's onEnded handler
+      // does the actual navigate once it's done.
+      if (skipDate) {
+        setShowCompletionVideo(true);
+        return;
+      }
+      navigate('/profile/success');
     } catch (err) {
       toast.error(err.response?.data?.error || 'Submission failed. Please try again.');
       setSubmitting(false);
@@ -1744,6 +1745,23 @@ export default function Quiz() {
         </div>
       </motion.div>
       </AnimatePresence>
+
+      {/* Plays once the finished profile has been submitted, replacing the
+          "I'll choose later"-style date/payment screens that used to follow
+          the last question. Navigates on its own once the clip ends, so the
+          dashboard never appears mid-video. */}
+      {showCompletionVideo && (
+        <div className="fixed inset-0 z-[100] bg-navy">
+          <video
+            src="/videos/profile-complete.mp4"
+            autoPlay
+            muted
+            playsInline
+            className="w-full h-full object-cover"
+            onEnded={() => navigate('/portal/dashboard')}
+          />
+        </div>
+      )}
     </motion.div>
   );
 }
