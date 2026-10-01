@@ -1099,10 +1099,6 @@ export default function PortalDashboard() {
       </motion.nav>
 
       <div className="relative z-10 max-w-lg mx-auto px-5 py-10 space-y-8">
-        <motion.div {...revealFade} className="text-center">
-          <p className="font-sans text-navy/50 text-xs tracking-[0.2em] uppercase mb-3">Welcome to HeyDer</p>
-        </motion.div>
-
         <div className="space-y-1">
           <label className="text-navy text-3xl block pl-2" style={{ fontFamily: "'Permanent Marker', cursive" }}>Location</label>
           <motion.div {...revealFade}>
