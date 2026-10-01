@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
+import { openCheckout } from '../../utils/checkout';
 import { fadeUpVariant, staggerContainerVariant, fadeLeftVariant, choiceBase } from '../Quiz';
 import BottomNav from '../../components/BottomNav';
 
@@ -82,12 +83,14 @@ export default function BookDinner() {
     };
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('focus', onVisible);
+    window.addEventListener('heyder:checkoutClosed', onVisible);
     checkPendingPayment();
 
     return () => {
       cancelled = true;
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('focus', onVisible);
+      window.removeEventListener('heyder:checkoutClosed', onVisible);
     };
   }, [navigate]);
 
@@ -199,7 +202,7 @@ export default function BookDinner() {
       // than loading the whole Stripe.js SDK just to call its (now legacy)
       // redirectToCheckout — see the matching comment in Quiz.jsx's
       // handlePayment for why.
-      window.location.href = res.data.url;
+      openCheckout(res.data.url);
     } catch (err) {
       toast.error(err.response?.data?.error || 'Payment setup failed. Please try again.');
       setSubmitting(false);

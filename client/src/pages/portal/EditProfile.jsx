@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../../utils/api';
+import { openCheckout } from '../../utils/checkout';
 import { useAuth } from '../../context/AuthContext';
 import { QUESTIONS, CHAPTERS, isPhoneValid, ScaleSlider } from '../Quiz';
 import { fileToDataUrl, cropAndResizeImage } from '../../utils/image';
@@ -206,7 +207,7 @@ export default function EditProfile() {
     setManagingBilling(true);
     try {
       const res = await api.post('/portal/subscription/manage');
-      window.location.href = res.data.url;
+      openCheckout(res.data.url);
     } catch (err) {
       toast.error(err.response?.data?.error || 'Could not open billing right now.');
       setManagingBilling(false);

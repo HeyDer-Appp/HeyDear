@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
+import { openCheckout } from '../../utils/checkout';
 import { success as hapticSuccess } from '../../utils/haptics';
 import BottomNav from '../../components/BottomNav';
 import OnboardingTour from '../../components/OnboardingTour';
@@ -836,6 +837,51 @@ export default function PortalDashboard() {
   const [showPastDinners, setShowPastDinners] = useState(false);
   const [showConfirmSummary, setShowConfirmSummary] = useState(false);
   const [matchAvatars, setMatchAvatars] = useState([]);
+
+  // Same as Quiz.jsx/BookDinner.jsx's own check: in the in-app checkout
+  // sheet, this screen never navigates away, so once the sheet closes
+  // (or the app resumes) a payment made from here needs an explicit check
+  // too — this card never had one before since the old external-browser
+  // flow happened to get it for free via appStateChange.
+  useEffect(() => {
+    let cancelled = false;
+    let attempts = 0;
+    const checkPendingPayment = async () => {
+      const pendingSessionId = sessionStorage.getItem('heyder_pending_session_id');
+      if (!pendingSessionId || cancelled) return;
+      attempts += 1;
+      try {
+        const res = await api.get(`/payments/verify/${pendingSessionId}`);
+        if (cancelled) return;
+        if (res.data.paid) {
+          sessionStorage.removeItem('heyder_pending_session_id');
+          setShowPayment(false);
+          setShowConfirmSummary(false);
+          setSubmittingPayment(false);
+          await refetchDinners();
+          return;
+        }
+      } catch { /* treated as "not confirmed yet" below */ }
+      if (attempts < 3) {
+        setTimeout(checkPendingPayment, 2500);
+      } else {
+        sessionStorage.removeItem('heyder_pending_session_id');
+        setSubmittingPayment(false);
+      }
+    };
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') { attempts = 0; checkPendingPayment(); }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    window.addEventListener('heyder:checkoutClosed', onVisible);
+    return () => {
+      cancelled = true;
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+      window.removeEventListener('heyder:checkoutClosed', onVisible);
+    };
+  }, []);
   const handleConfirmClick = () => {
     if (!bookingDate) { toast.error('Choose a date first.'); return; }
     const seed = Math.random().toString(36).slice(2);
@@ -960,7 +1006,7 @@ export default function PortalDashboard() {
       });
       sessionStorage.setItem('heyder_quiz_answers', JSON.stringify(fullAnswers));
       sessionStorage.setItem('heyder_pending_session_id', res.data.sessionId);
-      window.location.href = res.data.url;
+      openCheckout(res.data.url);
     } catch (err) {
       toast.error(err.response?.data?.error || 'Payment setup failed. Please try again.', { id: 'payment-setup-error' });
       setSubmittingPayment(false);
