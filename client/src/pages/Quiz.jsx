@@ -167,7 +167,7 @@ export const QUESTIONS = [
     field: 'social_recharge',
     chapter: 'drawn_to',
     required: true,
-    min: 1, max: 10,
+    min: 0, max: 10,
     labels: ['Wiped out', 'Recharged'],
   },
 
@@ -179,7 +179,7 @@ export const QUESTIONS = [
     field: 'field_PyYcCusA8b74',
     chapter: 'conversation',
     required: true,
-    min: 1, max: 10,
+    min: 0, max: 10,
     labels: ['Disagree', 'Strongly agree'],
   },
   {
@@ -189,7 +189,7 @@ export const QUESTIONS = [
     field: 'field_Y8VLrSMSZLmb',
     chapter: 'conversation',
     required: true,
-    min: 1, max: 10,
+    min: 0, max: 10,
     labels: ['Not at all', 'Very much so'],
   },
   {
@@ -199,7 +199,7 @@ export const QUESTIONS = [
     field: 'field_H4KwwtKh8sYF',
     chapter: 'conversation',
     required: true,
-    min: 1, max: 10,
+    min: 0, max: 10,
     labels: ['Never', 'Always'],
   },
   {
@@ -209,7 +209,7 @@ export const QUESTIONS = [
     field: 'field_OqnhJdRIytBz',
     chapter: 'conversation',
     required: true,
-    min: 1, max: 10,
+    min: 0, max: 10,
     labels: ['No, I wait', 'Yes, immediately'],
   },
 
@@ -221,7 +221,7 @@ export const QUESTIONS = [
     field: 'field_1NDB7q3CaeDQ',
     chapter: 'matters',
     required: true,
-    min: 1, max: 10,
+    min: 0, max: 10,
     labels: ['Not important', 'Critical'],
   },
   {
@@ -231,7 +231,7 @@ export const QUESTIONS = [
     field: 'field_heE41fid4m48',
     chapter: 'matters',
     required: true,
-    min: 1, max: 10,
+    min: 0, max: 10,
     labels: ['Disagree', 'Strongly agree'],
   },
 
@@ -449,7 +449,8 @@ export function ScaleSlider({ q, value, onChange, theme = 'dark' }) {
   // arrow-key access still works for keyboard users.
   const pctFromClientX = (clientX) => {
     const rect = trackRef.current.getBoundingClientRect();
-    return (clientX - rect.left) / rect.width;
+    const pct = (clientX - rect.left) / rect.width;
+    return Math.min(1, Math.max(0, pct));
   };
 
   const handlePointerDown = (e) => {
