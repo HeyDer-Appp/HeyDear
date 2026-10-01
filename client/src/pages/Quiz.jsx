@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import api from '../utils/api';
+import { openCheckout } from '../utils/checkout';
 import { tick } from '../utils/haptics';
 import { useAuth } from '../context/AuthContext';
 import { fileToResizedBase64 } from '../utils/image';
@@ -818,12 +819,14 @@ export default function Quiz() {
     };
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('focus', onVisible);
+    window.addEventListener('heyder:checkoutClosed', onVisible);
     checkPendingPayment();
 
     return () => {
       cancelled = true;
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('focus', onVisible);
+      window.removeEventListener('heyder:checkoutClosed', onVisible);
     };
   }, [navigate]);
 
@@ -1141,7 +1144,7 @@ export default function Quiz() {
       // redirectToCheckout — one less external script that can fail to
       // load (slow network, an ad-blocker, a CSP quirk) and surface as a
       // vague "Payment setup failed" with no useful detail behind it.
-      window.location.href = res.data.url;
+      openCheckout(res.data.url);
     } catch (err) {
       toast.error(err.response?.data?.error || 'Payment setup failed. Please try again.');
       setSubmitting(false);
