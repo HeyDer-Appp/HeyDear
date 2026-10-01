@@ -508,12 +508,7 @@ export function ScaleSlider({ q, value, onChange, theme = 'dark' }) {
       </div>
       <div
         ref={trackRef}
-        className="relative h-8 cursor-pointer"
-        style={{ touchAction: 'none' }}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={commit}
-        onPointerCancel={commit}
+        className="relative h-8"
       >
         {light ? (
           <div
@@ -529,8 +524,12 @@ export function ScaleSlider({ q, value, onChange, theme = 'dark' }) {
         />
         <div
           ref={thumbRef}
-          className="quiz-slider-thumb-visual absolute top-1/2 w-8 h-8 -translate-y-1/2 -translate-x-1/2 rounded-full flex items-center justify-center pointer-events-none"
-          style={{ background: '#754471' }}
+          className="quiz-slider-thumb-visual absolute top-1/2 w-8 h-8 -translate-y-1/2 -translate-x-1/2 rounded-full flex items-center justify-center cursor-grab active:cursor-grabbing"
+          style={{ background: '#754471', touchAction: 'none' }}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={commit}
+          onPointerCancel={commit}
         >
           <span ref={numberRef} className="font-sans text-xs font-bold leading-none select-none text-cream" />
         </div>
