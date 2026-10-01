@@ -350,10 +350,11 @@ const CHAPTER_QUESTIONS = CHAPTERS.map(chap => ({
 // Typeform-style pacing: one question per screen, moving forward linearly.
 // The profile photo isn't a page at all — it's a persistent avatar button in
 // the header (opens a dialog) so it stays reachable throughout the flow.
+// Date selection and payment no longer happen during signup — finishing the
+// last question submits the profile straight to the dashboard, where
+// booking a dinner (and paying for it) is its own separate flow.
 const STEPS = [
   ...QUESTIONS.filter(q => q.id !== 'date' && q.id !== 'payment').map(q => ({ type: 'question', question: q })),
-  { type: 'date' },
-  { type: 'payment' },
 ];
 
 const LETTERS = 'ABCDEFGHIJ';
@@ -572,7 +573,7 @@ export function QuestionShell({ number, title, required, description, error, chi
           {title}
           {/* Non-breaking space so the asterisk can't wrap onto its own
               line, orphaned below the title on narrow screens. */}
-          {required && <span className="text-navy/50 align-super text-base">{' *'}</span>}
+          {required && <span className="text-navy/50 align-super text-base">{' *'}</span>}
         </p>
         {description && <p className="font-sans text-navy/45 text-sm mt-2">{description}</p>}
       </motion.div>
@@ -969,6 +970,12 @@ export default function Quiz() {
 
   const goNext = () => {
     if (!validateStep(step)) return;
+    // No date/payment step follows the last question anymore — finishing
+    // it submits the profile straight to the dashboard instead.
+    if (stepIndex === STEPS.length - 1) {
+      skipPayment(true);
+      return;
+    }
     setStepIndex(i => Math.min(i + 1, STEPS.length - 1));
   };
   const goBack = () => setStepIndex(i => Math.max(i - 1, 0));
