@@ -153,11 +153,11 @@ export const QUESTIONS = [
   {
     id: 'connection_trigger',
     type: 'choice',
-    title: 'I instantly connect with people who are',
+    title: 'You connect fastest with people who are...',
     field: 'connection_trigger',
     chapter: 'drawn_to',
     required: true,
-    choices: ['Is funny', 'Likes to have deep conversations', 'Is unapologetically themselves'],
+    choices: ['Funny', 'Deep', 'Unapologetic'],
   },
   {
     id: 'social_recharge',
