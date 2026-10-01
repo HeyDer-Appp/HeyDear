@@ -31,7 +31,7 @@ export const CHAPTERS = [
   { id: 'basics', title: 'The Basics', blurb: 'Age, gender, country, relationship status — fast, tappable, zero ceremony.' },
   { id: 'show_up', title: 'How You Show Up', blurb: 'Personality, social battery, career choice — this is where personality questions begin.' },
   { id: 'drawn_to', title: "What You're Drawn To", blurb: 'Who and what draws you in.' },
-  { id: 'conversation', title: 'How You Move Through A Conversation', blurb: 'Four quick scales on how you show up in conversation.' },
+  { id: 'conversation', title: 'Conversation Style', blurb: 'Four quick scales on how you show up in conversation.' },
   { id: 'matters', title: 'What Matters To You', blurb: 'Reliability and money mindset — short and to the point.' },
   { id: 'practical', title: 'The Practical Bits', blurb: 'Budget, dietary needs, and table topics.' },
 ];
