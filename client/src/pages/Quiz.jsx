@@ -1359,7 +1359,7 @@ export default function Quiz() {
         className={`relative z-10 max-w-xl mx-auto px-6 pb-10 space-y-8 ${chapterTitle ? 'pt-4' : 'pt-10'}`}
       >
         {step.type === 'question' && (
-          <div className="min-h-[55vh] flex items-center">
+          <div className="min-h-[55vh]">
             {(() => {
               const q = step.question;
               const qNumber = stepIndex + 1;
