@@ -906,6 +906,13 @@ export default function Quiz() {
 
   const step = STEPS[stepIndex];
 
+  // Shown above the question itself, outside the per-question slide
+  // animation, so it holds its position and only changes (cross-fading)
+  // when the chapter actually changes — not on every single question.
+  const chapterTitle = step.type === 'question' && step.question.chapter
+    ? CHAPTERS.find(c => c.id === step.question.chapter)?.title
+    : null;
+
   // Blocks Next until every required (*) field on THIS page is answered —
   // the final submit still re-validates everything, but this stops someone
   // from clicking through a whole page of starred questions unanswered.
@@ -1321,6 +1328,22 @@ export default function Quiz() {
       </div>
 
       <AnimatePresence mode="wait">
+        {chapterTitle && (
+          <motion.p
+            key={chapterTitle}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4, ease: 'easeOut' }}
+            className="relative z-10 max-w-xl mx-auto px-6 pt-10 text-navy/70 text-lg"
+            style={{ fontFamily: "'Permanent Marker', cursive" }}
+          >
+            {chapterTitle}
+          </motion.p>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence mode="wait">
       <motion.div
         key={stepIndex}
         // The very first screen (arriving fresh from Home's fade-out) gets a
@@ -1333,22 +1356,13 @@ export default function Quiz() {
         animate={{ opacity: 1, x: 0 }}
         exit={{ opacity: 0, x: -16 }}
         transition={stepIndex === 0 ? { duration: 1, ease: 'easeInOut' } : { duration: 0.22, ease: 'easeOut' }}
-        className="relative z-10 max-w-xl mx-auto px-6 py-10 space-y-8"
+        className={`relative z-10 max-w-xl mx-auto px-6 pb-10 space-y-8 ${chapterTitle ? 'pt-4' : 'pt-10'}`}
       >
         {step.type === 'question' && (
           <div className="min-h-[55vh] flex items-center">
             {(() => {
               const q = step.question;
               const qNumber = stepIndex + 1;
-              const chapterTitle = q.chapter ? CHAPTERS.find(c => c.id === q.chapter)?.title : null;
-              const ChapterLabel = () => chapterTitle ? (
-                <p
-                  className="text-navy/70 text-lg mb-4"
-                  style={{ fontFamily: "'Permanent Marker', cursive" }}
-                >
-                  {chapterTitle}
-                </p>
-              ) : null;
 
               if (q.type === 'contact') {
                 return (
@@ -1435,7 +1449,6 @@ export default function Quiz() {
 
               return (
                 <div id={`q-${q.id}`} className="w-full">
-                  <ChapterLabel />
                   <QuestionShell number={qNumber} title={q.title} required={q.required} description={q.description} error={errors[q.field]}>
                     <QuestionField
                       q={q}
