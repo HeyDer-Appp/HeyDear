@@ -371,8 +371,13 @@ const lightChoiceActive =
 const QUIZ_CREAM_BG = '#E7DFC5';
 
 // Every field that has to be filled in before the profile counts as "done" —
-// drives both the completion % and the final submit validation.
-const REQUIRED_FIELD_QUESTIONS = QUESTIONS.filter(q => q.required && q.field);
+// drives both the completion % and the final submit validation. Excludes
+// 'date' even though it's marked required: that question isn't part of the
+// signup flow anymore (STEPS filters it out), but validate()'s separate
+// `!skipDate` check further down only skipped its OWN direct date check —
+// this unconditional loop was still flagging it as a missing field on the
+// very last question, since it has no skipDate awareness of its own.
+const REQUIRED_FIELD_QUESTIONS = QUESTIONS.filter(q => q.required && q.field && q.id !== 'date');
 
 function isAnswered(value) {
   if (Array.isArray(value)) return value.length > 0;
