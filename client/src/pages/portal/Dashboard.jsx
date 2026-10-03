@@ -1287,7 +1287,7 @@ export default function PortalDashboard() {
             ))}
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center gap-6" style={{ minHeight: 'calc(100dvh - 250px)' }}>
+          <div className="flex flex-col items-center justify-center gap-6" style={{ /* 270px = measured header + paddings + bottom spacing; the notch inset is added to the header too, so subtract it as well or the page is taller than the screen and scrolls */ minHeight: 'calc(100dvh - 270px - env(safe-area-inset-top))' }}>
             <div className="flex flex-col items-center gap-6">
               <motion.div
                 layout
