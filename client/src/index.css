@@ -233,6 +233,15 @@
     .portal-bg { animation: none; }
   }
 
+  /* Arriving straight from the profile-completion video (Quiz.jsx): the map
+     fades in on its own first, continuing the video's own fade-out, and the
+     nav/content fades in afterward once the map's settled. Disables the
+     generic whole-block animation above so Dashboard.jsx's own opacity/
+     transition (inline, timed to match the video) can drive it instead. */
+  .portal-bg.quiz-handoff {
+    animation: none;
+  }
+
   .portal-bg::before {
     content: '';
     position: fixed;

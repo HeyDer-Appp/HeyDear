@@ -7,6 +7,7 @@ import { openCheckout } from '../utils/checkout';
 import { tick } from '../utils/haptics';
 import { useAuth } from '../context/AuthContext';
 import { fileToResizedBase64 } from '../utils/image';
+import { clearCached } from '../utils/cache';
 import { DIAL_CODES, COUNTRY_LIST } from '../utils/flags';
 
 // A question's title fades up on entry; its options then fade in from the
@@ -747,6 +748,56 @@ function QuestionField({ q, value, onChange, otherValue, onOtherChange }) {
   );
 }
 
+const COMPLETION_CAPTION = 'When was the last time you met someone NEW?';
+const COMPLETION_CAPTION_CHARS = COMPLETION_CAPTION.split('');
+const COMPLETION_CAPTION_SPEED_MS = 110;
+const COMPLETION_HOLD_MS = 2000;
+const COMPLETION_FADE_MS = 6500;
+// How long the video stays fully visible before navigating away, on top of
+// the hold + fade above — the clip is short and loops, so without this the
+// fade alone used up nearly its whole runtime and it never visibly played.
+const COMPLETION_VIEW_MS = 2000;
+// Fades the video+text back out to the plain cream background — the exact
+// same color the dashboard's own background starts on — before navigating,
+// instead of cutting away while the video is still at full opacity. Landing
+// on that matching color is what makes the handoff read as one continuous
+// motion rather than two screens bolted together.
+const COMPLETION_EXIT_MS = 4500;
+
+// Types itself out over the completion video as it fades in. Every
+// character is always in the DOM with its opacity toggled, rather than
+// revealing a growing substring — slicing the string instead shifts the
+// browser's text-shaping at the cut point every keystroke, which reads as
+// the whole line subtly jittering as it types.
+function CompletionCaption({ active, color = '#F5EDD8' }) {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    if (!active) return;
+    let cancelled = false;
+    const step = (i) => {
+      if (cancelled) return;
+      setCount(i);
+      if (i < COMPLETION_CAPTION_CHARS.length) {
+        setTimeout(() => step(i + 1), COMPLETION_CAPTION_SPEED_MS);
+      }
+    };
+    const id = setTimeout(() => step(1), COMPLETION_CAPTION_SPEED_MS);
+    return () => { cancelled = true; clearTimeout(id); };
+  }, [active]);
+
+  return (
+    <p
+      className="text-left"
+      style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 700, fontSize: 'clamp(1.5rem, 6vw, 2.25rem)', lineHeight: 1.4, color }}
+    >
+      {COMPLETION_CAPTION_CHARS.map((ch, i) => (
+        <span key={i} style={{ opacity: i < count ? 1 : 0 }}>{ch}</span>
+      ))}
+    </p>
+  );
+}
+
 export default function Quiz() {
   const navigate = useNavigate();
   const { attendeeUser } = useAuth();
@@ -776,6 +827,30 @@ export default function Quiz() {
   const [stepIndex, setStepIndex] = useState(0);
   const [showPhotoBubble, setShowPhotoBubble] = useState(true);
   const [showCompletionVideo, setShowCompletionVideo] = useState(false);
+  const [videoVisible, setVideoVisible] = useState(false);
+  const [videoExiting, setVideoExiting] = useState(false);
+
+  // Holds on the blank cream background for a beat before the video fades
+  // in on top of it, rather than cutting straight to the first frame. The
+  // clip loops, so navigation is on its own timer rather than the video's
+  // own 'ended' event — letting it end once the fade had used up most of
+  // the clip's runtime already, before the slow rotation ever really showed.
+  // It then fades back out to that same cream before the actual navigate,
+  // landing on the dashboard's matching background color instead of cutting
+  // away mid-video — see COMPLETION_EXIT_MS above.
+  useEffect(() => {
+    if (!showCompletionVideo) return;
+    const fadeInTimer = setTimeout(() => setVideoVisible(true), COMPLETION_HOLD_MS);
+    const exitTimer = setTimeout(
+      () => setVideoExiting(true),
+      COMPLETION_HOLD_MS + COMPLETION_FADE_MS + COMPLETION_VIEW_MS
+    );
+    const navigateTimer = setTimeout(
+      () => navigate('/portal/dashboard', { state: { justCompletedProfile: true } }),
+      COMPLETION_HOLD_MS + COMPLETION_FADE_MS + COMPLETION_VIEW_MS + COMPLETION_EXIT_MS
+    );
+    return () => { clearTimeout(fadeInTimer); clearTimeout(exitTimer); clearTimeout(navigateTimer); };
+  }, [showCompletionVideo]);
   // Falls back to the same $10/$15 defaults the server uses until the real
   // (admin-editable) price loads — never a placeholder like $0.
   const [pricing, setPricing] = useState({ oneTimeAmount: 1000, subscriptionAmount: 1500 });
@@ -1224,6 +1299,9 @@ export default function Quiz() {
       // navigating straight to the dashboard — the video's onEnded handler
       // does the actual navigate once it's done.
       if (skipDate) {
+        // Same as QuizSuccess: the dashboard's cached profile still says
+        // "incomplete", which it would flash instantly behind the reveal.
+        clearCached('portal_profile');
         setShowCompletionVideo(true);
         return;
       }
@@ -1271,6 +1349,10 @@ export default function Quiz() {
       animate={{ opacity: 1 }}
       transition={{ duration: 1.1, ease: 'easeInOut' }}
     >
+      {/* Fades out as a whole once the last question is answered, leaving
+          the plain cream background behind for a beat before the completion
+          video fades in on top of it — see showCompletionVideo below. */}
+      <div className="transition-opacity ease-out" style={{ opacity: showCompletionVideo ? 0 : 1, transitionDuration: '600ms' }}>
       {/* Header */}
       <div
         className="relative z-20 flex items-center justify-between px-6 pb-5 border-b border-navy/10"
@@ -1750,22 +1832,47 @@ export default function Quiz() {
         </div>
       </motion.div>
       </AnimatePresence>
+      </div>
 
       {/* Plays once the finished profile has been submitted, replacing the
           "I'll choose later"-style date/payment screens that used to follow
-          the last question. Navigates on its own once the clip ends, so the
-          dashboard never appears mid-video. */}
+          the last question. The text above fades out first, leaving the
+          cream background on its own for a beat, then this fades in on top
+          of it — already playing, so there's no hard cut into the video. */}
       {showCompletionVideo && (
-        <div className="fixed inset-0 z-[100] bg-navy">
+        <>
+        {/* The dashboard's own map background (portal-bg::before), sitting
+            under the video — switched on at the moment the exit starts, when
+            the video above is still fully opaque and hides it, so as the
+            video fades out (still playing) it dissolves cleanly into this,
+            and the dashboard then mounts already showing the same map so the
+            route change itself is invisible. */}
+        <div
+          className="fixed inset-0 z-[99]"
+          style={{
+            background: `url('/images/auckland-map-beige.png') center / cover no-repeat, ${QUIZ_CREAM_BG}`,
+            opacity: videoExiting ? 1 : 0,
+          }}
+        />
+        <div
+          className="fixed inset-0 z-[100] transition-opacity ease-in-out"
+          style={{ opacity: videoExiting ? 0 : 1, transitionDuration: `${COMPLETION_EXIT_MS}ms` }}
+        >
           <video
             src="/videos/profile-complete.mp4"
             autoPlay
+            loop
             muted
             playsInline
-            className="w-full h-full object-cover"
-            onEnded={() => navigate('/portal/dashboard')}
+            onLoadedMetadata={e => { e.currentTarget.playbackRate = 0.5; }}
+            className="w-full h-full object-cover transition-opacity ease-in"
+            style={{ opacity: videoVisible ? 1 : 0, transitionDuration: `${COMPLETION_FADE_MS}ms` }}
           />
+          <div className="absolute inset-0 flex items-center justify-start px-10 pointer-events-none">
+            <CompletionCaption active={videoVisible} color="#F5EDD8" />
+          </div>
         </div>
+        </>
       )}
     </motion.div>
   );

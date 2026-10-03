@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
@@ -829,6 +829,19 @@ function IntroText({ line1, line2, finalWord, finalWordSize = '1.875rem', start,
 export default function PortalDashboard() {
   const { attendeeUser, logout } = useAuth();
   const navigate = useNavigate();
+  // Arriving straight from the profile-completion video: Quiz.jsx has already
+  // dissolved the video into this same map background, so the map is simply
+  // there from the first frame (no fade of its own), and the nav/content on
+  // top of it fades in slowly afterward. Every other arrival keeps the normal
+  // portal-bg fade-in untouched.
+  const routerLocation = useLocation();
+  const justCompletedProfile = !!routerLocation.state?.justCompletedProfile;
+  const [dashboardRevealed, setDashboardRevealed] = useState(!justCompletedProfile);
+  // After the handoff, the pieces appear one after another (header + icons,
+  // then the main box, then the bottom bar) rather than all at once.
+  const handoffReveal = (delayMs) => (justCompletedProfile
+    ? { opacity: dashboardRevealed ? 1 : 0, transition: `opacity 2400ms ease-out ${delayMs}ms` }
+    : undefined);
   const [location, setLocation] = useState('');
   const [bookingDate, setBookingDate] = useState(null);
   const [bookingCity, setBookingCity] = useState('Auckland');
@@ -1052,6 +1065,15 @@ export default function PortalDashboard() {
   const loading = profileLoading || dinnersLoading;
   const showIntro = loading;
   const loadError = profileLoadError;
+  // Starts once loading has finished and the real content has mounted (at
+  // opacity 0), not at first mount — otherwise a slow load would mount it
+  // already revealed and it would just pop in. The short timeout lets the
+  // browser paint opacity:0 first so the fade actually runs.
+  useEffect(() => {
+    if (!justCompletedProfile || showIntro) return;
+    const t = setTimeout(() => setDashboardRevealed(true), 150);
+    return () => clearTimeout(t);
+  }, [justCompletedProfile, showIntro]);
   const needsProfile = profileData?.needsProfile ?? false;
   const profile = profileData?.user ?? null;
   const hasActiveSubscription = profileData?.hasActiveSubscription ?? false;
@@ -1106,6 +1128,10 @@ export default function PortalDashboard() {
   // erasing, it types "Location" itself into that same spot, then hands
   // off immediately (no fade of its own) — the real screen's other
   // elements fade in around that already-visible word instead.
+  // Arriving from the completion video, the map is already on screen — keep
+  // it there while loading (no spinner, no plain cream) so there's no gap.
+  if (showIntro && justCompletedProfile) return <div className="portal-bg quiz-handoff min-h-screen" />;
+
   if (showIntro) return (
     <div className="min-h-screen flex items-center justify-center" style={{ background: '#E7DFC5' }}>
       <div className="w-7 h-7 border-2 border-plum border-t-transparent rounded-full animate-spin" />
@@ -1223,11 +1249,14 @@ export default function PortalDashboard() {
   const past = dinners.filter(d => !d.is_pending && d.date && new Date(d.date) < new Date());
 
   return (
-    <div className="portal-bg min-h-screen relative overflow-hidden pb-24">
+    <div
+      className={`portal-bg min-h-screen relative overflow-hidden pb-24 ${justCompletedProfile ? 'quiz-handoff' : ''}`}
+    >
+      <div>
       {/* Nav */}
       <nav
         className="relative z-10 flex items-center justify-between px-6 pb-5 backdrop-blur-md"
-        style={{ paddingTop: 'calc(1.25rem + env(safe-area-inset-top))' }}
+        style={{ paddingTop: 'calc(1.25rem + env(safe-area-inset-top))', ...handoffReveal(0) }}
       >
         <Link to="/">
           <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-7 brightness-0" />
@@ -1248,7 +1277,7 @@ export default function PortalDashboard() {
         </div>
       </nav>
 
-      <div className="relative z-10 max-w-lg mx-auto px-5 py-8 space-y-6">
+      <div className="relative z-10 max-w-lg mx-auto px-5 py-8 space-y-6" style={handoffReveal(2200)}>
 
         {/* Upcoming dinners */}
         {upcoming.length > 0 ? (
@@ -1549,8 +1578,11 @@ export default function PortalDashboard() {
         </div>
       )}
 
-      <OnboardingTour />
-      <BottomNav />
+      <div style={handoffReveal(4400)}>
+        <OnboardingTour />
+        <BottomNav />
+      </div>
+      </div>
     </div>
   );
 }
