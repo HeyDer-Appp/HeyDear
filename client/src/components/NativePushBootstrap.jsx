@@ -46,11 +46,17 @@ export default function NativePushBootstrap() {
     // A short pause so the permission dialog doesn't land on top of the very
     // first screen before it has even drawn.
     const t = setTimeout(async () => {
-      if (!localStorage.getItem('heyder_push_asked')) {
-        localStorage.setItem('heyder_push_asked', '1');
-        await subscribeToPush();
-      } else {
+      // Keyed on whether this device actually registered, not on whether we
+      // ever asked. "Asked once, never again" left every phone that had
+      // already run an older build (where registration silently failed on
+      // iPhone) permanently unregistered, since the flag was set before the
+      // attempt even finished. Retrying is harmless otherwise: iOS only shows
+      // the permission dialog once, and a denied answer returns immediately.
+      localStorage.setItem('heyder_push_asked', '1');
+      if (localStorage.getItem('heyder_fcm_registered') === 'true') {
         await linkStoredPushToken();
+      } else {
+        await subscribeToPush();
       }
     }, 2500);
     return () => clearTimeout(t);
