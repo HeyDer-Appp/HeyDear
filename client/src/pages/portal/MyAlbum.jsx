@@ -145,7 +145,7 @@ export default function MyAlbum() {
     return (
       <div className="portal-bg no-map min-h-screen relative overflow-hidden pb-24">
         <nav
-          className="relative z-10 flex items-center justify-between px-6 pb-5 backdrop-blur-md"
+          className="relative z-10 flex items-center justify-between px-6 pb-5"
           style={{ paddingTop: 'calc(1.25rem + env(safe-area-inset-top))' }}
         >
           <Link to="/portal/dashboard" className="font-sans text-navy/65 text-sm hover:text-navy transition-colors">← Back</Link>
@@ -172,7 +172,7 @@ export default function MyAlbum() {
   return (
     <div className="portal-bg no-map min-h-screen relative overflow-hidden pb-24">
       <nav
-        className="relative z-10 flex items-center justify-between px-6 pb-5 backdrop-blur-md"
+        className="relative z-10 flex items-center justify-between px-6 pb-5"
         style={{ paddingTop: 'calc(1.25rem + env(safe-area-inset-top))' }}
       >
         <Link to="/portal/dashboard" className="font-sans text-navy/65 text-sm hover:text-navy transition-colors">← Back</Link>

@@ -176,7 +176,7 @@ function TextMessage({ msg, photo, name, country, isOwn }) {
 
 const header = (
   <nav
-    className="relative z-10 flex items-center justify-between px-6 pb-5 backdrop-blur-md"
+    className="relative z-10 flex items-center justify-between px-6 pb-5"
     style={{ paddingTop: 'calc(1.25rem + env(safe-area-inset-top))' }}
   >
     <Link to="/portal/dashboard" className="font-sans text-navy/65 text-sm hover:text-navy transition-colors">← Back</Link>
@@ -395,7 +395,7 @@ function GroupDetail({ tableId, onBack }) {
 
   const detailHeader = (
     <nav
-      className="relative z-10 flex items-center justify-between px-6 pb-5 backdrop-blur-md"
+      className="relative z-10 flex items-center justify-between px-6 pb-5"
       style={{ paddingTop: 'calc(1.25rem + env(safe-area-inset-top))' }}
     >
       <button onClick={onBack} className="font-sans text-navy/65 text-sm hover:text-navy transition-colors">← All groups</button>

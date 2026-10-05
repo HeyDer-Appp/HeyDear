@@ -40,7 +40,7 @@ export default function PersonProfile() {
 
   const header = (
     <nav
-      className="relative z-10 flex items-center justify-between px-6 pb-5 backdrop-blur-md"
+      className="relative z-10 flex items-center justify-between px-6 pb-5"
       style={{ paddingTop: 'calc(1.25rem + env(safe-area-inset-top))' }}
     >
       <button onClick={() => navigate(-1)} className="font-sans text-navy/65 text-sm hover:text-navy transition-colors">← Back</button>
