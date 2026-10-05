@@ -7,7 +7,6 @@ import api from '../../utils/api';
 import { openCheckout } from '../../utils/checkout';
 import { success as hapticSuccess } from '../../utils/haptics';
 import BottomNav from '../../components/BottomNav';
-import OnboardingTour from '../../components/OnboardingTour';
 import { flagUrl } from '../../utils/flags';
 import { useCachedFetch } from '../../utils/useCachedFetch';
 import { prefetchPortalData } from '../../utils/prefetch';
@@ -1579,7 +1578,6 @@ export default function PortalDashboard() {
       )}
 
       <div style={handoffReveal(4400)}>
-        <OnboardingTour />
         <BottomNav />
       </div>
       </div>
