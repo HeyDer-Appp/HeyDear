@@ -1093,11 +1093,13 @@ export default function Quiz() {
 
   const personalDone = !!(answers.dob && answers.gender && answers.country);
 
-  const totalRequired = REQUIRED_FIELD_QUESTIONS.length + 3 + 1; // +personal (dob/gender/country) +date
+  // The date isn't part of signup anymore, so it can't count towards the
+  // total — it used to add 1 here that nobody could ever answer, which capped
+  // the progress bar just under 100%.
+  const totalRequired = REQUIRED_FIELD_QUESTIONS.length + 3; // +personal (dob/gender/country)
   const filledRequired =
     REQUIRED_FIELD_QUESTIONS.filter(q => isAnswered(answers[q.field])).length +
-    ['dob', 'gender', 'country'].filter(k => isAnswered(answers[k])).length +
-    (isAnswered(answers.field_CdZldwp5q09o) ? 1 : 0);
+    ['dob', 'gender', 'country'].filter(k => isAnswered(answers[k])).length;
   const completionPct = Math.round((filledRequired / totalRequired) * 100);
   const profileReady = CHAPTERS.every(c => chapterDone(c.id)) && personalDone;
 
