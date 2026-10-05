@@ -7,7 +7,9 @@ function endpointKey(endpoint) {
   return crypto.createHash('sha1').update(endpoint).digest('hex');
 }
 
+// Declared further down; function declarations are hoisted, so init() can call it.
 function init() {
+  console.log(`Push: iPhone (APNs) delivery ${apnsConfigured() ? 'is configured' : 'is NOT configured — set APNS_KEY_BASE64, APNS_KEY_ID, APNS_TEAM_ID, APNS_BUNDLE_ID'}`);
   if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
     console.warn('VAPID keys not set — push notifications disabled. Run: npx web-push generate-vapid-keys');
     return false;
@@ -161,7 +163,16 @@ async function sendToDocs(docs, payload) {
           )
     )
   );
-  return results.filter((r) => r.status === 'fulfilled' && r.value.sent).length;
+  const delivered = results.filter((r) => r.status === 'fulfilled' && r.value.sent).length;
+  // One line per send so "nothing arrived" can be traced from the Render logs:
+  // how many devices of each kind were targeted, and how many Apple/Google/the
+  // browser vendors accepted. Errors that were thrown (not just rejected) are
+  // shown too, since allSettled would otherwise swallow them silently.
+  const kinds = { iphone: 0, android: 0, web: 0 };
+  docs.forEach((d) => { kinds[d.type === 'apns' ? 'iphone' : d.type === 'fcm' ? 'android' : 'web']++; });
+  console.log(`Push send: ${docs.length} device(s) targeted (iPhone ${kinds.iphone}, Android ${kinds.android}, web ${kinds.web}) -> ${delivered} accepted`);
+  results.forEach((r) => { if (r.status === 'rejected') console.warn('Push send error:', r.reason && r.reason.message ? r.reason.message : r.reason); });
+  return delivered;
 }
 
 // Send to a specific user (all their devices)
