@@ -5,5 +5,14 @@
   "server": {
     "url": "https://heydear.onrender.com",
     "cleartext": false
+  },
+  "plugins": {
+    "PushNotifications": {
+      "presentationOptions": [
+        "badge",
+        "sound",
+        "alert"
+      ]
+    }
   }
 }

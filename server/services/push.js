@@ -1,5 +1,6 @@
 const webpush = require('web-push');
 const crypto = require('crypto');
+const http2 = require('http2');
 const { admin, db, messaging } = require('../firebase');
 
 function endpointKey(endpoint) {
@@ -55,10 +56,104 @@ async function sendToFcmToken(fcmToken, payload) {
   }
 }
 
+// ── iPhone (APNs) ─────────────────────────────────────────────────────────────
+// Sent straight to Apple rather than through Firebase: the iOS push plugin
+// hands back a raw APNs device token, which FCM can't deliver to. Uses only
+// Node built-ins (crypto for the ES256 token, http2 for the connection), so
+// there's no extra dependency to install.
+//
+// Needs four env vars on the backend: APNS_KEY_BASE64 (the .p8 file, base64),
+// APNS_KEY_ID, APNS_TEAM_ID and APNS_BUNDLE_ID. TestFlight and App Store builds
+// use Apple's production servers; set APNS_ENV=sandbox only for builds run
+// straight from Xcode.
+function apnsConfigured() {
+  return !!(process.env.APNS_KEY_BASE64 && process.env.APNS_KEY_ID && process.env.APNS_TEAM_ID && process.env.APNS_BUNDLE_ID);
+}
+
+let apnsJwt = { token: null, issuedAt: 0 };
+function apnsAuthToken() {
+  const now = Math.floor(Date.now() / 1000);
+  // Apple wants a fresh token at least hourly, and rejects ones refreshed
+  // more often than every 20 minutes.
+  if (apnsJwt.token && now - apnsJwt.issuedAt < 45 * 60) return apnsJwt.token;
+  const b64u = (v) => Buffer.from(v).toString('base64url');
+  const header = b64u(JSON.stringify({ alg: 'ES256', kid: process.env.APNS_KEY_ID }));
+  const claims = b64u(JSON.stringify({ iss: process.env.APNS_TEAM_ID, iat: now }));
+  const key = Buffer.from(process.env.APNS_KEY_BASE64, 'base64').toString('utf8');
+  const signature = crypto
+    .sign('sha256', Buffer.from(`${header}.${claims}`), { key, dsaEncoding: 'ieee-p1363' })
+    .toString('base64url');
+  apnsJwt = { token: `${header}.${claims}.${signature}`, issuedAt: now };
+  return apnsJwt.token;
+}
+
+let apnsSession = null;
+function getApnsSession() {
+  if (apnsSession && !apnsSession.closed && !apnsSession.destroyed) return apnsSession;
+  const host = process.env.APNS_ENV === 'sandbox' ? 'https://api.sandbox.push.apple.com' : 'https://api.push.apple.com';
+  const session = http2.connect(host);
+  const reset = () => { if (apnsSession === session) apnsSession = null; };
+  session.on('error', reset);
+  session.on('close', reset);
+  session.on('goaway', reset);
+  apnsSession = session;
+  return session;
+}
+
+function postToApns(token, payload) {
+  return new Promise((resolve, reject) => {
+    const body = JSON.stringify({
+      aps: { alert: { title: payload.title, body: payload.body }, sound: 'default' },
+      url: payload.url || '/',
+      tag: payload.tag || '',
+    });
+    const req = getApnsSession().request({
+      ':method': 'POST',
+      ':path': `/3/device/${token}`,
+      authorization: `bearer ${apnsAuthToken()}`,
+      'apns-topic': process.env.APNS_BUNDLE_ID,
+      'apns-push-type': 'alert',
+      'apns-priority': '10',
+      'content-type': 'application/json',
+    });
+    let status = 0;
+    let data = '';
+    req.setEncoding('utf8');
+    req.on('response', (headers) => { status = headers[':status']; });
+    req.on('data', (chunk) => { data += chunk; });
+    req.on('end', () => resolve({ status, data }));
+    req.on('error', reject);
+    req.setTimeout(10000, () => { req.close(); reject(new Error('APNs request timed out')); });
+    req.end(body);
+  });
+}
+
+async function sendToApnsToken(apnsToken, payload) {
+  if (!apnsConfigured()) {
+    console.warn('APNs not configured (APNS_* env vars missing) — iPhone notification skipped');
+    return { sent: false };
+  }
+  const { status, data } = await postToApns(apnsToken, payload);
+  if (status === 200) return { sent: true };
+  let reason = '';
+  try { reason = JSON.parse(data).reason || ''; } catch { /* non-JSON error body */ }
+  if (status === 410 || reason === 'Unregistered') {
+    // App uninstalled or notifications turned off — drop it.
+    await db.collection('pushSubscriptions').doc(endpointKey(apnsToken)).delete().catch(() => {});
+    return { sent: false, expired: true };
+  }
+  // Anything else (BadDeviceToken, a sandbox/production mismatch, bad key…)
+  // is logged rather than silently swallowed, and the token is kept.
+  console.warn(`APNs rejected a notification: HTTP ${status} ${reason}`);
+  return { sent: false };
+}
+
 async function sendToDocs(docs, payload) {
   const results = await Promise.allSettled(
     docs.map((data) =>
-      data.type === 'fcm'
+      data.type === 'apns'
+        ? sendToApnsToken(data.apnsToken, payload)
+        : data.type === 'fcm'
         ? sendToFcmToken(data.fcmToken, payload)
         : sendToSubscription(
             { endpoint: data.endpoint, keys: { p256dh: data.p256dh, auth: data.auth } },
@@ -271,6 +366,6 @@ async function runDueCampaigns() {
 }
 
 module.exports = {
-  init, sendToUser, sendToTable, sendToAll, sendToSubscription, sendToFcmToken, notifications, endpointKey,
+  init, sendToUser, sendToTable, sendToAll, sendToSubscription, sendToFcmToken, sendToApnsToken, notifications, endpointKey,
   AUDIENCES, audienceCounts, sendToAudience, runDueCampaigns,
 };

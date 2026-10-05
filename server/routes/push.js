@@ -81,6 +81,32 @@ router.post('/register-fcm', async (req, res) => {
   }
 });
 
+// iPhone (native iOS app) registers its APNs device token. Same shape as the
+// FCM route above, but stored as its own type since it goes to Apple directly.
+router.post('/register-apns', async (req, res) => {
+  try {
+    const { apnsToken, anonymous } = req.body;
+    // APNs device tokens are hex strings; reject anything else outright since
+    // the value ends up in a URL path when sending.
+    if (!apnsToken || typeof apnsToken !== 'string' || !/^[0-9a-fA-F]{32,200}$/.test(apnsToken)) {
+      return res.status(400).json({ error: 'Missing or invalid apnsToken' });
+    }
+    const userId = anonymous ? null : await verifiedUserId(req);
+
+    await db.collection('pushSubscriptions').doc(pushService.endpointKey(apnsToken)).set({
+      userId: userId || null,
+      apnsToken,
+      type: 'apns',
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to save APNs token' });
+  }
+});
+
 // Handle subscription renewal (pushsubscriptionchange in SW)
 router.post('/resubscribe', async (req, res) => {
   try {

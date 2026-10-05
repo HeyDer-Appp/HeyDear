@@ -33,6 +33,14 @@ export function getPermissionState() {
   return Notification.permission; // 'default' | 'granted' | 'denied'
 }
 
+// iPhones hand back a raw Apple (APNs) token, which the server sends to Apple
+// directly; Android hands back an FCM token. Same idea, different endpoint.
+function nativeTokenTarget() {
+  return Capacitor.getPlatform() === 'ios'
+    ? { path: '/push/register-apns', field: 'apnsToken' }
+    : { path: '/push/register-fcm', field: 'fcmToken' };
+}
+
 async function subscribeToPushNative(userId) {
   // Everything below is a Capacitor native-bridge call. If the installed
   // app build doesn't actually have the push-notifications plugin compiled
@@ -74,7 +82,8 @@ async function subscribeToPushNative(userId) {
             // The server takes the account (if any) from the login token that
             // rides along on this request — a guest with no account simply
             // registers as a guest, and still gets broadcast notifications.
-            await api.post('/push/register-fcm', { fcmToken: token.value });
+            const target = nativeTokenTarget();
+            await api.post(target.path, { [target.field]: token.value });
             localStorage.setItem('heyder_fcm_token', token.value);
             localStorage.setItem('heyder_fcm_registered', 'true');
             finish({ success: true });
@@ -108,7 +117,8 @@ async function subscribeToPushNative(userId) {
 export async function linkStoredPushToken() {
   const fcmToken = localStorage.getItem('heyder_fcm_token');
   if (!Capacitor.isNativePlatform() || !fcmToken) return;
-  try { await api.post('/push/register-fcm', { fcmToken }); } catch { /* best effort */ }
+  const target = nativeTokenTarget();
+  try { await api.post(target.path, { [target.field]: fcmToken }); } catch { /* best effort */ }
 }
 
 // On logout: keep the device subscribed (so it still gets general
@@ -116,7 +126,8 @@ export async function linkStoredPushToken() {
 export async function unlinkStoredPushToken() {
   const fcmToken = localStorage.getItem('heyder_fcm_token');
   if (!Capacitor.isNativePlatform() || !fcmToken) return;
-  try { await api.post('/push/register-fcm', { fcmToken, anonymous: true }); } catch { /* best effort */ }
+  const target = nativeTokenTarget();
+  try { await api.post(target.path, { [target.field]: fcmToken, anonymous: true }); } catch { /* best effort */ }
 }
 
 export async function registerSW() {
