@@ -81,6 +81,15 @@ router.post('/register-fcm', async (req, res) => {
   }
 });
 
+// Is push set up on this server? Booleans and non-secret IDs only, so a
+// "notifications aren't arriving" report can be checked without log access.
+router.get('/status', (req, res) => {
+  res.json({
+    apns: pushService.apnsStatus(),
+    webPush: !!(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY),
+  });
+});
+
 // iPhone (native iOS app) registers its APNs device token. Same shape as the
 // FCM route above, but stored as its own type since it goes to Apple directly.
 router.post('/register-apns', async (req, res) => {

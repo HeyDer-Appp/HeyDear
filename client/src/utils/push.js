@@ -89,19 +89,19 @@ async function subscribeToPushNative(userId) {
             finish({ success: true });
           } catch (err) {
             console.error('FCM token registration failed:', err);
-            finish({ error: 'subscribe_failed' });
+            finish({ error: 'subscribe_failed', detail: `server rejected the token (${err?.response?.status || err?.message || 'no response'})` });
           }
         }));
         handles.push(await PushNotifications.addListener('registrationError', (err) => {
           console.error('FCM registration failed:', err);
-          finish({ error: 'subscribe_failed' });
+          finish({ error: 'subscribe_failed', detail: `iOS refused to register (${err?.error || 'unknown'})` });
         }));
         PushNotifications.register();
       })().catch(() => finish({ error: 'subscribe_failed' }));
     });
   })().catch((err) => {
     console.error('Native push subscribe failed:', err);
-    return { error: 'subscribe_failed' };
+    return { error: 'subscribe_failed', detail: err?.message || 'native error' };
   });
 
   try {

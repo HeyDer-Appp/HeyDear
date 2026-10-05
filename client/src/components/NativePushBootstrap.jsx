@@ -56,7 +56,13 @@ export default function NativePushBootstrap() {
       if (localStorage.getItem('heyder_fcm_registered') === 'true') {
         await linkStoredPushToken();
       } else {
-        await subscribeToPush();
+        const result = await subscribeToPush();
+        // Registration used to fail with no sign at all on iPhone. Say so,
+        // with the reason, instead — but not for "denied" (the user's own
+        // choice) and only on iOS, where this is the new path.
+        if (result?.error && result.error !== 'denied' && Capacitor.getPlatform() === 'ios') {
+          toast.error(`Notifications couldn't be turned on: ${result.detail || result.error}`, { duration: 9000 });
+        }
       }
     }, 2500);
     return () => clearTimeout(t);

@@ -72,6 +72,44 @@ function apnsConfigured() {
   return !!(process.env.APNS_KEY_BASE64 && process.env.APNS_KEY_ID && process.env.APNS_TEAM_ID && process.env.APNS_BUNDLE_ID);
 }
 
+// For the public status route: is APNs configured, and does the key actually
+// parse and sign? Catches a wrong/garbled APNS_KEY_BASE64 without calling
+// Apple. Never returns any part of the key.
+function apnsStatus() {
+  const configured = apnsConfigured();
+  let keyUsable = false;
+  let problem = null;
+  if (configured) {
+    try { apnsJwt = { token: null, issuedAt: 0 }; apnsAuthToken(); keyUsable = true; }
+    catch (err) { problem = /does not decode/.test(err.message) ? err.message : 'APNS_KEY_BASE64 decodes to something that is not a usable EC private key (truncated, or not the .p8 file)'; }
+  } else {
+    const missing = ['APNS_KEY_BASE64', 'APNS_KEY_ID', 'APNS_TEAM_ID', 'APNS_BUNDLE_ID'].filter((k) => !process.env[k]);
+    problem = `missing: ${missing.join(', ')}`;
+  }
+  return {
+    configured,
+    keyUsable,
+    problem,
+    keyId: process.env.APNS_KEY_ID || null,
+    teamId: process.env.APNS_TEAM_ID || null,
+    bundleId: process.env.APNS_BUNDLE_ID || null,
+    environment: process.env.APNS_ENV === 'sandbox' ? 'sandbox' : 'production',
+  };
+}
+
+// The key can be supplied as the base64 of the .p8 file (what the docs say) or
+// pasted as the raw PEM text — a very easy mix-up that otherwise surfaces only
+// as an opaque OpenSSL "DECODER routines::unsupported" error at send time.
+// Escaped "\n" sequences (how some hosts store multi-line values) are fixed up.
+function apnsPrivateKey() {
+  const raw = (process.env.APNS_KEY_BASE64 || '').trim();
+  const pem = raw.includes('BEGIN') ? raw.replace(/\\n/g, '\n') : Buffer.from(raw, 'base64').toString('utf8');
+  if (!pem.includes('BEGIN PRIVATE KEY')) {
+    throw new Error('APNS_KEY_BASE64 does not decode to a .p8 key (it should be the base64 of the whole AuthKey_XXXX.p8 file, header and footer lines included)');
+  }
+  return pem;
+}
+
 let apnsJwt = { token: null, issuedAt: 0 };
 function apnsAuthToken() {
   const now = Math.floor(Date.now() / 1000);
@@ -81,7 +119,7 @@ function apnsAuthToken() {
   const b64u = (v) => Buffer.from(v).toString('base64url');
   const header = b64u(JSON.stringify({ alg: 'ES256', kid: process.env.APNS_KEY_ID }));
   const claims = b64u(JSON.stringify({ iss: process.env.APNS_TEAM_ID, iat: now }));
-  const key = Buffer.from(process.env.APNS_KEY_BASE64, 'base64').toString('utf8');
+  const key = apnsPrivateKey();
   const signature = crypto
     .sign('sha256', Buffer.from(`${header}.${claims}`), { key, dsaEncoding: 'ieee-p1363' })
     .toString('base64url');
@@ -377,6 +415,6 @@ async function runDueCampaigns() {
 }
 
 module.exports = {
-  init, sendToUser, sendToTable, sendToAll, sendToSubscription, sendToFcmToken, sendToApnsToken, notifications, endpointKey,
+  init, sendToUser, sendToTable, sendToAll, sendToSubscription, sendToFcmToken, sendToApnsToken, apnsStatus, notifications, endpointKey,
   AUDIENCES, audienceCounts, sendToAudience, runDueCampaigns,
 };
