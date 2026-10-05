@@ -49,8 +49,8 @@ self.addEventListener('push', (event) => {
 
   const options = {
     body: data.body || '',
-    icon: '/icons/icon-192.png',
-    badge: '/icons/icon-72.png',
+    icon: 'https://heyder.nz/wp-content/uploads/2026/04/logo1.png',
+    badge: 'https://heyder.nz/wp-content/uploads/2026/04/logo1.png',
     image: data.image || undefined,
     vibrate: [200, 100, 200, 100, 200],
     tag: data.tag || 'heyder-notification',
