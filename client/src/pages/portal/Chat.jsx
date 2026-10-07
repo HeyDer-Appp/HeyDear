@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import api from '../../utils/api';
 import { success as hapticSuccess } from '../../utils/haptics';
 import { flagUrl } from '../../utils/flags';
-import ProfileAvatar from '../../components/ProfileAvatar';
+import TabHeader from '../../components/TabHeader';
 import { useCachedFetch } from '../../utils/useCachedFetch';
 import { Stagger, Rise } from '../../components/Motion';
 
@@ -116,23 +116,13 @@ export default function Chat() {
   });
   const handleDecline = (person) => withBusy(person.user_id, () => api.post(`/connections/requests/${person.request_id}/decline`));
 
-  const header = (
-    <nav
-      className="relative z-10 flex items-center justify-between px-6 pb-5"
-      style={{ paddingTop: 'calc(1.25rem + env(safe-area-inset-top))' }}
-    >
-      <Link to="/portal/dashboard" className="font-sans text-navy/65 text-sm hover:text-navy transition-colors">← Back</Link>
-      <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-7 brightness-0" />
-      <ProfileAvatar />
-    </nav>
-  );
+  const header = <TabHeader title="Connections" />;
 
   if (loading) {
     return (
       <div className="portal-bg min-h-screen relative overflow-hidden pb-nav">
         {header}
-        <div className="relative z-10 max-w-lg mx-auto px-5 py-8 space-y-3">
-          <h1 className="font-serif font-bold text-3xl text-navy mb-5">Connections</h1>
+        <div className="relative z-10 max-w-lg mx-auto px-5 pt-1 pb-8 space-y-3">
           <div className="space-y-2.5 animate-pulse">
             {[0, 1, 2, 3, 4].map(i => (
               <div key={i} className="flex items-center gap-3 glass-card !px-3 !py-2.5">
@@ -161,9 +151,7 @@ export default function Chat() {
   return (
     <div className="portal-bg min-h-screen relative overflow-hidden pb-nav">
       {header}
-      <Stagger className="relative z-10 max-w-lg mx-auto px-5 py-8 space-y-3">
-        <Rise><h1 className="font-serif font-bold text-3xl text-navy mb-2">Connections</h1></Rise>
-
+      <Stagger className="relative z-10 max-w-lg mx-auto px-5 pt-1 pb-8 space-y-3">
         {people.length === 0 && (
           <Rise className="glass-card text-center py-10">
             <p className="font-sans text-navy/65 text-sm">No one yet.</p>

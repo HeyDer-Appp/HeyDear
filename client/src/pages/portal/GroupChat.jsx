@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
 import { success as hapticSuccess } from '../../utils/haptics';
 import ProfileAvatar from '../../components/ProfileAvatar';
+import TabHeader from '../../components/TabHeader';
 import { flagUrl } from '../../utils/flags';
 import { GlimpseModal } from './Dashboard';
 import { useCachedFetch } from '../../utils/useCachedFetch';
@@ -173,16 +174,7 @@ function TextMessage({ msg, photo, name, country, isOwn }) {
   );
 }
 
-const header = (
-  <nav
-    className="relative z-10 flex items-center justify-between px-6 pb-5"
-    style={{ paddingTop: 'calc(1.25rem + env(safe-area-inset-top))' }}
-  >
-    <Link to="/portal/dashboard" className="font-sans text-navy/65 text-sm hover:text-navy transition-colors">← Back</Link>
-    <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-7 brightness-0" />
-    <ProfileAvatar />
-  </nav>
-);
+const header = <TabHeader title="Groups" doodle />;
 
 function formatRowDate(iso) {
   if (!iso) return { weekday: '', day: '' };
@@ -248,7 +240,6 @@ function GroupList({ onOpen }) {
         <DoodleWall />
         {header}
         <div className="relative z-10 max-w-lg mx-auto px-5 py-8 space-y-8">
-          <h1 className="doodle-label font-serif font-bold text-3xl text-navy">Groups</h1>
           <div className="space-y-3 animate-pulse">
             {[0, 1].map(i => (
               <div key={i} className="glass-card space-y-3">
@@ -288,8 +279,6 @@ function GroupList({ onOpen }) {
       <DoodleWall />
       {header}
       <Stagger className="relative z-10 max-w-lg mx-auto px-5 py-8 space-y-8">
-        <Rise><h1 className="doodle-label font-serif font-bold text-3xl text-navy">Groups</h1></Rise>
-
         {visibleGroups.length === 0 && (
           <Rise className="glass-card text-center py-10">
             <p className="font-sans text-navy/55 text-sm">Opens 48h before dinner.</p>

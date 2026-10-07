@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import api from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 import { fileToDataUrl, cropAndResizeImage } from '../../utils/image';
-import ProfileAvatar from '../../components/ProfileAvatar';
+import TabHeader from '../../components/TabHeader';
 import { Stagger, Rise } from '../../components/Motion';
 import PhotoCropModal from '../../components/PhotoCropModal';
 import { useCachedFetch } from '../../utils/useCachedFetch';
@@ -143,16 +143,8 @@ export default function MyAlbum() {
   if (loading) {
     return (
       <div className="portal-bg no-map min-h-screen relative overflow-hidden pb-nav">
-        <nav
-          className="relative z-10 flex items-center justify-between px-6 pb-5"
-          style={{ paddingTop: 'calc(1.25rem + env(safe-area-inset-top))' }}
-        >
-          <Link to="/portal/dashboard" className="font-sans text-navy/65 text-sm hover:text-navy transition-colors">← Back</Link>
-          <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-7 brightness-0" />
-          <ProfileAvatar />
-        </nav>
-        <div className="relative z-10 max-w-lg mx-auto px-5 py-8">
-          <h1 className="font-serif font-bold text-3xl text-navy mb-6">Album</h1>
+        <TabHeader title="Album" />
+        <div className="relative z-10 max-w-lg mx-auto px-5 pt-1 pb-8">
           <div className="grid grid-cols-2 gap-5 animate-pulse">
             {[0, 1, 2, 3].map(i => (
               <div key={i} className="w-full max-w-[104px] aspect-square rounded-sm bg-white/40" />
@@ -169,18 +161,9 @@ export default function MyAlbum() {
 
   return (
     <div className="portal-bg no-map min-h-screen relative overflow-hidden pb-nav">
-      <nav
-        className="relative z-10 flex items-center justify-between px-6 pb-5"
-        style={{ paddingTop: 'calc(1.25rem + env(safe-area-inset-top))' }}
-      >
-        <Link to="/portal/dashboard" className="font-sans text-navy/65 text-sm hover:text-navy transition-colors">← Back</Link>
-        <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-7 brightness-0" />
-        <ProfileAvatar />
-      </nav>
+        <TabHeader title="Album" />
 
-      <Stagger className="relative z-10 max-w-lg mx-auto px-5 py-8">
-        <Rise><h1 className="font-serif font-bold text-3xl text-navy mb-6">Album</h1></Rise>
-
+      <Stagger className="relative z-10 max-w-lg mx-auto px-5 pt-1 pb-8">
         <div className="album-frame">
         {dinners.length === 0 && (
           <p className="font-sans text-navy/55 text-sm text-center pt-24">No dinners yet.</p>
