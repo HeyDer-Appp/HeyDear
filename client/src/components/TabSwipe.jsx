@@ -1,4 +1,4 @@
-import React, { createContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { createContext, startTransition, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 // True inside the live preview of the neighbouring tab (BottomNav renders
@@ -43,9 +43,11 @@ export default function TabSwipe({ pathname, renderPeek, children }) {
     }
     const nb = nbRef.current;
     if (nb) {
+      // The whole neighbour layer slides as one GPU-composited transform; its
+      // map counter-translates in CSS so it stays put on screen (no clip-path,
+      // which would repaint every frame).
       const W = window.innerWidth;
-      nb.style.setProperty('--nx', `${px < 0 ? W + px : -W + px}px`);
-      nb.style.clipPath = px < 0 ? `inset(0 0 0 ${W + px}px)` : `inset(0 ${W - px}px 0 0)`;
+      nb.style.setProperty('--wx', `${px < 0 ? W + px : -W + px}px`);
     }
   };
 
@@ -117,12 +119,15 @@ export default function TabSwipe({ pathname, renderPeek, children }) {
         } else return;
       }
 
-      if (e.cancelable) e.preventDefault(); // we own this gesture now: no scroll / rubber-band
+      // No preventDefault: .tab-pager-current is touch-action: pan-y, so the browser
+      // never pans sideways, and a passive listener keeps vertical scrolling smooth.
       const raw = dx - st.slop;
       const dir = raw < 0 ? 1 : -1;
       const next = index + dir;
       const has = next >= 0 && next < TAB_PATHS.length;
-      if (has && st.peek !== TAB_PATHS[next]) { st.peek = TAB_PATHS[next]; setPeekPath(TAB_PATHS[next]); }
+      // Mounting the neighbour is heavy; as a transition it yields to the drag
+      // instead of freezing the first frames.
+      if (has && st.peek !== TAB_PATHS[next]) { const p = TAB_PATHS[next]; st.peek = p; startTransition(() => setPeekPath(p)); }
       if (!has && st.peek) { st.peek = null; setPeekPath(null); }
       st.samples.push({ x: t.clientX, t: performance.now() });
       if (st.samples.length > 6) st.samples.shift();
@@ -159,7 +164,7 @@ export default function TabSwipe({ pathname, renderPeek, children }) {
     const onCancel = () => { if (s.current.mode === 'drag') settle(false); else s.current.mode = 'idle'; };
 
     document.addEventListener('touchstart', onStart, { passive: true });
-    document.addEventListener('touchmove', onMove, { passive: false });
+    document.addEventListener('touchmove', onMove, { passive: true });
     document.addEventListener('touchend', onEnd, { passive: true });
     document.addEventListener('touchcancel', onCancel, { passive: true });
     return () => {
