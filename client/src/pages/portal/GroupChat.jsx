@@ -6,6 +6,7 @@ import api from '../../utils/api';
 import { success as hapticSuccess } from '../../utils/haptics';
 import ProfileAvatar from '../../components/ProfileAvatar';
 import TabHeader from '../../components/TabHeader';
+import { usePolling } from '../../utils/usePolling';
 import { flagUrl } from '../../utils/flags';
 import { GlimpseModal } from './Dashboard';
 import { useCachedFetch } from '../../utils/useCachedFetch';
@@ -229,10 +230,8 @@ function GroupList({ onOpen }) {
     async () => (await api.get('/group')).data.groups || []
   );
 
-  useEffect(() => {
-    const poll = setInterval(() => refetch({ silent: true }).catch(() => {}), 20000);
-    return () => clearInterval(poll);
-  }, [refetch]);
+  // Visible-only polling (see usePolling): no database reads while the app is in the background.
+  usePolling(() => refetch({ silent: true }), 20000);
 
   if (loading) {
     return (
@@ -318,11 +317,11 @@ function GroupDetail({ tableId, onBack }) {
   useEffect(() => {
     setLoading(true);
     fetchGroup().finally(() => setLoading(false));
-    // Shares the site-wide API rate limit with every other request on this
-    // connection, so this has to stay well under budget for a tab left open.
-    const poll = setInterval(fetchGroup, 15000);
-    return () => clearInterval(poll);
   }, [tableId]);
+
+  // Shares the site-wide API rate limit and the database's daily quota with every
+  // other request, so it only polls while the app is actually on screen.
+  usePolling(fetchGroup, 15000);
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);

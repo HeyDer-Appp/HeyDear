@@ -1,5 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { getCached, setCached } from './cache';
+import { useContext } from 'react';
+import { useLocation } from 'react-router-dom';
+import { getCached, setCached, cachedAgeMs } from './cache';
+import { PeekContext } from '../components/TabSwipe';
+
+// A screen mounted by a tab swipe (its live preview, then the real screen a
+// moment later) reuses cached data this fresh instead of refetching it.
+const SWIPE_REUSE_MS = 60000;
 
 // Stale-while-revalidate: if this key has a cached value, it's shown
 // immediately (no loading spinner) while a fresh copy is quietly fetched in
@@ -16,6 +23,9 @@ export function useCachedFetch(key, fetcher, deps = []) {
   const [error, setError] = useState(false);
   const fetcherRef = useRef(fetcher);
   fetcherRef.current = fetcher;
+  const peeking = useContext(PeekContext);
+  const { state: navState } = useLocation();
+  const firstRun = useRef(true);
 
   const load = useCallback(async ({ silent = false } = {}) => {
     if (!silent) setLoading(true);
@@ -34,6 +44,9 @@ export function useCachedFetch(key, fetcher, deps = []) {
   }, [key]);
 
   useEffect(() => {
+    const isFirst = firstRun.current;
+    firstRun.current = false;
+    if (isFirst && cached && (peeking || navState?.swiped) && cachedAgeMs(key) < SWIPE_REUSE_MS) return;
     load({ silent: !!cached }).catch(() => {});
     // Only re-run on key/dep changes, not on every render — `cached` is
     // deliberately read once per mount via the closure above, not tracked.

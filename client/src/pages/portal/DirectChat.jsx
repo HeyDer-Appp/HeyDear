@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
 import { success as hapticSuccess } from '../../utils/haptics';
 import ReportUserModal from '../../components/ReportUserModal';
+import { usePolling } from '../../utils/usePolling';
 
 const AVATAR_FALLBACK = 'https://heyder.nz/wp-content/uploads/2026/06/account-2.png';
 
@@ -27,11 +28,11 @@ export default function DirectChat() {
   useEffect(() => {
     setLoading(true);
     fetchThread().finally(() => setLoading(false));
-    // Shares the site-wide API rate limit with every other request on this
-    // connection, so this has to stay well under budget for a tab left open.
-    const poll = setInterval(fetchThread, 10000);
-    return () => clearInterval(poll);
   }, [connectionId]);
+
+  // Shares the site-wide API rate limit and the database's daily quota with every
+  // other request, so it only polls while the app is actually on screen.
+  usePolling(fetchThread, 10000);
 
   useEffect(() => {
     if (feedRef.current) feedRef.current.scrollTop = feedRef.current.scrollHeight;

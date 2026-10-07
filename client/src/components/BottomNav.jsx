@@ -4,6 +4,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { Image, Users, MessageCircle } from 'lucide-react';
 import api from '../utils/api';
 import { PeekContext } from './TabSwipe';
+import { usePolling } from '../utils/usePolling';
 
 // Fork, plate, spoon — traced from a reference icon, filled solid instead
 // of outlined like the other four nav icons. currentColor so it still
@@ -60,9 +61,9 @@ export default function BottomNav({ style }) {
   useEffect(() => {
     listeners.add(setPendingCount);
     refreshPendingCount();
-    const poll = setInterval(refreshPendingCount, 30000);
-    return () => { listeners.delete(setPendingCount); clearInterval(poll); };
+    return () => { listeners.delete(setPendingCount); };
   }, []);
+  usePolling(refreshPendingCount, 30000);
 
   // Floating glass pill (iOS dock style): hovers above the screen edge,
   // frosted so whatever scrolls underneath shows softly through it, with the

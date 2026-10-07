@@ -12,9 +12,22 @@ export function getCached(key) {
   }
 }
 
+// When an entry was last written, so a screen mounted a moment after another
+// one fetched the same data (a swipe's live preview, then the real screen) can
+// reuse it instead of asking the server again.
+export function cachedAgeMs(key) {
+  try {
+    const at = Number(localStorage.getItem(PREFIX + 'at_' + key));
+    return at ? Date.now() - at : Infinity;
+  } catch {
+    return Infinity;
+  }
+}
+
 export function setCached(key, data) {
   try {
     localStorage.setItem(PREFIX + key, JSON.stringify(data));
+    localStorage.setItem(PREFIX + 'at_' + key, String(Date.now()));
   } catch {
     // ignore — cache is a nice-to-have, not required for the app to work
   }
