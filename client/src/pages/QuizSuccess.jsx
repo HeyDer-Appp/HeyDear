@@ -75,7 +75,7 @@ export default function QuizSuccess() {
   return (
     <div className="min-h-screen relative overflow-hidden flex items-center justify-center px-6 py-16">
       <img
-        src="/images/auckland-map-beige.png"
+        src="/images/auckland-map-beige.webp"
         alt=""
         aria-hidden="true"
         className="fixed inset-0 w-full h-full object-cover pointer-events-none"

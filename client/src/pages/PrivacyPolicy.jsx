@@ -18,6 +18,8 @@ export default function PrivacyPolicy() {
           <p>All payments are processed securely through Stripe. We do not store credit card numbers on our servers.</p>
           <h2 className="font-serif text-2xl text-cream mt-8">Data retention</h2>
           <p>We retain your data for as long as you have an active account. You may request deletion at any time by emailing info@heyder.nz.</p>
+          <h2 className="font-serif text-2xl text-cream mt-8">Map credits</h2>
+          <p>Map data &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" className="text-gold hover:text-yellow">OpenStreetMap contributors</a>, available under the Open Database Licence.</p>
           <h2 className="font-serif text-2xl text-cream mt-8">Contact</h2>
           <p>For any privacy concerns, email us at <a href="mailto:info@heyder.nz" className="text-gold hover:text-yellow">info@heyder.nz</a></p>
         </div>
