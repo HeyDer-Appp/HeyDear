@@ -6,6 +6,7 @@ const { stripe } = require('../services/stripe');
 const { ANSWER_FIELDS } = require('../utils/answerFields');
 const { nzTime } = require('../utils/nzTime');
 const { sendEmail } = require('../services/email');
+const { sharedTable } = require('../services/reportContext');
 
 function toDate(v) {
   if (!v) return null;
@@ -423,9 +424,17 @@ router.post('/report', attendeeAuth, async (req, res) => {
       db.collection('users').doc(reportedUserId).get(),
     ]);
 
+    // If the two sat at the same dinner table, remember which one — it's what
+    // lets the team see the whole table when they review this.
+    let shared = null;
+    try { shared = await sharedTable(req.user.id, reportedUserId); } catch (e) { console.error('sharedTable failed', e.message); }
+
     const docRef = await db.collection('safetyReports').add({
       reporterId: req.user.id,
       reporterEmail: reporterSnap.data()?.email || req.user.email,
+      reporterName: reporterSnap.exists ? `${reporterSnap.data().firstName || ''} ${reporterSnap.data().lastName || ''}`.trim() || null : null,
+      tableId: shared ? shared.tableId : null,
+      dinnerId: shared ? shared.dinnerId : null,
       reportedUserId,
       reportedName: reportedSnap.exists
         ? `${reportedSnap.data().firstName || ''} ${reportedSnap.data().lastName || ''}`.trim() || null
@@ -447,6 +456,7 @@ router.post('/report', attendeeAuth, async (req, res) => {
         <p><strong>Reported user:</strong> ${reportedSnap.exists ? reportedSnap.data().firstName || 'Unknown' : 'Unknown'} (${reportedUserId})</p>
         <p><strong>Reason:</strong> ${reason}</p>
         <p><strong>Details:</strong> ${details ? details.replace(/</g, '&lt;') : '(none provided)'}</p>
+        <p><strong>Review it in the admin panel: People → Reports</strong></p>
         <p><strong>Report ID:</strong> ${docRef.id}</p>
       `,
     }).catch((err) => console.error('Failed to send safety report alert email', err));
