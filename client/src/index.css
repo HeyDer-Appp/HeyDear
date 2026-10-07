@@ -318,6 +318,32 @@
   }
   .group-row:active { transform: scale(0.985); background: #EFE6CD; }
   .doodle-wall-still { animation: none; }
+  /* Quieter wallpaper on the doodle screens: still the doodles, less shouting. */
+  .doodle-page .doodle-wall { opacity: 0.55; filter: saturate(0.7); }
+  /* Group chat: one calm panel from the top safe area down to the message field. */
+  .chat-panel {
+    position: absolute;
+    top: calc(env(safe-area-inset-top) + 6px);
+    left: 10px;
+    right: 10px;
+    bottom: calc(var(--nav-top) + 66px);
+    max-width: 32rem;
+    margin-inline: auto;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: 28px;
+    background: rgba(245, 237, 216, 0.88);
+    box-shadow: 0 10px 30px rgba(22, 24, 29, 0.1);
+  }
+  /* Messages scrolling up under the header fade out instead of being sliced off. */
+  .chat-feed {
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 18px);
+    mask-image: linear-gradient(to bottom, transparent 0, #000 18px);
+  }
+  /* Loading / locked / error: no message field, so the panel runs lower. */
+  .chat-panel.chat-panel-compact { bottom: calc(var(--nav-top) + 12px); }
   @keyframes doodleDrift {
     from { transform: translate3d(0, 0, 0); }
     to { transform: translate3d(0, -34vh, 0); }

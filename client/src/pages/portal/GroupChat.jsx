@@ -11,7 +11,7 @@ import { flagUrl } from '../../utils/flags';
 import { GlimpseModal } from './Dashboard';
 import { useCachedFetch } from '../../utils/useCachedFetch';
 import { Stagger, Rise } from '../../components/Motion';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, ChevronLeft, ArrowUp, Plus } from 'lucide-react';
 import DoodleWall from '../../components/DoodleWall';
 
 const AVATAR_FALLBACK = 'https://heyder.nz/wp-content/uploads/2026/06/account-2.png';
@@ -55,7 +55,7 @@ function Avatar({ photo, blurred, size = 32 }) {
 function NameTag({ name, country }) {
   if (!name) return null;
   return (
-    <p className="font-sans text-navy/55 text-[10px] mb-1 ml-1 inline-flex items-center gap-1 bg-cream rounded-full px-2 py-0.5">
+    <p className="font-sans text-navy/55 text-[11px] mb-0.5 ml-1 inline-flex items-center gap-1">
       {name}
       {country && flagUrl(country) && <img src={flagUrl(country)} alt={country} className="h-2.5 rounded-[1px]" />}
     </p>
@@ -94,7 +94,7 @@ function PromptOptions({ options, onSelect }) {
             className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl border text-left font-sans text-xs transition-all duration-200 ${
               active
                 ? 'border-plum bg-plum/10 text-navy shadow-[0_4px_20px_rgba(232,168,84,0.15)]'
-                : 'border-navy/15 bg-cream text-navy/80 hover:border-plum/40 hover:bg-cream'
+                : 'border-navy/10 bg-white/70 text-navy/80 hover:border-plum/40'
             } ${submitting && !active ? 'opacity-35' : ''}`}
           >
             <span className={`flex-shrink-0 w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors duration-200 ${
@@ -110,14 +110,14 @@ function PromptOptions({ options, onSelect }) {
   );
 }
 
-function PromptMessage({ msg, photo, name, country, blurred, onAnswer, isOwn, myAnswer }) {
+function PromptMessage({ msg, photo, name, country, blurred, onAnswer, isOwn, myAnswer, first = true }) {
   return (
-    <div className={`flex items-end gap-2 mb-3 ${isOwn ? 'flex-row-reverse' : ''}`}>
-      <Avatar photo={photo} blurred={blurred} />
+    <div className={`flex items-end gap-2 mb-1.5 ${first ? 'mt-2.5' : ''} ${isOwn ? 'flex-row-reverse' : ''}`}>
+      {!isOwn && (first ? <Avatar photo={photo} blurred={blurred} /> : <div className="w-8 flex-shrink-0" />)}
       <div className={`max-w-[75%] ${isOwn ? 'text-right' : ''}`}>
-        {!isOwn && <NameTag name={name} country={country} />}
-        <div className={`rounded-2xl px-4 py-2.5 ${isOwn ? 'bg-plum text-cream rounded-br-sm' : 'bg-cream text-navy rounded-bl-sm'}`}>
-          <p className={`font-sans text-[10px] uppercase tracking-widest mb-1 ${isOwn ? 'text-cream/80' : 'text-navy/50'}`}>Asked</p>
+        {!isOwn && first && <NameTag name={name} country={country} />}
+        <div className={`rounded-2xl px-4 py-2.5 ${isOwn ? 'bg-plum text-cream rounded-br-sm' : 'bg-white/85 text-navy rounded-bl-sm shadow-[0_1px_2px_rgba(22,24,29,0.08)]'}`}>
+          <p className={`font-sans text-[11px] mb-0.5 ${isOwn ? 'text-cream/75' : 'text-navy/50'}`}>Asked</p>
           <p className={isOwn ? 'font-sans text-sm font-medium' : 'font-serif text-base leading-snug'}>{msg.prompt_text}</p>
         </div>
         {/* You can't answer your own question — server enforces this too,
@@ -125,9 +125,9 @@ function PromptMessage({ msg, photo, name, country, blurred, onAnswer, isOwn, my
             you've answered, the picker is replaced with what you picked —
             same server-side rule (one answer per prompt) backs this too. */}
         {isOwn ? (
-          <p className="mt-1.5 inline-block bg-cream rounded-full px-2.5 py-0.5 font-sans text-navy/55 text-[11px] italic">Your question — waiting on answers</p>
+          <p className="mt-1.5 inline-block bg-navy/5 rounded-full px-2.5 py-0.5 font-sans text-navy/55 text-[11px] italic">Your question — waiting on answers</p>
         ) : myAnswer ? (
-          <p className="mt-1.5 inline-block bg-cream rounded-full px-2.5 py-0.5 font-sans text-navy/65 text-[11px]">You answered: <span className="text-plum font-medium">{myAnswer}</span></p>
+          <p className="mt-1.5 inline-block bg-navy/5 rounded-full px-2.5 py-0.5 font-sans text-navy/65 text-[11px]">You answered: <span className="text-plum font-medium">{myAnswer}</span></p>
         ) : (
           <PromptOptions options={msg.prompt_options || []} onSelect={(opt) => onAnswer(msg.id, opt)} />
         )}
@@ -136,19 +136,19 @@ function PromptMessage({ msg, photo, name, country, blurred, onAnswer, isOwn, my
   );
 }
 
-function AnswerMessage({ msg, photo, name, country, blurred, isOwn }) {
+function AnswerMessage({ msg, photo, name, country, blurred, isOwn, first = true }) {
   return (
-    <div className={`flex items-end gap-2 mb-3 ${isOwn ? 'flex-row-reverse' : ''}`}>
-      <Avatar photo={photo} blurred={blurred} />
+    <div className={`flex items-end gap-2 mb-1.5 ${first ? 'mt-2.5' : ''} ${isOwn ? 'flex-row-reverse' : ''}`}>
+      {!isOwn && (first ? <Avatar photo={photo} blurred={blurred} /> : <div className="w-8 flex-shrink-0" />)}
       <div className={`max-w-[75%] ${isOwn ? 'text-right' : ''}`}>
-        {!isOwn && <NameTag name={name} country={country} />}
+        {!isOwn && first && <NameTag name={name} country={country} />}
         <div
           className={`rounded-2xl px-4 py-2.5 ${
-            isOwn ? 'bg-plum text-cream rounded-br-sm' : 'bg-cream text-navy rounded-bl-sm'
+            isOwn ? 'bg-plum text-cream rounded-br-sm' : 'bg-white/85 text-navy rounded-bl-sm shadow-[0_1px_2px_rgba(22,24,29,0.08)]'
           }`}
         >
-          <p className={`font-sans text-[10px] uppercase tracking-widest mb-1 ${isOwn ? 'text-cream/80' : 'text-navy/55'}`}>
-            ↳ replied to "{msg.prompt_text}"
+          <p className={`font-sans text-[11px] leading-snug mb-1 pl-2 border-l-2 ${isOwn ? 'text-cream/75 border-cream/50' : 'text-navy/55 border-plum/50'}`}>
+            {msg.prompt_text}
           </p>
           <p className="font-sans text-sm font-medium">{msg.option}</p>
         </div>
@@ -157,15 +157,15 @@ function AnswerMessage({ msg, photo, name, country, blurred, isOwn }) {
   );
 }
 
-function TextMessage({ msg, photo, name, country, isOwn }) {
+function TextMessage({ msg, photo, name, country, isOwn, first = true }) {
   return (
-    <div className={`flex items-end gap-2 mb-3 ${isOwn ? 'flex-row-reverse' : ''}`}>
-      <Avatar photo={photo} blurred={false} />
+    <div className={`flex items-end gap-2 mb-1.5 ${first ? 'mt-2.5' : ''} ${isOwn ? 'flex-row-reverse' : ''}`}>
+      {!isOwn && (first ? <Avatar photo={photo} blurred={false} /> : <div className="w-8 flex-shrink-0" />)}
       <div className={`max-w-[75%] ${isOwn ? 'text-right' : ''}`}>
-        {!isOwn && <NameTag name={name} country={country} />}
+        {!isOwn && first && <NameTag name={name} country={country} />}
         <div
           className={`rounded-2xl px-4 py-2.5 font-sans text-sm ${
-            isOwn ? 'bg-plum text-cream font-medium rounded-br-sm' : 'bg-cream text-navy rounded-bl-sm'
+            isOwn ? 'bg-plum text-cream font-medium rounded-br-sm' : 'bg-white/85 text-navy rounded-bl-sm shadow-[0_1px_2px_rgba(22,24,29,0.08)]'
           }`}
         >
           {msg.text}
@@ -294,6 +294,52 @@ function GroupList({ onOpen }) {
   );
 }
 
+// One calm cream panel holds the whole conversation, header included; the
+// doodles show around it and below, behind the message field and nav pill.
+function ChatShell({ children, footer, compact = false }) {
+  return (
+    <div className="portal-bg doodle-page chat-screen relative overflow-hidden" style={{ height: '100dvh' }}>
+      <DoodleWall still />
+      <section className={`chat-panel ${compact ? 'chat-panel-compact' : ''}`}>{children}</section>
+      {footer}
+    </div>
+  );
+}
+
+function ChatHeader({ onBack, onInfo, members, blurred, title, subtitle }) {
+  const shown = (members || []).slice(0, 3);
+  return (
+    <div className="flex items-center gap-2 px-3 pt-3 pb-2 flex-shrink-0">
+      <button
+        onClick={onBack}
+        aria-label="Back to groups"
+        className="w-9 h-9 flex-shrink-0 rounded-full bg-white/70 text-navy/70 hover:text-navy flex items-center justify-center transition-colors"
+      >
+        <ChevronLeft size={22} strokeWidth={2} />
+      </button>
+      <button
+        onClick={onInfo}
+        disabled={!onInfo}
+        className="flex-1 min-w-0 flex items-center gap-2.5 text-left disabled:cursor-default"
+      >
+        {shown.length > 0 && (
+          <div className="flex items-center flex-shrink-0">
+            {shown.map((m, i) => (
+              <div key={m.user_id} className={`rounded-full ${i ? '-ml-2.5' : ''}`} style={{ boxShadow: '0 0 0 2px #F5EDD8' }}>
+                <Avatar photo={m.photo} blurred={blurred} size={32} />
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="min-w-0">
+          <p className="font-serif font-bold text-navy text-xl leading-tight truncate">{title}</p>
+          {subtitle && <p className="font-sans text-navy/55 text-xs truncate">{subtitle}</p>}
+        </div>
+      </button>
+    </div>
+  );
+}
+
 // One group's chat: locked countdown before the 48h mark, blurred prompts
 // feed once open, full reveal (clear photos, real names + free text) at
 // 8pm — and for anything already attended, that reveal has naturally
@@ -377,150 +423,128 @@ function GroupDetail({ tableId, onBack }) {
     }
   };
 
+  const members = data?.members || [];
+  const { weekday, day } = formatRowDate(data?.dinner_date);
+  const subtitle = data ? `${weekday ? weekday.slice(0, 3) + ' ' : ''}${day} · ${members.length} people` : '';
   const detailHeader = (
-    <nav
-      className="relative z-10 flex items-center justify-between px-6 pb-5"
-      style={{ paddingTop: 'calc(1.25rem + env(safe-area-inset-top))' }}
-    >
-      <button onClick={onBack} className="font-sans text-navy/65 text-sm hover:text-navy transition-colors">← All groups</button>
-      <img src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png" alt="HeyDer" className="h-7 brightness-0" />
-      <ProfileAvatar />
-    </nav>
+    <ChatHeader
+      onBack={onBack}
+      onInfo={data?.chat_open ? () => setShowGroupInfo(true) : undefined}
+      members={members}
+      blurred={data ? !data.revealed : true}
+      title={data && !data.revealed ? 'Names at 8pm' : 'Your table'}
+      subtitle={subtitle}
+    />
   );
 
   if (loading) {
     return (
-      <div className="portal-bg doodle-page min-h-screen relative overflow-hidden pb-nav">
-        <DoodleWall still />
+      <ChatShell compact>
         {detailHeader}
-        <div className="relative z-10 max-w-lg mx-auto px-5 py-8 space-y-3 animate-pulse">
+        <div className="flex-1 px-4 py-6 space-y-3 animate-pulse">
           {[0, 1, 2].map(i => (
             <div key={i} className={`flex items-end gap-2 ${i % 2 ? 'flex-row-reverse' : ''}`}>
-              <div className="w-8 h-8 rounded-full bg-white/40 flex-shrink-0" />
-              <div className={`h-10 rounded-2xl bg-white/40 ${i === 1 ? 'w-40' : 'w-56'}`} />
+              <div className="w-8 h-8 rounded-full bg-navy/10 flex-shrink-0" />
+              <div className={`h-10 rounded-2xl bg-navy/10 ${i === 1 ? 'w-40' : 'w-56'}`} />
             </div>
           ))}
         </div>
-      </div>
+      </ChatShell>
     );
   }
 
   if (loadError && !data) {
     return (
-      <div className="portal-bg doodle-page min-h-screen relative overflow-hidden pb-nav">
-        <DoodleWall still />
+      <ChatShell compact>
         {detailHeader}
-        <div className="relative z-10 max-w-lg mx-auto px-5 py-20 text-center">
+        <div className="flex-1 px-5 py-16 text-center">
           <p className="font-serif text-2xl text-navy mb-3">Couldn't load.</p>
           <button onClick={() => window.location.reload()} className="plum-cta text-xs py-2 px-6">Retry</button>
         </div>
-      </div>
+      </ChatShell>
     );
   }
 
   if (!data?.chat_open) {
     const msLeft = data ? new Date(data.chat_opens_at) - now : 0;
     return (
-      <div className="portal-bg doodle-page min-h-screen relative overflow-hidden pb-nav">
-        <DoodleWall still />
+      <ChatShell compact>
         {detailHeader}
-        <div className="relative z-10 max-w-lg mx-auto px-5 py-8">
-          <div className="glass-card text-center py-12">
-            <p className="text-4xl mb-4">🔒</p>
-            <p className="font-serif font-bold text-4xl text-plum tabular-nums">{formatCountdown(msLeft)}</p>
-            <p className="font-sans text-navy/55 text-xs mt-2 uppercase tracking-widest">Opens soon</p>
-          </div>
+        <div className="flex-1 flex flex-col items-center justify-center text-center px-6 pb-10">
+          <p className="text-4xl mb-4">🔒</p>
+          <p className="font-serif font-bold text-4xl text-plum tabular-nums">{formatCountdown(msLeft)}</p>
+          <p className="font-sans text-navy/55 text-xs mt-2 uppercase tracking-widest">Opens soon</p>
         </div>
-      </div>
+      </ChatShell>
     );
   }
 
+  const msgs = data.messages || [];
   return (
-    <div className="portal-bg doodle-page min-h-screen relative overflow-hidden">
-      <DoodleWall still />
-      {detailHeader}
-
-      {/* Compact group-info bar — tap to see everyone, WhatsApp-style */}
-      <button
-        onClick={() => setShowGroupInfo(true)}
-        className="relative z-10 w-full max-w-lg mx-auto px-5 py-3 flex items-center gap-3 text-left border-b border-navy/10 bg-beige"
-      >
-        <div className="flex -space-x-2 flex-shrink-0">
-          {(data.members || []).slice(0, 5).map(m => (
-            <div key={m.user_id} className="rounded-full ring-2 ring-beige">
-              <Avatar photo={m.photo} blurred={!data.revealed} size={28} />
-            </div>
-          ))}
-          {(data.members || []).length > 5 && (
-            <div className="w-7 h-7 rounded-full ring-2 ring-beige bg-cream flex items-center justify-center text-navy/72 text-[10px] font-sans font-semibold">
-              +{data.members.length - 5}
-            </div>
-          )}
+    <ChatShell
+      footer={(
+        <div className="fixed inset-x-0 z-30 px-3.5" style={{ bottom: 'calc(var(--nav-top) + 8px)' }}>
+          <div className="max-w-lg mx-auto flex items-center gap-1 rounded-full bg-cream pl-2 pr-1.5 h-12 shadow-[0_4px_14px_rgba(22,24,29,0.10)]">
+            <button
+              onClick={() => setShowPicker(true)}
+              title="Ask a question"
+              aria-label="Ask a question"
+              className="flex-shrink-0 w-9 h-9 rounded-full text-plum flex items-center justify-center hover:bg-plum/10 transition-colors"
+            >
+              <Plus size={20} strokeWidth={2} />
+            </button>
+            {data.revealed ? (
+              <>
+                <input
+                  value={text}
+                  onChange={e => setText(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleSend()}
+                  placeholder="Message"
+                  className="flex-1 min-w-0 bg-transparent px-1.5 text-navy text-[15px] font-sans placeholder:text-navy/40 focus:outline-none"
+                />
+                <button
+                  onClick={handleSend}
+                  disabled={!text.trim() || sending}
+                  aria-label="Send"
+                  className="flex-shrink-0 w-9 h-9 rounded-full bg-plum text-cream flex items-center justify-center disabled:opacity-35 transition-opacity"
+                >
+                  <ArrowUp size={18} strokeWidth={2.4} />
+                </button>
+              </>
+            ) : (
+              <p className="flex-1 px-1.5 font-sans text-navy/65 text-sm">🔒 Opens 8pm on the night</p>
+            )}
+          </div>
         </div>
-        <p className="font-sans text-navy/55 text-xs">
-          {data.revealed ? 'Your table' : 'Names at 8pm'}
-        </p>
-      </button>
+      )}
+    >
+      {detailHeader}
 
       {showGroupInfo && <GlimpseModal tableId={tableId} onClose={() => setShowGroupInfo(false)} />}
 
-      {/* Feed */}
-      <div ref={feedRef} className="relative z-10 max-w-lg mx-auto px-5 pt-2 overflow-y-auto" style={{ paddingBottom: 'calc(var(--nav-top) + 96px)', maxHeight: 'calc(100vh - 220px)' }}>
-        {(data.messages || []).length === 0 && (
-          <div className="glass-card text-center py-10 my-4">
-            <p className="font-sans text-navy/55 text-sm">Ask a question +</p>
-          </div>
-        )}
-        {(data.messages || []).map(msg => {
-          const isOwn = msg.user_id === attendeeUser?.uid;
-          const photo = photoByUser[msg.user_id];
-          const country = countryByUser[msg.user_id];
-          const name = data.revealed ? (nameByUser[msg.user_id] || 'Guest') : null;
-          if (msg.type === 'prompt') {
-            const myAnswer = (data.messages || []).find(
-              m => m.type === 'answer' && m.reply_to_id === msg.id && m.user_id === attendeeUser?.uid
-            )?.option;
-            return <PromptMessage key={msg.id} msg={msg} photo={photo} name={name} country={country} blurred={!data.revealed} onAnswer={handleAnswer} isOwn={isOwn} myAnswer={myAnswer} />;
-          }
-          if (msg.type === 'answer') {
-            return <AnswerMessage key={msg.id} msg={msg} photo={photo} name={name} country={country} blurred={!data.revealed} isOwn={isOwn} />;
-          }
-          return <TextMessage key={msg.id} msg={msg} photo={photo} name={name} country={country} isOwn={isOwn} />;
-        })}
-      </div>
-
-      {/* Composer */}
-      <div className="fixed inset-x-0 z-30 bg-beige px-4 py-2.5" style={{ bottom: 'calc(var(--nav-top) + 8px)' }}>
-        <div className="max-w-lg mx-auto flex items-center gap-2">
-          <button
-            onClick={() => setShowPicker(true)}
-            title="Ask a question"
-            className="flex-shrink-0 w-9 h-9 rounded-full border border-plum/30 text-plum flex items-center justify-center font-sans text-lg hover:bg-plum/10 transition-colors"
-          >
-            +
-          </button>
-          {data.revealed ? (
-            <>
-              <input
-                value={text}
-                onChange={e => setText(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleSend()}
-                placeholder="Message"
-                className="flex-1 bg-cream border border-navy/15 rounded-full px-4 py-2.5 text-navy text-sm font-sans focus:outline-none focus:border-plum/40"
-              />
-              <button
-                onClick={handleSend}
-                disabled={!text.trim() || sending}
-                className="plum-cta text-xs py-2.5 px-4 disabled:opacity-40"
-              >
-                Send
-              </button>
-            </>
-          ) : (
-            <div className="flex-1 px-1">
-              <p className="font-sans text-navy/65 text-sm">🔒 Opens 8pm on the night</p>
-            </div>
+      {/* Feed — scrolls inside the panel; a short chat sits at the bottom, nearest the message field. */}
+      <div ref={feedRef} data-no-ptr className="chat-feed flex-1 min-h-0 overflow-y-auto px-4 pb-3">
+        <div className="min-h-full flex flex-col justify-end">
+          {msgs.length === 0 && (
+            <p className="font-sans text-navy/55 text-sm text-center py-10">Ask a question +</p>
           )}
+          {msgs.map((msg, idx) => {
+            const isOwn = msg.user_id === attendeeUser?.uid;
+            const photo = photoByUser[msg.user_id];
+            const country = countryByUser[msg.user_id];
+            const name = data.revealed ? (nameByUser[msg.user_id] || 'Guest') : null;
+            const first = idx === 0 || msgs[idx - 1].user_id !== msg.user_id;
+            if (msg.type === 'prompt') {
+              const myAnswer = msgs.find(
+                m => m.type === 'answer' && m.reply_to_id === msg.id && m.user_id === attendeeUser?.uid
+              )?.option;
+              return <PromptMessage key={msg.id} msg={msg} photo={photo} name={name} country={country} blurred={!data.revealed} onAnswer={handleAnswer} isOwn={isOwn} myAnswer={myAnswer} first={first} />;
+            }
+            if (msg.type === 'answer') {
+              return <AnswerMessage key={msg.id} msg={msg} photo={photo} name={name} country={country} blurred={!data.revealed} isOwn={isOwn} first={first} />;
+            }
+            return <TextMessage key={msg.id} msg={msg} photo={photo} name={name} country={country} isOwn={isOwn} first={first} />;
+          })}
         </div>
       </div>
 
@@ -546,8 +570,7 @@ function GroupDetail({ tableId, onBack }) {
           </div>
         </div>
       )}
-
-    </div>
+    </ChatShell>
   );
 }
 
