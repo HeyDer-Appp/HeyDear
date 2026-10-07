@@ -18,7 +18,10 @@ const authLimiter = rateLimit({
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: process.env.NODE_ENV === 'production' ? 100 : 5000,
+  // Whole-API ceiling per IP. The app polls and refetches on every tab
+  // switch, and a dinner table often shares one venue wifi IP, so 100 per
+  // 15 min tripped 429s in normal use. Login and quiz keep their own strict limits.
+  max: process.env.NODE_ENV === 'production' ? 1000 : 5000,
   standardHeaders: true,
   legacyHeaders: false,
 });
