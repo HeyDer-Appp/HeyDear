@@ -5,7 +5,6 @@ import toast from 'react-hot-toast';
 import api from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 import { fileToDataUrl, cropAndResizeImage } from '../../utils/image';
-import BottomNav from '../../components/BottomNav';
 import ProfileAvatar from '../../components/ProfileAvatar';
 import { Stagger, Rise } from '../../components/Motion';
 import PhotoCropModal from '../../components/PhotoCropModal';
@@ -160,7 +159,6 @@ export default function MyAlbum() {
             ))}
           </div>
         </div>
-        <BottomNav />
       </div>
     );
   }
@@ -370,7 +368,6 @@ export default function MyAlbum() {
         <PhotoCropModal imageSrc={cropTarget.src} cropShape="rect" onConfirm={handleCropConfirm} onCancel={() => setCropTarget(null)} />
       )}
 
-      <BottomNav />
     </div>
   );
 }

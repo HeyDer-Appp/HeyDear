@@ -6,7 +6,6 @@ import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
 import { openCheckout } from '../../utils/checkout';
 import { fadeUpVariant, staggerContainerVariant, fadeLeftVariant, choiceBase } from '../Quiz';
-import BottomNav from '../../components/BottomNav';
 
 // Booking again is just "pick a Tuesday, pay (or not, if subscribed)" — a
 // returning member's profile is already built, so this is a dedicated,
@@ -254,7 +253,6 @@ export default function BookDinner() {
           <p className="font-serif text-2xl text-navy mb-3">Couldn't load.</p>
           <button onClick={() => window.location.reload()} className="plum-cta text-xs py-2 px-6">Retry</button>
         </div>
-        <BottomNav />
       </div>
     );
   }
@@ -271,7 +269,6 @@ export default function BookDinner() {
           </p>
           <Link to="/portal/dashboard" className="plum-cta text-sm py-2.5 px-6">Back</Link>
         </div>
-        <BottomNav />
       </div>
     );
   }
@@ -439,7 +436,6 @@ export default function BookDinner() {
         )}
       </div>
 
-      <BottomNav />
     </div>
   );
 }

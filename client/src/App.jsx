@@ -7,7 +7,8 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import NativePushBootstrap from './components/NativePushBootstrap';
 import PullToRefresh from './components/PullToRefresh';
 import OfflineBanner from './components/OfflineBanner';
-import TabSwipe from './components/TabSwipe';
+import TabSwipe, { tabIndexOf } from './components/TabSwipe';
+import BottomNav from './components/BottomNav';
 
 class ErrorBoundary extends React.Component {
   state = { error: null };
@@ -137,6 +138,8 @@ function useResumeToDashboard() {
   }, [attendeeUser, navigate, location.pathname]);
 }
 
+const showsNav = (p) => tabIndexOf(p) >= 0 || p === '/portal/book' || p === '/portal/profile' || p.startsWith('/portal/person/');
+
 function AppRoutes() {
   useResumeToDashboard();
   const { pathname, state: locationState } = useLocation();
@@ -158,7 +161,7 @@ function AppRoutes() {
         transparent here would make that map blink at the swap. */}
     <TabSwipe pathname={pathname} renderPeek={renderTabPeek}>
     {/* A committed tab swipe has already slid the new screen into place, so it skips the fade too. */}
-    <div key={pathname} className={beige && !locationState?.justCompletedProfile && !locationState?.swiped ? 'route-fade' : undefined}>
+    <div key={pathname} className={locationState?.swiped ? 'no-enter' : (beige && !locationState?.justCompletedProfile ? 'route-fade' : undefined)}>
     <Routes>
       <Route path="/" element={<HomeRoute />} />
       <Route path="/about" element={<About />} />
@@ -200,6 +203,8 @@ function AppRoutes() {
     </Routes>
     </div>
     </TabSwipe>
+    {/* One nav pill for every signed-in screen that has one, kept mounted across tab changes so its disc glides and nothing re-creates mid-swipe. */}
+    {showsNav(pathname) && <BottomNav />}
     </>
   );
 }
@@ -221,13 +226,19 @@ export default function App() {
   return (
     <AuthProvider>
       <Toaster
-        position="top-right"
+        position="top-center"
+        // Sit below the notch / Dynamic Island and status bar, not under them.
+        containerStyle={{ top: 'calc(env(safe-area-inset-top) + 12px)', left: 12, right: 12 }}
         toastOptions={{
           style: {
             background: '#353d4a',
             color: '#F5EDD8',
             border: '1px solid rgba(245,237,216,0.08)',
             fontFamily: 'Jost, sans-serif',
+            maxWidth: '100%',
+            borderRadius: 16,
+            padding: '12px 16px',
+            boxShadow: '0 12px 32px rgba(22,24,29,0.35)',
           },
           success: { iconTheme: { primary: '#E8A854', secondary: '#353d4a' } },
           error: { iconTheme: { primary: '#ef4444', secondary: '#353d4a' } },

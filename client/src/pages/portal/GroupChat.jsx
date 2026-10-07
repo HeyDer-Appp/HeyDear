@@ -4,7 +4,6 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
 import { success as hapticSuccess } from '../../utils/haptics';
-import BottomNav from '../../components/BottomNav';
 import ProfileAvatar from '../../components/ProfileAvatar';
 import { flagUrl } from '../../utils/flags';
 import { GlimpseModal } from './Dashboard';
@@ -260,7 +259,6 @@ function GroupList({ onOpen }) {
             ))}
           </div>
         </div>
-        <BottomNav />
       </div>
     );
   }
@@ -274,7 +272,6 @@ function GroupList({ onOpen }) {
           <p className="font-serif text-2xl text-navy mb-3">Couldn't load.</p>
           <button onClick={() => window.location.reload()} className="plum-cta text-xs py-2 px-6">Retry</button>
         </div>
-        <BottomNav />
       </div>
     );
   }
@@ -305,7 +302,6 @@ function GroupList({ onOpen }) {
           </div>
         )}
       </Stagger>
-      <BottomNav />
     </div>
   );
 }
@@ -430,7 +426,6 @@ function GroupDetail({ tableId, onBack }) {
           <p className="font-serif text-2xl text-navy mb-3">Couldn't load.</p>
           <button onClick={() => window.location.reload()} className="plum-cta text-xs py-2 px-6">Retry</button>
         </div>
-        <BottomNav />
       </div>
     );
   }
@@ -448,7 +443,6 @@ function GroupDetail({ tableId, onBack }) {
             <p className="font-sans text-navy/55 text-xs mt-2 uppercase tracking-widest">Opens soon</p>
           </div>
         </div>
-        <BottomNav />
       </div>
     );
   }
@@ -565,7 +559,6 @@ function GroupDetail({ tableId, onBack }) {
         </div>
       )}
 
-      <BottomNav />
     </div>
   );
 }

@@ -6,7 +6,6 @@ import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
 import { openCheckout } from '../../utils/checkout';
 import { success as hapticSuccess } from '../../utils/haptics';
-import BottomNav from '../../components/BottomNav';
 import { flagUrl } from '../../utils/flags';
 import { useCachedFetch } from '../../utils/useCachedFetch';
 import { prefetchPortalData } from '../../utils/prefetch';
@@ -19,6 +18,18 @@ const PRE_PROFILE_CITIES = ['Auckland', 'Wellington', 'Sydney', 'Melbourne', 'Br
 // Frosted-glass dropdown for the pre-profile city picker — a native <select>
 // can't get this look (backdrop-filter on its open option list isn't
 // stylable cross-browser), so this is a plain button + panel instead.
+// The "book a dinner" screen is a single fixed page: lock the document so it
+// can't scroll or rubber-band up and down under the finger. Rendered only
+// while that state is showing, so a dashboard with dinners still scrolls.
+function PageLock() {
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    document.documentElement.classList.add('page-locked');
+    return () => document.documentElement.classList.remove('page-locked');
+  }, []);
+  return null;
+}
+
 function CityDropdown({ value, onChange }) {
   const [open, setOpen] = useState(false);
   return (
@@ -841,6 +852,19 @@ export default function PortalDashboard() {
   const handoffReveal = (delayMs) => (justCompletedProfile
     ? { opacity: dashboardRevealed ? 1 : 0, transition: `opacity 2400ms ease-out ${delayMs}ms` }
     : undefined);
+  // The nav pill lives outside this page (App.jsx), so the post-signup reveal
+  // drives it through classes on <html> (see index.css).
+  useEffect(() => {
+    if (!justCompletedProfile) return undefined;
+    const el = document.documentElement;
+    el.classList.add('nav-handoff');
+    let done;
+    if (dashboardRevealed) {
+      el.classList.add('nav-handoff-in');
+      done = setTimeout(() => el.classList.remove('nav-handoff', 'nav-handoff-in'), 4400 + 2400 + 300);
+    }
+    return () => { clearTimeout(done); el.classList.remove('nav-handoff', 'nav-handoff-in'); };
+  }, [justCompletedProfile, dashboardRevealed]);
   const [location, setLocation] = useState('');
   const [bookingDate, setBookingDate] = useState(null);
   const [bookingCity, setBookingCity] = useState('Auckland');
@@ -1249,9 +1273,10 @@ export default function PortalDashboard() {
 
   return (
     <div
-      className={`portal-bg min-h-screen relative overflow-hidden pb-nav ${justCompletedProfile ? 'quiz-handoff' : ''}`}
+      className={`portal-bg flex flex-col relative overflow-hidden pb-nav ${justCompletedProfile ? 'quiz-handoff' : ''}`}
+      style={{ minHeight: '100dvh' }}
     >
-      <div>
+      <div className="flex-1 flex flex-col">
       {/* Nav */}
       <nav
         className="relative z-10 flex items-center justify-between px-6 pb-5"
@@ -1276,8 +1301,9 @@ export default function PortalDashboard() {
         </div>
       </nav>
 
-      <div className="relative z-10 max-w-lg mx-auto px-5 py-8 space-y-6" style={handoffReveal(2200)}>
+      <div className="relative z-10 w-full flex-1 flex flex-col max-w-lg mx-auto px-5 py-8 space-y-6" style={handoffReveal(2200)}>
 
+        {upcoming.length === 0 && <PageLock />}
         {/* Upcoming dinners */}
         {upcoming.length > 0 ? (
           <div className="space-y-4">
@@ -1286,7 +1312,8 @@ export default function PortalDashboard() {
             ))}
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center gap-6" style={{ /* 174px = measured header + paddings; the bottom spacing (the floating nav's pb-nav) and the notch inset are subtracted too, or the page is taller than the screen and scrolls */ minHeight: 'calc(100dvh - 174px - (var(--nav-top) + 28px) - env(safe-area-inset-top))' }}>
+          /* flex-1: fills exactly the space left under the header and above the nav padding, so the page is never taller than the screen (no hand-measured calc to drift when the nav changes). */
+          <div className="flex-1 flex flex-col items-center justify-center gap-6">
             <div className="flex flex-col items-center gap-6">
               <motion.div
                 layout
@@ -1577,9 +1604,6 @@ export default function PortalDashboard() {
         </div>
       )}
 
-      <div style={handoffReveal(4400)}>
-        <BottomNav />
-      </div>
       </div>
     </div>
   );

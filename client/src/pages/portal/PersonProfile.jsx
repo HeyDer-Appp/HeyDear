@@ -3,7 +3,6 @@ import { Link, useParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../../utils/api';
 import { flagUrl } from '../../utils/flags';
-import BottomNav from '../../components/BottomNav';
 import ReportUserModal from '../../components/ReportUserModal';
 import { Stagger, Rise } from '../../components/Motion';
 
@@ -64,7 +63,6 @@ export default function PersonProfile() {
         <div className="relative z-10 max-w-lg mx-auto px-5 py-20 text-center">
           <p className="font-serif text-2xl text-navy mb-3">Not available.</p>
         </div>
-        <BottomNav />
       </div>
     );
   }
@@ -207,7 +205,6 @@ export default function PersonProfile() {
         <ReportUserModal userId={userId} userName={data.first_name} onClose={() => setShowReport(false)} />
       )}
 
-      <BottomNav />
     </div>
   );
 }

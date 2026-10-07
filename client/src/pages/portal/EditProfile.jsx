@@ -9,7 +9,6 @@ import { fileToDataUrl, cropAndResizeImage } from '../../utils/image';
 import { clearCached } from '../../utils/cache';
 import { useCachedFetch } from '../../utils/useCachedFetch';
 import { DIAL_CODES } from '../../utils/flags';
-import BottomNav from '../../components/BottomNav';
 import { Stagger, Rise } from '../../components/Motion';
 import PhotoCropModal from '../../components/PhotoCropModal';
 import { isPushSupported, getPermissionState, subscribeToPush, unsubscribeFromPush } from '../../utils/push';
@@ -390,7 +389,6 @@ export default function EditProfile() {
           ))}
         </div>
       </div>
-      <BottomNav />
     </div>
   );
 
@@ -800,7 +798,6 @@ export default function EditProfile() {
         </div>
       )}
 
-      <BottomNav />
     </div>
   );
 }

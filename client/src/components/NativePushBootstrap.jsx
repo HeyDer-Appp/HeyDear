@@ -25,7 +25,14 @@ export default function NativePushBootstrap() {
       try {
         const { PushNotifications } = await import('@capacitor/push-notifications');
         const received = await PushNotifications.addListener('pushNotificationReceived', (n) => {
-          toast(`${n.title ? `${n.title} — ` : ''}${n.body || ''}`, { icon: '🔔', duration: 5000 });
+          // Title on its own line, message beneath — easier to read at a glance than "title — body".
+          toast(
+            <div style={{ lineHeight: 1.3 }}>
+              {n.title && <div style={{ fontWeight: 600 }}>{n.title}</div>}
+              {n.body && <div style={{ opacity: n.title ? 0.85 : 1 }}>{n.body}</div>}
+            </div>,
+            { icon: '🔔', duration: 5000 }
+          );
           hapticSuccess();
         });
         const tapped = await PushNotifications.addListener('pushNotificationActionPerformed', (action) => {

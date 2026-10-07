@@ -4,7 +4,6 @@ import toast from 'react-hot-toast';
 import api from '../../utils/api';
 import { success as hapticSuccess } from '../../utils/haptics';
 import { flagUrl } from '../../utils/flags';
-import BottomNav from '../../components/BottomNav';
 import ProfileAvatar from '../../components/ProfileAvatar';
 import { useCachedFetch } from '../../utils/useCachedFetch';
 import { Stagger, Rise } from '../../components/Motion';
@@ -143,7 +142,6 @@ export default function Chat() {
             ))}
           </div>
         </div>
-        <BottomNav />
       </div>
     );
   }
@@ -156,7 +154,6 @@ export default function Chat() {
           <p className="font-serif text-2xl text-navy mb-3">Couldn't load.</p>
           <button onClick={() => window.location.reload()} className="plum-cta text-xs py-2 px-6">Retry</button>
         </div>
-        <BottomNav />
       </div>
     );
   }
@@ -187,7 +184,6 @@ export default function Chat() {
           </Rise>
         ))}
       </Stagger>
-      <BottomNav />
     </div>
   );
 }

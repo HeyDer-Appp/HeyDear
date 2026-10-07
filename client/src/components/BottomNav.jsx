@@ -46,7 +46,7 @@ function refreshPendingCount() {
     .catch(() => {});
 }
 
-export default function BottomNav() {
+export default function BottomNav({ style }) {
   const peeking = useContext(PeekContext);
   const { pathname } = useLocation();
   const activeIndex = ITEMS.findIndex(i => i.to === pathname || (i.to === '/portal/dashboard' && pathname === '/portal'));
@@ -74,8 +74,19 @@ export default function BottomNav() {
   return createPortal(
     <nav
       className="nav-glass fixed left-1/2 -translate-x-1/2 z-40 flex items-center gap-1.5 px-2.5 rounded-full"
-      style={{ bottom: 'var(--nav-bottom)', height: 'var(--nav-h)' }}
+      style={{ bottom: 'var(--nav-bottom)', height: 'var(--nav-h)', ...style }}
     >
+      {/* The plum disc is one element that glides to the active tab. */}
+      <span
+        aria-hidden="true"
+        className="absolute rounded-full bg-[#754471] shadow-[0_4px_12px_rgba(117,68,113,0.35)] pointer-events-none"
+        style={{
+          left: 10, top: 9, width: 62, height: 46,
+          opacity: activeIndex >= 0 ? 1 : 0,
+          transform: `translateX(${Math.max(activeIndex, 0) * 68}px)`,
+          transition: 'transform 300ms cubic-bezier(0.22, 0.9, 0.3, 1), opacity 200ms',
+        }}
+      />
       {ITEMS.map((item, i) => {
         const Icon = item.icon;
         const active = i === activeIndex;
@@ -84,8 +95,8 @@ export default function BottomNav() {
             key={item.to}
             to={item.to}
             aria-label={item.label}
-            className={`relative w-[62px] h-[46px] rounded-full flex items-center justify-center transition-all duration-200 active:scale-90 ${
-              active ? 'bg-[#754471] text-[#F5EDD8] shadow-[0_4px_12px_rgba(117,68,113,0.35)]' : 'text-navy/55 hover:text-navy/75'
+            className={`relative w-[62px] h-[46px] rounded-full flex items-center justify-center transition-colors duration-200 active:scale-90 ${
+              active ? 'text-[#F5EDD8]' : 'text-navy/55 hover:text-navy/75'
             }`}
           >
             <span className="relative">
