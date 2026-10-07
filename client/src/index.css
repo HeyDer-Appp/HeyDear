@@ -573,3 +573,15 @@ html.nav-handoff.nav-handoff-in .nav-glass { opacity: 1; transition: opacity 240
    anchored above it drops to the bottom of the visible area. */
 html.keyboard-open { --nav-top: 0px; }
 html.keyboard-open .nav-glass { display: none; }
+
+/* iOS zooms the whole page in when a text field with text smaller than 16px is
+   focused, and doesn't zoom back out — the layout then stays enlarged and
+   shifted after the keyboard closes. 16px stops the zoom. (-webkit-touch-callout
+   is only recognised by iOS WebKit, so desktop and Android are untouched.) */
+@supports (-webkit-touch-callout: none) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='button']):not([type='submit']):not([type='file']):not([type='hidden']),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
