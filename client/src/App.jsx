@@ -138,7 +138,7 @@ function useResumeToDashboard() {
   }, [attendeeUser, navigate, location.pathname]);
 }
 
-const showsNav = (p) => tabIndexOf(p) >= 0 || p === '/portal/book' || p === '/portal/profile' || p.startsWith('/portal/person/');
+const showsNav = (p) => tabIndexOf(p) >= 0 || p === '/portal/book' || p === '/portal/profile' || p.startsWith('/portal/person/') || p.startsWith('/portal/dm/');
 
 // While a text field is focused the on-screen keyboard is up: flag it on <html>
 // so the nav pill steps aside and bottom-anchored UI (the chat's message field)
@@ -155,10 +155,53 @@ function useKeyboardFlag() {
   }, []);
 }
 
+// Signed-in screens are sized to exactly the visible height (window.innerHeight),
+// not 100vh — on iOS vh can be a few points taller than what is on screen, which
+// is enough to make a short page scroll and rubber-band.
+function useAppHeight() {
+  useEffect(() => {
+    const set = () => document.documentElement.style.setProperty('--app-h', `${window.innerHeight}px`);
+    set();
+    window.addEventListener('resize', set);
+    return () => window.removeEventListener('resize', set);
+  }, []);
+}
+
+// When a signed-in screen's content fits on one screen, lock the page: no
+// scrolling and no iOS rubber-band bounce (see html.page-locked in index.css).
+// Longer screens (a big connections list, the edit-profile form) stay scrollable.
+function usePageLockWhenItFits(active, pathname) {
+  useEffect(() => {
+    const el = document.documentElement;
+    if (!active) { el.classList.remove('page-locked'); return undefined; }
+    let timer = 0;
+    const check = () => {
+      timer = 0;
+      // body.scrollHeight still reports the true content height while locked
+      el.classList.toggle('page-locked', document.body.scrollHeight <= window.innerHeight + 1);
+    };
+    const schedule = () => { if (!timer) timer = setTimeout(check, 60); };
+    check();
+    const ro = new ResizeObserver(schedule);
+    ro.observe(document.body);
+    const mo = new MutationObserver(schedule);
+    mo.observe(document.getElementById('root') || document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class'] });
+    window.addEventListener('resize', schedule);
+    return () => {
+      clearTimeout(timer);
+      ro.disconnect(); mo.disconnect();
+      window.removeEventListener('resize', schedule);
+      el.classList.remove('page-locked');
+    };
+  }, [active, pathname]);
+}
+
 function AppRoutes() {
   useResumeToDashboard();
   useKeyboardFlag();
+  useAppHeight();
   const { pathname, state: locationState } = useLocation();
+  usePageLockWhenItFits(pathname.startsWith('/portal') && !pathname.startsWith('/portal/login'), pathname);
   // The page behind everything is dark by default; on the beige app screens
   // that showed as a dark blink whenever one screen left before the next drew.
   const beige = pathname.startsWith('/portal') || pathname.startsWith('/profile');

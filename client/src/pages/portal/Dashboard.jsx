@@ -18,18 +18,6 @@ const PRE_PROFILE_CITIES = ['Auckland', 'Wellington', 'Sydney', 'Melbourne', 'Br
 // Frosted-glass dropdown for the pre-profile city picker — a native <select>
 // can't get this look (backdrop-filter on its open option list isn't
 // stylable cross-browser), so this is a plain button + panel instead.
-// The "book a dinner" screen is a single fixed page: lock the document so it
-// can't scroll or rubber-band up and down under the finger. Rendered only
-// while that state is showing, so a dashboard with dinners still scrolls.
-function PageLock() {
-  useEffect(() => {
-    window.scrollTo(0, 0);
-    document.documentElement.classList.add('page-locked');
-    return () => document.documentElement.classList.remove('page-locked');
-  }, []);
-  return null;
-}
-
 function CityDropdown({ value, onChange }) {
   const [open, setOpen] = useState(false);
   return (
@@ -1274,7 +1262,7 @@ export default function PortalDashboard() {
   return (
     <div
       className={`portal-bg flex flex-col relative overflow-hidden pb-nav ${justCompletedProfile ? 'quiz-handoff' : ''}`}
-      style={{ minHeight: '100dvh' }}
+      style={{ minHeight: 'var(--app-h, 100dvh)' }}
     >
       <div className="flex-1 flex flex-col">
       {/* Nav */}
@@ -1303,7 +1291,6 @@ export default function PortalDashboard() {
 
       <div className="relative z-10 w-full flex-1 flex flex-col max-w-lg mx-auto px-5 py-8 space-y-6" style={handoffReveal(2200)}>
 
-        {upcoming.length === 0 && <PageLock />}
         {/* Upcoming dinners */}
         {upcoming.length > 0 ? (
           <div className="space-y-4">

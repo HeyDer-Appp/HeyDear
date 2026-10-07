@@ -563,7 +563,9 @@ html.page-locked body {
   height: 100%;
   overscroll-behavior: none;
 }
-html.page-locked .portal-bg { touch-action: none; }
+html.page-locked .portal-bg:not(.chat-screen) { touch-action: none; }
+/* Full-screen roots match the visible height exactly (--app-h is set in App.jsx). */
+.portal-bg.min-h-screen { min-height: var(--app-h, 100dvh); }
 
 /* Post-signup handoff (Dashboard.jsx): the nav pill fades in last. */
 html.nav-handoff .nav-glass { opacity: 0; }

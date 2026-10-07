@@ -50,7 +50,7 @@ function refreshPendingCount() {
 export default function BottomNav({ style }) {
   const peeking = useContext(PeekContext);
   const { pathname } = useLocation();
-  const activeIndex = ITEMS.findIndex(i => i.to === pathname || (i.to === '/portal/dashboard' && pathname === '/portal'));
+  const activeIndex = ITEMS.findIndex(i => i.to === pathname || (i.to === '/portal/dashboard' && pathname === '/portal') || (i.to === '/portal/chat' && pathname.startsWith('/portal/dm/')));
 
   // A lightweight poll (count only, no photos) so a pending connect request
   // shows up as a dot on the Chat tab without having to open it first —
