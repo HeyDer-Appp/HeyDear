@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import NativePushBootstrap from './components/NativePushBootstrap';
 import PullToRefresh from './components/PullToRefresh';
 import OfflineBanner from './components/OfflineBanner';
+import TabSwipe from './components/TabSwipe';
 
 class ErrorBoundary extends React.Component {
   state = { error: null };
@@ -155,7 +156,9 @@ function AppRoutes() {
     {/* No route fade for the profile-completion handoff: Quiz.jsx has already
         dissolved into the same map the dashboard starts on, and a fade from
         transparent here would make that map blink at the swap. */}
-    <div key={pathname} className={beige && !locationState?.justCompletedProfile ? (locationState?.swipeDir ? `route-slide-${locationState.swipeDir}` : 'route-fade') : undefined}>
+    <TabSwipe pathname={pathname} renderPeek={renderTabPeek}>
+    {/* A committed tab swipe has already slid the new screen into place, so it skips the fade too. */}
+    <div key={pathname} className={beige && !locationState?.justCompletedProfile && !locationState?.swiped ? 'route-fade' : undefined}>
     <Routes>
       <Route path="/" element={<HomeRoute />} />
       <Route path="/about" element={<About />} />
@@ -196,7 +199,21 @@ function AppRoutes() {
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
     </div>
+    </TabSwipe>
     </>
+  );
+}
+
+// The neighbouring tab, rendered live beside the current one while a swipe is
+// in progress (see TabSwipe).
+function renderTabPeek(location) {
+  return (
+    <Routes location={location}>
+      <Route path="/portal/album" element={<PortalRoute><PortalMyAlbum /></PortalRoute>} />
+      <Route path="/portal/group-chat" element={<PortalRoute><PortalGroupChat /></PortalRoute>} />
+      <Route path="/portal/dashboard" element={<PortalRoute><PortalDashboard /></PortalRoute>} />
+      <Route path="/portal/chat" element={<PortalRoute><PortalChat /></PortalRoute>} />
+    </Routes>
   );
 }
 

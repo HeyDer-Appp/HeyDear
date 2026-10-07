@@ -1,7 +1,9 @@
-import React, { useEffect, useState } from 'react';
-import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import React, { useContext, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { Image, Users, MessageCircle } from 'lucide-react';
 import api from '../utils/api';
+import { PeekContext } from './TabSwipe';
 
 // Fork, plate, spoon — traced from a reference icon, filled solid instead
 // of outlined like the other four nav icons. currentColor so it still
@@ -30,83 +32,46 @@ const ITEMS = [
   { to: '/portal/chat', icon: MessageCircle, label: 'Chat' },
 ];
 
-// Swipe left/right anywhere on a tab screen to move to the neighbouring tab
-// (Album ← Group ← My Table → Chat order, no wrap-around), like flicking
-// between tabs in Instagram. Deliberately conservative so it never fights
-// scrolling, sliders, text fields or iOS's own edge-swipe back gesture.
-const SWIPE_MIN_PX = 70;
-const SWIPE_MAX_MS = 700;
-const EDGE_GUARD_PX = 24;
-
-function startsInHorizontalScroller(el) {
-  for (let n = el; n && n !== document.body; n = n.parentElement) {
-    if (n.closest?.('input, textarea, select, [contenteditable="true"], [data-no-swipe]') === n) return true;
-    if (n.scrollWidth > n.clientWidth + 4) {
-      const ox = getComputedStyle(n).overflowX;
-      if (ox === 'auto' || ox === 'scroll') return true;
-    }
-  }
-  return false;
-}
-
-function useTabSwipe(activeIndex) {
-  const navigate = useNavigate();
-  useEffect(() => {
-    if (activeIndex < 0) return;
-    let start = null;
-    const onStart = (e) => {
-      if (e.touches.length !== 1) { start = null; return; }
-      const t = e.touches[0];
-      if (t.clientX < EDGE_GUARD_PX || t.clientX > window.innerWidth - EDGE_GUARD_PX) { start = null; return; }
-      if (startsInHorizontalScroller(e.target) || document.querySelector('[role="dialog"]')) { start = null; return; }
-      start = { x: t.clientX, y: t.clientY, at: Date.now() };
-    };
-    const onEnd = (e) => {
-      if (!start) return;
-      const t = e.changedTouches[0];
-      const dx = t.clientX - start.x;
-      const dy = t.clientY - start.y;
-      const quick = Date.now() - start.at < SWIPE_MAX_MS;
-      start = null;
-      if (!quick || Math.abs(dx) < SWIPE_MIN_PX || Math.abs(dy) > Math.abs(dx) * 0.6) return;
-      const next = activeIndex + (dx < 0 ? 1 : -1);
-      if (next < 0 || next >= ITEMS.length) return;
-      navigate(ITEMS[next].to, { state: { swipeDir: dx < 0 ? 'left' : 'right' } });
-    };
-    const onCancel = () => { start = null; };
-    document.addEventListener('touchstart', onStart, { passive: true });
-    document.addEventListener('touchend', onEnd, { passive: true });
-    document.addEventListener('touchcancel', onCancel, { passive: true });
-    return () => {
-      document.removeEventListener('touchstart', onStart);
-      document.removeEventListener('touchend', onEnd);
-      document.removeEventListener('touchcancel', onCancel);
-    };
-  }, [activeIndex, navigate]);
+// One shared, throttled fetch: every tab screen mounts its own BottomNav (and
+// a swipe mounts a second one for the peeking tab), so without this each
+// switch would fire its own request at the rate-limited API.
+let sharedCount = 0;
+let lastFetchAt = 0;
+const listeners = new Set();
+function refreshPendingCount() {
+  if (Date.now() - lastFetchAt < 20000) return;
+  lastFetchAt = Date.now();
+  api.get('/connections/pending-count')
+    .then(res => { sharedCount = res.data.count || 0; listeners.forEach(fn => fn(sharedCount)); })
+    .catch(() => {});
 }
 
 export default function BottomNav() {
+  const peeking = useContext(PeekContext);
   const { pathname } = useLocation();
   const activeIndex = ITEMS.findIndex(i => i.to === pathname || (i.to === '/portal/dashboard' && pathname === '/portal'));
-  useTabSwipe(activeIndex);
 
   // A lightweight poll (count only, no photos) so a pending connect request
   // shows up as a dot on the Chat tab without having to open it first —
   // green rather than the OS-level red badge convention, so it doesn't read
   // as an error/alert.
-  const [pendingCount, setPendingCount] = useState(0);
+  const [pendingCount, setPendingCount] = useState(sharedCount);
 
   useEffect(() => {
-    const check = () => api.get('/connections/pending-count').then(res => setPendingCount(res.data.count || 0)).catch(() => {});
-    check();
-    const poll = setInterval(check, 30000);
-    return () => clearInterval(poll);
+    listeners.add(setPendingCount);
+    refreshPendingCount();
+    const poll = setInterval(refreshPendingCount, 30000);
+    return () => { listeners.delete(setPendingCount); clearInterval(poll); };
   }, []);
 
   // Floating glass pill (iOS dock style): hovers above the screen edge,
   // frosted so whatever scrolls underneath shows softly through it, with the
   // active tab as a solid plum disc and the rest sitting back.
-  return (
+  if (peeking) return null;
+
+  // Portalled to <body> so no page's stacking context (or the tab slide) can
+  // ever clip or cover it.
+  return createPortal(
     <nav
       className="nav-glass fixed left-1/2 -translate-x-1/2 z-40 flex items-center gap-1.5 px-2.5 rounded-full"
       style={{ bottom: 'var(--nav-bottom)', height: 'var(--nav-h)' }}
@@ -132,6 +97,7 @@ export default function BottomNav() {
           </NavLink>
         );
       })}
-    </nav>
+    </nav>,
+    document.body
   );
 }
