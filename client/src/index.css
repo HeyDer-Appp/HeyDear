@@ -3,6 +3,14 @@
 @tailwind utilities;
 
 @layer base {
+  /* Floating bottom nav (BottomNav.jsx): bar height, how far it floats above
+     the screen edge, and the space screens must leave beneath their content. */
+  :root {
+    --nav-h: 64px;
+    --nav-bottom: max(12px, calc(env(safe-area-inset-bottom) - 6px));
+    --nav-top: calc(var(--nav-bottom) + var(--nav-h));
+  }
+
   * {
     box-sizing: border-box;
   }
@@ -45,6 +53,15 @@
 }
 
 @layer components {
+  .nav-glass {
+    background: rgba(255, 251, 240, 0.5);
+    -webkit-backdrop-filter: blur(22px) saturate(180%);
+    backdrop-filter: blur(22px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.65);
+    box-shadow: 0 10px 32px rgba(70, 52, 24, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.7), inset 0 -1px 0 rgba(255, 255, 255, 0.25);
+  }
+  .pb-nav { padding-bottom: calc(var(--nav-top) + 28px); }
+
   .btn-primary {
     @apply inline-block bg-gold text-navy font-sans font-semibold text-sm tracking-widest uppercase px-8 py-4 rounded transition-all duration-200 hover:bg-yellow hover:scale-105 active:scale-95;
   }
@@ -159,7 +176,12 @@
   /* Screen changes fade in instead of popping, so nothing flashes between pages. */
   .route-fade { animation: routeFade 180ms ease-out both; }
   @keyframes routeFade { from { opacity: 0; } to { opacity: 1; } }
-  @media (prefers-reduced-motion: reduce) { .route-fade { animation: none; } }
+  /* Tab swipes: the new screen slides in from the side you swiped toward. */
+  .route-slide-left { animation: routeSlideLeft 220ms ease-out both; }
+  .route-slide-right { animation: routeSlideRight 220ms ease-out both; }
+  @keyframes routeSlideLeft { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: none; } }
+  @keyframes routeSlideRight { from { opacity: 0; transform: translateX(-28px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .route-fade, .route-slide-left, .route-slide-right { animation: none; } }
 
   .quiz-cta {
     @apply inline-flex items-center justify-center gap-2 font-sans font-medium text-sm tracking-widest uppercase px-8 py-4 rounded-2xl transition-all duration-200 active:scale-[0.98];

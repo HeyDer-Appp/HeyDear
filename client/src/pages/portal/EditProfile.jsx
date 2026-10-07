@@ -370,7 +370,7 @@ export default function EditProfile() {
   const leaveWithoutApplying = () => navigate('/portal');
 
   if (loading) return (
-    <div className="portal-bg min-h-screen relative overflow-hidden pb-24">
+    <div className="portal-bg min-h-screen relative overflow-hidden pb-nav">
       <nav
         className="sticky top-0 z-20 flex items-center justify-between px-6 pb-5 backdrop-blur-md bg-beige/70"
         style={{ paddingTop: 'calc(1.25rem + env(safe-area-inset-top))' }}
@@ -404,7 +404,7 @@ export default function EditProfile() {
   );
 
   return (
-    <div className="portal-bg min-h-screen relative overflow-hidden pb-24">
+    <div className="portal-bg min-h-screen relative overflow-hidden pb-nav">
       <nav
         className="sticky top-0 z-20 flex items-center justify-between px-6 pb-5 backdrop-blur-md bg-beige/70"
         style={{ paddingTop: 'calc(1.25rem + env(safe-area-inset-top))' }}

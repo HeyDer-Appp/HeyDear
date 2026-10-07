@@ -143,7 +143,7 @@ export default function MyAlbum() {
 
   if (loading) {
     return (
-      <div className="portal-bg no-map min-h-screen relative overflow-hidden pb-24">
+      <div className="portal-bg no-map min-h-screen relative overflow-hidden pb-nav">
         <nav
           className="relative z-10 flex items-center justify-between px-6 pb-5"
           style={{ paddingTop: 'calc(1.25rem + env(safe-area-inset-top))' }}
@@ -170,7 +170,7 @@ export default function MyAlbum() {
   const openPhoto = openDinner && openPhotoIndex !== null ? openDinner.photos[openPhotoIndex] : null;
 
   return (
-    <div className="portal-bg no-map min-h-screen relative overflow-hidden pb-24">
+    <div className="portal-bg no-map min-h-screen relative overflow-hidden pb-nav">
       <nav
         className="relative z-10 flex items-center justify-between px-6 pb-5"
         style={{ paddingTop: 'calc(1.25rem + env(safe-area-inset-top))' }}

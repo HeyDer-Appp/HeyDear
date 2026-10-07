@@ -59,7 +59,7 @@ export default function PersonProfile() {
 
   if (error || !data) {
     return (
-      <div className="portal-bg min-h-screen relative overflow-hidden pb-24">
+      <div className="portal-bg min-h-screen relative overflow-hidden pb-nav">
         {header}
         <div className="relative z-10 max-w-lg mx-auto px-5 py-20 text-center">
           <p className="font-serif text-2xl text-navy mb-3">Not available.</p>
@@ -110,7 +110,7 @@ export default function PersonProfile() {
   };
 
   return (
-    <div className="portal-bg min-h-screen relative overflow-hidden pb-24">
+    <div className="portal-bg min-h-screen relative overflow-hidden pb-nav">
       {header}
       <Stagger className="relative z-10 max-w-lg mx-auto px-5 py-8 space-y-6">
         <Rise className="flex flex-col items-center text-center">

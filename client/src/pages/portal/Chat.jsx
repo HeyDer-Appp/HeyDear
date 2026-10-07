@@ -130,7 +130,7 @@ export default function Chat() {
 
   if (loading) {
     return (
-      <div className="portal-bg min-h-screen relative overflow-hidden pb-24">
+      <div className="portal-bg min-h-screen relative overflow-hidden pb-nav">
         {header}
         <div className="relative z-10 max-w-lg mx-auto px-5 py-8 space-y-3">
           <h1 className="font-serif font-bold text-3xl text-navy mb-5">Connections</h1>
@@ -150,7 +150,7 @@ export default function Chat() {
 
   if (loadError && !people) {
     return (
-      <div className="portal-bg min-h-screen relative overflow-hidden pb-24">
+      <div className="portal-bg min-h-screen relative overflow-hidden pb-nav">
         {header}
         <div className="relative z-10 max-w-lg mx-auto px-5 py-20 text-center">
           <p className="font-serif text-2xl text-navy mb-3">Couldn't load.</p>
@@ -162,7 +162,7 @@ export default function Chat() {
   }
 
   return (
-    <div className="portal-bg min-h-screen relative overflow-hidden pb-24">
+    <div className="portal-bg min-h-screen relative overflow-hidden pb-nav">
       {header}
       <Stagger className="relative z-10 max-w-lg mx-auto px-5 py-8 space-y-3">
         <Rise><h1 className="font-serif font-bold text-3xl text-navy mb-2">Connections</h1></Rise>

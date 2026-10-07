@@ -1249,7 +1249,7 @@ export default function PortalDashboard() {
 
   return (
     <div
-      className={`portal-bg min-h-screen relative overflow-hidden pb-24 ${justCompletedProfile ? 'quiz-handoff' : ''}`}
+      className={`portal-bg min-h-screen relative overflow-hidden pb-nav ${justCompletedProfile ? 'quiz-handoff' : ''}`}
     >
       <div>
       {/* Nav */}

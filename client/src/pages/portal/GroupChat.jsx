@@ -245,7 +245,7 @@ function GroupList({ onOpen }) {
 
   if (loading) {
     return (
-      <div className="portal-bg doodle-page min-h-screen relative overflow-hidden pb-24">
+      <div className="portal-bg doodle-page min-h-screen relative overflow-hidden pb-nav">
         <DoodleWall />
         {header}
         <div className="relative z-10 max-w-lg mx-auto px-5 py-8 space-y-8">
@@ -267,7 +267,7 @@ function GroupList({ onOpen }) {
 
   if (loadError && !groups) {
     return (
-      <div className="portal-bg doodle-page min-h-screen relative overflow-hidden pb-24">
+      <div className="portal-bg doodle-page min-h-screen relative overflow-hidden pb-nav">
         <DoodleWall />
         {header}
         <div className="relative z-10 max-w-lg mx-auto px-5 py-20 text-center">
@@ -287,7 +287,7 @@ function GroupList({ onOpen }) {
   const visibleGroups = (groups || []).filter(g => g.revealed || g === nextUpcoming);
 
   return (
-    <div className="portal-bg doodle-page min-h-screen relative overflow-hidden pb-24">
+    <div className="portal-bg doodle-page min-h-screen relative overflow-hidden pb-nav">
       <DoodleWall />
       {header}
       <Stagger className="relative z-10 max-w-lg mx-auto px-5 py-8 space-y-8">
@@ -406,7 +406,7 @@ function GroupDetail({ tableId, onBack }) {
 
   if (loading) {
     return (
-      <div className="portal-bg doodle-page min-h-screen relative overflow-hidden pb-24">
+      <div className="portal-bg doodle-page min-h-screen relative overflow-hidden pb-nav">
         <DoodleWall still />
         {detailHeader}
         <div className="relative z-10 max-w-lg mx-auto px-5 py-8 space-y-3 animate-pulse">
@@ -423,7 +423,7 @@ function GroupDetail({ tableId, onBack }) {
 
   if (loadError && !data) {
     return (
-      <div className="portal-bg doodle-page min-h-screen relative overflow-hidden pb-24">
+      <div className="portal-bg doodle-page min-h-screen relative overflow-hidden pb-nav">
         <DoodleWall still />
         {detailHeader}
         <div className="relative z-10 max-w-lg mx-auto px-5 py-20 text-center">
@@ -438,7 +438,7 @@ function GroupDetail({ tableId, onBack }) {
   if (!data?.chat_open) {
     const msLeft = data ? new Date(data.chat_opens_at) - now : 0;
     return (
-      <div className="portal-bg doodle-page min-h-screen relative overflow-hidden pb-24">
+      <div className="portal-bg doodle-page min-h-screen relative overflow-hidden pb-nav">
         <DoodleWall still />
         {detailHeader}
         <div className="relative z-10 max-w-lg mx-auto px-5 py-8">
@@ -483,7 +483,7 @@ function GroupDetail({ tableId, onBack }) {
       {showGroupInfo && <GlimpseModal tableId={tableId} onClose={() => setShowGroupInfo(false)} />}
 
       {/* Feed */}
-      <div ref={feedRef} className="relative z-10 max-w-lg mx-auto px-5 pt-2 pb-40 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 220px)' }}>
+      <div ref={feedRef} className="relative z-10 max-w-lg mx-auto px-5 pt-2 overflow-y-auto" style={{ paddingBottom: 'calc(var(--nav-top) + 96px)', maxHeight: 'calc(100vh - 220px)' }}>
         {(data.messages || []).length === 0 && (
           <div className="glass-card text-center py-10 my-4">
             <p className="font-sans text-navy/55 text-sm">Ask a question +</p>
@@ -508,7 +508,7 @@ function GroupDetail({ tableId, onBack }) {
       </div>
 
       {/* Composer */}
-      <div className="fixed bottom-16 inset-x-0 z-30 bg-beige px-4 py-2.5">
+      <div className="fixed inset-x-0 z-30 bg-beige px-4 py-2.5" style={{ bottom: 'calc(var(--nav-top) + 8px)' }}>
         <div className="max-w-lg mx-auto flex items-center gap-2">
           <button
             onClick={() => setShowPicker(true)}

@@ -248,7 +248,7 @@ export default function BookDinner() {
 
   if (loadError) {
     return (
-      <div className="portal-bg min-h-screen relative overflow-hidden pb-24">
+      <div className="portal-bg min-h-screen relative overflow-hidden pb-nav">
         {header}
         <div className="relative z-10 max-w-lg mx-auto px-5 py-20 text-center">
           <p className="font-serif text-2xl text-navy mb-3">Couldn't load.</p>
@@ -261,7 +261,7 @@ export default function BookDinner() {
 
   if (alreadyBooked) {
     return (
-      <div className="portal-bg min-h-screen relative overflow-hidden pb-24">
+      <div className="portal-bg min-h-screen relative overflow-hidden pb-nav">
         {header}
         <div className="relative z-10 max-w-lg mx-auto px-5 py-20 text-center">
           <p className="text-4xl mb-4">🍽</p>
@@ -277,7 +277,7 @@ export default function BookDinner() {
   }
 
   return (
-    <div className="portal-bg min-h-screen relative overflow-hidden pb-24">
+    <div className="portal-bg min-h-screen relative overflow-hidden pb-nav">
       {header}
       <div className="relative z-10 max-w-lg mx-auto px-5 py-8 space-y-6">
         <h1 className="font-serif font-bold text-3xl text-navy">
