@@ -321,6 +321,9 @@
   /* Quieter wallpaper on the doodle screens: still the doodles, less shouting. */
   .doodle-page .doodle-wall { opacity: 0.55; filter: saturate(0.7); }
   /* Group chat: one calm panel from the top safe area down to the message field. */
+  /* The chat fills the visible area exactly (TabSwipe-safe: it is its own fixed layer);
+     while the keyboard is up, ChatShell sets top/height from the visual viewport. */
+  .chat-screen { position: fixed; left: 0; right: 0; top: 0; height: 100%; }
   .chat-panel {
     position: absolute;
     top: calc(env(safe-area-inset-top) + 6px);
@@ -565,3 +568,8 @@ html.page-locked .portal-bg { touch-action: none; }
 /* Post-signup handoff (Dashboard.jsx): the nav pill fades in last. */
 html.nav-handoff .nav-glass { opacity: 0; }
 html.nav-handoff.nav-handoff-in .nav-glass { opacity: 1; transition: opacity 2400ms ease-out 4400ms; }
+
+/* Keyboard up (flag set in App.jsx): the nav pill steps aside, and anything
+   anchored above it drops to the bottom of the visible area. */
+html.keyboard-open { --nav-top: 0px; }
+html.keyboard-open .nav-glass { display: none; }

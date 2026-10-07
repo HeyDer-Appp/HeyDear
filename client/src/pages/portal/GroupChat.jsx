@@ -297,8 +297,34 @@ function GroupList({ onOpen }) {
 // One calm cream panel holds the whole conversation, header included; the
 // doodles show around it and below, behind the message field and nav pill.
 function ChatShell({ children, footer, compact = false }) {
+  const ref = useRef(null);
+
+  // iOS pans the whole page up when the keyboard opens, which would shove the
+  // header off the top. Pin this screen to exactly what is visible instead
+  // (top = how far the page was panned, height = visible height above the keyboard).
+  useEffect(() => {
+    const vv = window.visualViewport;
+    const el = ref.current;
+    if (!vv || !el) return undefined;
+    const update = () => {
+      if (document.documentElement.classList.contains('keyboard-open')) {
+        el.style.top = `${vv.offsetTop}px`;
+        el.style.height = `${vv.height}px`;
+      } else {
+        el.style.top = '';
+        el.style.height = '';
+      }
+    };
+    update();
+    vv.addEventListener('resize', update);
+    vv.addEventListener('scroll', update);
+    const mo = new MutationObserver(update);
+    mo.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => { vv.removeEventListener('resize', update); vv.removeEventListener('scroll', update); mo.disconnect(); };
+  }, []);
+
   return (
-    <div className="portal-bg doodle-page chat-screen relative overflow-hidden" style={{ height: '100dvh' }}>
+    <div ref={ref} className="portal-bg doodle-page chat-screen overflow-hidden">
       <DoodleWall still />
       <section className={`chat-panel ${compact ? 'chat-panel-compact' : ''}`}>{children}</section>
       {footer}
@@ -483,7 +509,7 @@ function GroupDetail({ tableId, onBack }) {
   return (
     <ChatShell
       footer={(
-        <div className="fixed inset-x-0 z-30 px-3.5" style={{ bottom: 'calc(var(--nav-top) + 8px)' }}>
+        <div className="absolute inset-x-0 z-30 px-3.5" style={{ bottom: 'calc(var(--nav-top) + 8px)' }}>
           <div className="max-w-lg mx-auto flex items-center gap-1 rounded-full bg-cream pl-2 pr-1.5 h-12 shadow-[0_4px_14px_rgba(22,24,29,0.10)]">
             <button
               onClick={() => setShowPicker(true)}

@@ -140,8 +140,24 @@ function useResumeToDashboard() {
 
 const showsNav = (p) => tabIndexOf(p) >= 0 || p === '/portal/book' || p === '/portal/profile' || p.startsWith('/portal/person/');
 
+// While a text field is focused the on-screen keyboard is up: flag it on <html>
+// so the nav pill steps aside and bottom-anchored UI (the chat's message field)
+// sits on the keyboard instead of behind it.
+function useKeyboardFlag() {
+  useEffect(() => {
+    const isField = (el) => !!el && (el.matches?.('input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=button]):not([type=submit]), textarea, [contenteditable="true"]'));
+    let t;
+    const on = (e) => { if (isField(e.target)) { clearTimeout(t); document.documentElement.classList.add('keyboard-open'); } };
+    const off = () => { clearTimeout(t); t = setTimeout(() => document.documentElement.classList.remove('keyboard-open'), 80); };
+    document.addEventListener('focusin', on);
+    document.addEventListener('focusout', off);
+    return () => { document.removeEventListener('focusin', on); document.removeEventListener('focusout', off); clearTimeout(t); document.documentElement.classList.remove('keyboard-open'); };
+  }, []);
+}
+
 function AppRoutes() {
   useResumeToDashboard();
+  useKeyboardFlag();
   const { pathname, state: locationState } = useLocation();
   // The page behind everything is dark by default; on the beige app screens
   // that showed as a dark blink whenever one screen left before the next drew.
