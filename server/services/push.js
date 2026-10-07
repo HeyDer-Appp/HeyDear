@@ -68,6 +68,13 @@ async function sendToFcmToken(fcmToken, payload) {
 // APNS_KEY_ID, APNS_TEAM_ID and APNS_BUNDLE_ID. TestFlight and App Store builds
 // use Apple's production servers; set APNS_ENV=sandbox only for builds run
 // straight from Xcode.
+// The topic must be exactly the bundle ID (nz.heyder.app). A value pasted from a
+// link (https://nz.heyder.app) or with stray spaces would make Apple reject
+// every send, so clean it up rather than fail.
+function apnsTopic() {
+  return (process.env.APNS_BUNDLE_ID || '').trim().replace(/^[a-z]+:\/\//i, '').replace(/\/+$/, '');
+}
+
 function apnsConfigured() {
   return !!(process.env.APNS_KEY_BASE64 && process.env.APNS_KEY_ID && process.env.APNS_TEAM_ID && process.env.APNS_BUNDLE_ID);
 }
@@ -86,13 +93,18 @@ function apnsStatus() {
     const missing = ['APNS_KEY_BASE64', 'APNS_KEY_ID', 'APNS_TEAM_ID', 'APNS_BUNDLE_ID'].filter((k) => !process.env[k]);
     problem = `missing: ${missing.join(', ')}`;
   }
+  const rawBundle = process.env.APNS_BUNDLE_ID || '';
+  const bundleNote = configured && rawBundle.trim() !== apnsTopic()
+    ? `APNS_BUNDLE_ID is "${rawBundle}" but should be exactly "${apnsTopic()}" (using the cleaned value, but please fix it in Render)`
+    : null;
   return {
     configured,
     keyUsable,
-    problem,
+    problem: problem || bundleNote,
     keyId: process.env.APNS_KEY_ID || null,
     teamId: process.env.APNS_TEAM_ID || null,
-    bundleId: process.env.APNS_BUNDLE_ID || null,
+    bundleId: rawBundle || null,
+    topicUsed: apnsTopic() || null,
     environment: process.env.APNS_ENV === 'sandbox' ? 'sandbox' : 'production',
   };
 }
@@ -151,7 +163,7 @@ function postToApns(token, payload) {
       ':method': 'POST',
       ':path': `/3/device/${token}`,
       authorization: `bearer ${apnsAuthToken()}`,
-      'apns-topic': process.env.APNS_BUNDLE_ID,
+      'apns-topic': apnsTopic(),
       'apns-push-type': 'alert',
       'apns-priority': '10',
       'content-type': 'application/json',
