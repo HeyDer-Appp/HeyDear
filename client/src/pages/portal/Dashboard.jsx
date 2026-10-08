@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
+import { getMapCity, setMapCity } from '../../utils/cityMap';
 import api from '../../utils/api';
 import { openCheckout } from '../../utils/checkout';
 import { success as hapticSuccess } from '../../utils/haptics';
@@ -18,6 +19,12 @@ const PRE_PROFILE_CITIES = ['Auckland', 'Wellington', 'Sydney', 'Melbourne', 'Br
 // Frosted-glass dropdown for the pre-profile city picker — a native <select>
 // can't get this look (backdrop-filter on its open option list isn't
 // stylable cross-browser), so this is a plain button + panel instead.
+// Renders nothing: points the background map at an upcoming dinner's city.
+function MapCity({ city }) {
+  useEffect(() => { if (city) setMapCity(city); }, [city]);
+  return null;
+}
+
 function CityDropdown({ value, onChange }) {
   const [open, setOpen] = useState(false);
   return (
@@ -855,7 +862,10 @@ export default function PortalDashboard() {
   }, [justCompletedProfile, dashboardRevealed]);
   const [location, setLocation] = useState('');
   const [bookingDate, setBookingDate] = useState(null);
-  const [bookingCity, setBookingCity] = useState('Auckland');
+  const [bookingCity, setBookingCity] = useState(() => getMapCity() || 'Auckland');
+  // The background map follows the city picked here (see utils/cityMap.js).
+  useEffect(() => { setMapCity(bookingCity); }, [bookingCity]);
+  useEffect(() => { if (location) setMapCity(location); }, [location]);
   const [howItWorksOpen, setHowItWorksOpen] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
   const [showPastDinners, setShowPastDinners] = useState(false);
@@ -1291,6 +1301,7 @@ export default function PortalDashboard() {
 
       <div className="relative z-10 w-full flex-1 flex flex-col max-w-lg mx-auto px-5 py-8 space-y-6" style={handoffReveal(2200)}>
 
+        {upcoming.length > 0 && <MapCity city={upcoming[0].city} />}
         {/* Upcoming dinners */}
         {upcoming.length > 0 ? (
           <div className="space-y-4">

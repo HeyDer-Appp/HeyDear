@@ -1852,7 +1852,7 @@ export default function Quiz() {
         <div
           className="fixed inset-0 z-[99]"
           style={{
-            background: `url('/images/auckland-map-beige.webp') center / cover no-repeat, ${QUIZ_CREAM_BG}`,
+            background: `var(--city-map, url('/images/auckland-map-beige.webp')) center / cover no-repeat, ${QUIZ_CREAM_BG}`,
             opacity: videoExiting ? 1 : 0,
           }}
         />

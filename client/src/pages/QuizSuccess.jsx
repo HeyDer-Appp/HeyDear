@@ -74,11 +74,10 @@ export default function QuizSuccess() {
 
   return (
     <div className="min-h-screen relative overflow-hidden flex items-center justify-center px-6 py-16">
-      <img
-        src="/images/auckland-map-beige.webp"
-        alt=""
+      <div
         aria-hidden="true"
-        className="fixed inset-0 w-full h-full object-cover pointer-events-none"
+        className="fixed inset-0 pointer-events-none"
+        style={{ background: "var(--city-map, url('/images/auckland-map-beige.webp')) center / cover no-repeat" }}
       />
 
       <div className="relative z-10 w-full max-w-sm flex flex-col items-center">

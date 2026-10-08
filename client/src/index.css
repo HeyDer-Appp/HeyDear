@@ -271,9 +271,15 @@
     position: fixed;
     inset: 0;
     z-index: -1;
-    background: url('/images/auckland-map-beige.webp') center / cover no-repeat;
+    /* --city-map / --map-fade are set by utils/cityMap.js when a city is picked. */
+    background: var(--city-map, url('/images/auckland-map-beige.webp')) center / cover no-repeat;
+    animation: var(--map-fade, none) 0.5s ease-out both;
     pointer-events: none;
   }
+  /* Two identical fades so switching city can restart the animation by swapping the name. */
+  @keyframes mapFadeA { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes mapFadeB { from { opacity: 0; } to { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .portal-bg::before { animation: none; } }
 
   /* Screens that want the plain beige, no map (Album). */
   .portal-bg.no-map::before {

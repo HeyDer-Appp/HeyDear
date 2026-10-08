@@ -9,6 +9,10 @@ import PullToRefresh from './components/PullToRefresh';
 import OfflineBanner from './components/OfflineBanner';
 import TabSwipe, { tabIndexOf } from './components/TabSwipe';
 import BottomNav from './components/BottomNav';
+import { initMapCity } from './utils/cityMap';
+
+// Restore the last chosen city's map before the first screen paints.
+initMapCity();
 
 class ErrorBoundary extends React.Component {
   state = { error: null };
