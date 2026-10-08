@@ -21,6 +21,8 @@ const groupRoutes = require('./routes/group');
 const connectionsRoutes = require('./routes/connections');
 const partnersRoutes = require('./routes/partners');
 const adminRemindersRoutes = require('./routes/admin/reminders');
+const adminReportsRoutes = require('./routes/admin/reports');
+const bannedUsers = require('./utils/banned');
 
 const adminSignupsRoutes = require('./routes/admin/signups');
 const adminMatchingRoutes = require('./routes/admin/matching');
@@ -87,6 +89,7 @@ app.use('/api', apiLimiter);
 app.get('/api/health', (req, res) => res.json({ status: 'ok', version: '1.0.0' }));
 
 pushService.init();
+bannedUsers.load();
 
 app.use('/api/auth', authRoutes);
 app.use('/api/push', pushRoutes);
@@ -100,6 +103,7 @@ app.use('/api/group', groupRoutes);
 app.use('/api/connections', connectionsRoutes);
 app.use('/api/partners', partnersRoutes);
 app.use('/api/admin/reminders', adminRemindersRoutes);
+app.use('/api/admin/reports', adminReportsRoutes);
 
 app.use('/api/admin/signups', adminSignupsRoutes);
 app.use('/api/admin/matching', adminMatchingRoutes);

@@ -1,4 +1,5 @@
 const { auth } = require('../firebase');
+const banned = require('../utils/banned');
 
 // verifyIdToken throws for two very different reasons: the token itself is
 // bad (expired, malformed, wrong project...) or something on OUR side failed
@@ -48,6 +49,8 @@ const attendeeAuth = async (req, res, next) => {
   const token = authHeader.split(' ')[1];
   try {
     const decoded = await auth.verifyIdToken(token);
+    // Banned by the team — answered as an invalid token so the app signs them out.
+    if (banned.has(decoded.uid)) return res.status(401).json({ error: 'This account has been suspended.' });
     req.user = { id: decoded.uid, email: decoded.email };
     next();
   } catch (err) {
