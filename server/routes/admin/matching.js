@@ -129,6 +129,7 @@ router.get('/tables/:dinnerId', adminAuth, async (req, res) => {
           held_over: data.held_over,
           no_show_risk: data.no_show_risk,
           admin_note: data.admin_note,
+          checked_in_at: data.checkedInAt && data.checkedInAt.toDate ? data.checkedInAt.toDate().toISOString() : null,
           first_name: data.firstName,
           last_name: data.lastName,
           gender: data.gender,

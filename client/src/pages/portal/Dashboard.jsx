@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { getMapCity, setMapCity } from '../../utils/cityMap';
 import api from '../../utils/api';
 import { startCheckout } from '../../utils/checkout';
+import useAutoCheckin from '../../utils/useAutoCheckin';
 import { success as hapticSuccess } from '../../utils/haptics';
 import { flagUrl } from '../../utils/flags';
 import { useCachedFetch } from '../../utils/useCachedFetch';
@@ -413,7 +414,7 @@ function formatCountdown(secs) {
     : `${pad(hours)}h ${pad(minutes)}m ${pad(seconds)}s`;
 }
 
-function DinnerCard({ dinner, onCancel, onRsvpUpdate }) {
+function DinnerCard({ dinner, onCancel, onRsvpUpdate, onCheckedIn }) {
   const [now, setNow] = useState(() => new Date());
   const [rsvpAttending, setRsvpAttending] = useState(dinner.rsvp_attending ?? null);
   const [rsvpSubmitting, setRsvpSubmitting] = useState(false);
@@ -436,6 +437,12 @@ function DinnerCard({ dinner, onCancel, onRsvpUpdate }) {
   // server/services/scheduler.js's rsvpPromptAt) — closes once dinner
   // actually starts.
   const rsvpWindowOpen = dinnerDate && !isPast && now >= new Date(dinnerDate.getTime() - 30 * 60 * 1000);
+
+  // Arrival is picked up from the phone's location (no button): the window runs
+  // 6:30pm–11:30pm NZ time and the server checks the phone is at the venue.
+  const checkin = dinner.checkin;
+  const checkinOpen = !!(checkin && checkin.opens_at && now >= new Date(checkin.opens_at) && now <= new Date(checkin.closes_at));
+  const { status: checkinStatus } = useAutoCheckin({ tableId: dinner.table_id, checkin, open: checkinOpen, onDone: onCheckedIn });
 
   const respondRsvp = async (value) => {
     if (rsvpSubmitting) return;
@@ -667,6 +674,17 @@ function DinnerCard({ dinner, onCancel, onRsvpUpdate }) {
             <p className="font-sans text-red-700 text-sm">✕ Not coming</p>
           )}
         </div>
+      )}
+
+      {/* Arrival, picked up automatically from the phone's location */}
+      {dinner.table_status === 'confirmed' && checkin?.enabled && (checkinOpen || checkin.done) && (
+        <p className="mt-4 font-sans text-sm" style={{ color: checkinStatus === 'done' ? '#047857' : 'rgba(22,24,29,0.6)' }}>
+          {checkinStatus === 'done' || checkin.done
+            ? "📍 You're checked in ✓"
+            : checkinStatus === 'denied'
+              ? '📍 Turn on location for HeyDer so we know you\u2019ve arrived'
+              : '📍 We\u2019ll check you in when you arrive'}
+        </p>
       )}
 
       {/* Cancel — hidden once a confirmed dinner is past (nothing left to
@@ -1118,6 +1136,9 @@ export default function PortalDashboard() {
   const updateRsvpCache = (tableId, attending) => {
     setDinnersData(prev => (prev || []).map(d => d.table_id === tableId ? { ...d, rsvp_attending: attending } : d));
   };
+  const updateCheckinCache = (tableId) => {
+    setDinnersData(prev => (prev || []).map(d => d.table_id === tableId ? { ...d, checkin: { ...(d.checkin || {}), done: true } } : d));
+  };
 
   // A pending (not yet matched) booking has no table_id at all — cancelling
   // it goes through a different endpoint that just removes the booking
@@ -1307,7 +1328,7 @@ export default function PortalDashboard() {
         {upcoming.length > 0 ? (
           <div className="space-y-4">
             {upcoming.map(d => (
-              <DinnerCard key={d.table_id} dinner={d} onCancel={cancelBooking} onRsvpUpdate={updateRsvpCache} />
+              <DinnerCard key={d.table_id} dinner={d} onCancel={cancelBooking} onRsvpUpdate={updateRsvpCache} onCheckedIn={updateCheckinCache} />
             ))}
           </div>
         ) : (

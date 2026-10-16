@@ -16,6 +16,8 @@ export default function PrivacyPolicy() {
           <p>Your information is used to create curated dinner groups, send you event-related emails, and improve our matching algorithm. We do not sell your personal data to third parties.</p>
           <h2 className="font-serif text-2xl text-cream mt-8">Payment information</h2>
           <p>All payments are processed securely through Stripe. We do not store credit card numbers on our servers.</p>
+          <h2 className="font-serif text-2xl text-cream mt-8">Location</h2>
+          <p>On the night of your dinner, with your permission, the app uses your phone's location while it is open to see that you have arrived at the restaurant. We keep only the fact that you arrived and how far from the venue you were. We do not store your coordinates or track you at any other time. You can turn location off in your phone settings.</p>
           <h2 className="font-serif text-2xl text-cream mt-8">Data retention</h2>
           <p>We retain your data for as long as you have an active account. You may request deletion at any time by emailing info@heyder.nz.</p>
           <h2 className="font-serif text-2xl text-cream mt-8">Map credits</h2>

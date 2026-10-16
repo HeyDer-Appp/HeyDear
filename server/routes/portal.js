@@ -7,6 +7,7 @@ const { ANSWER_FIELDS } = require('../utils/answerFields');
 const { nzTime } = require('../utils/nzTime');
 const { sendEmail } = require('../services/email');
 const { sharedTable } = require('../services/reportContext');
+const geo = require('../utils/geo');
 
 function toDate(v) {
   if (!v) return null;
@@ -321,6 +322,23 @@ router.get('/dinners', attendeeAuth, async (req, res) => {
         // true/false once they've tapped a response to the "still coming
         // tonight?" prompt (shown from 6:30pm on the dinner itself).
         rsvp_attending: memberSnap.exists ? (memberSnap.data().rsvpAttending ?? null) : null,
+        // Automatic arrival check-in (no button): the app sends the phone's
+        // location during this window and the server decides if it's at the venue.
+        checkin: (() => {
+          const now = new Date();
+          const opensAt = dinnerDate ? nzTime(dinnerDate, geo.CHECKIN_OPENS.h, geo.CHECKIN_OPENS.m) : null;
+          const closesAt = dinnerDate ? nzTime(dinnerDate, geo.CHECKIN_CLOSES.h, geo.CHECKIN_CLOSES.m) : null;
+          const located = typeof restaurant.lat === 'number' && typeof restaurant.lng === 'number';
+          const checkedAt = memberSnap.exists ? memberSnap.data().checkedInAt : null;
+          return {
+            enabled: !!(venueRevealed && located && table.status === 'confirmed'),
+            open: !!(opensAt && now >= opensAt && now <= closesAt),
+            done: !!checkedAt,
+            checked_in_at: checkedAt && checkedAt.toDate ? checkedAt.toDate().toISOString() : null,
+            opens_at: opensAt ? opensAt.toISOString() : null,
+            closes_at: closesAt ? closesAt.toISOString() : null,
+          };
+        })(),
       };
     }));
 
@@ -608,6 +626,57 @@ async function recordCancellation({ uid, booking, member, table, tableId, dinner
     });
   } catch (e) { console.error('recordCancellation failed', e.message); }
 }
+
+// Automatic arrival check-in. The app reports the phone's position while the
+// window is open; if it is within CHECKIN_RADIUS_M of the restaurant the diner
+// is marked as arrived. Only the distance is kept — never the coordinates.
+router.post('/checkin/:tableId', attendeeAuth, async (req, res) => {
+  try {
+    const { tableId } = req.params;
+    const lat = Number(req.body.lat), lng = Number(req.body.lng), accuracy = Number(req.body.accuracy);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+      return res.status(400).json({ error: 'A location is required.' });
+    }
+
+    const memberRef = db.collection('tableMembers').doc(`${tableId}_${req.user.id}`);
+    const [memberSnap, tableSnap] = await Promise.all([memberRef.get(), db.collection('tables').doc(tableId).get()]);
+    if (!memberSnap.exists || !tableSnap.exists) return res.status(404).json({ error: 'Not found' });
+    if (memberSnap.data().checkedInAt) return res.json({ checkedIn: true, already: true });
+
+    const table = tableSnap.data();
+    if (table.status !== 'confirmed') return res.json({ checkedIn: false, reason: 'not_confirmed' });
+    const [dinnerSnap, restSnap] = await Promise.all([
+      db.collection('dinners').doc(table.dinnerId).get(),
+      table.restaurantId ? db.collection('restaurants').doc(table.restaurantId).get() : null,
+    ]);
+    const dinnerDate = dinnerSnap.exists ? toDate(dinnerSnap.data().date) : null;
+    if (!dinnerDate) return res.json({ checkedIn: false, reason: 'no_dinner' });
+
+    const now = new Date();
+    if (now < nzTime(dinnerDate, geo.CHECKIN_OPENS.h, geo.CHECKIN_OPENS.m) || now > nzTime(dinnerDate, geo.CHECKIN_CLOSES.h, geo.CHECKIN_CLOSES.m)) {
+      return res.json({ checkedIn: false, reason: 'outside_window' });
+    }
+    const rest = restSnap && restSnap.exists ? restSnap.data() : null;
+    if (!rest || typeof rest.lat !== 'number' || typeof rest.lng !== 'number') {
+      return res.json({ checkedIn: false, reason: 'no_venue_location' });
+    }
+    if (Number.isFinite(accuracy) && accuracy > geo.CHECKIN_MAX_ACCURACY_M) {
+      return res.json({ checkedIn: false, reason: 'low_accuracy' });
+    }
+
+    const metres = geo.distanceMetres(lat, lng, rest.lat, rest.lng);
+    if (metres > geo.CHECKIN_RADIUS_M) return res.json({ checkedIn: false, reason: 'too_far' });
+
+    await memberRef.set({
+      checkedInAt: admin.firestore.FieldValue.serverTimestamp(),
+      checkInDistanceM: Math.round(metres),
+    }, { merge: true });
+    res.json({ checkedIn: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
 
 router.post('/cancel/:tableId', attendeeAuth, async (req, res) => {
   try {

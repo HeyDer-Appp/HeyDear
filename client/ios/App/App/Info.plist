@@ -28,6 +28,8 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>HeyDer needs camera access so you can take a profile photo and share dinner photos to your album.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>HeyDer uses your location during dinner only to mark that you've arrived at the restaurant. It isn't tracked or shared.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>HeyDer needs photo library access so you can choose a profile photo and add photos to your dinner album.</string>
 	<key>UIApplicationSceneManifest</key>

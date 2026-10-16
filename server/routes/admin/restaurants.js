@@ -3,6 +3,26 @@ const router = express.Router();
 const { admin, db } = require('../../firebase');
 const { adminAuth } = require('../../middleware/auth');
 
+// Where a venue is, so diners can be checked in automatically on arrival.
+// Looked up from the address with OpenStreetMap's free geocoder; if it can't
+// find the place the admin can type the coordinates in by hand.
+async function geocode(address) {
+  try {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 6000);
+    const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=nz&q=' + encodeURIComponent(address);
+    const r = await fetch(url, { headers: { 'User-Agent': 'HeyDer/1.0 (info@heyder.nz)', Accept: 'application/json' }, signal: ctl.signal });
+    clearTimeout(timer);
+    if (!r.ok) return null;
+    const hit = (await r.json())[0];
+    const lat = hit && Number(hit.lat), lng = hit && Number(hit.lon);
+    return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
+  } catch {
+    return null;
+  }
+}
+const num = (v) => (v === '' || v === null || v === undefined ? null : Number(v));
+
 // Restaurants are a standing roster — a partner is added once when they come
 // on board with HeyDer, then reused across every dinner going forward,
 // rather than being re-entered per dinner.
@@ -34,6 +54,12 @@ router.post('/', adminAuth, async (req, res) => {
       capacity: capacity || 6,
       notes: notes || null,
       kind: kind === 'afterparty' ? 'afterparty' : 'restaurant',
+      ...(await (async () => {
+        const lat = num(req.body.lat), lng = num(req.body.lng);
+        if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng };
+        const g = await geocode(address);
+        return g ? { lat: g.lat, lng: g.lng } : { lat: null, lng: null };
+      })()),
       area: (area || '').trim() || null,
       activity: (activity || '').trim().slice(0, 60) || null,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -56,11 +82,25 @@ router.put('/:id', adminAuth, async (req, res) => {
     for (const [bodyKey, docKey] of Object.entries(fieldMap)) {
       if (req.body[bodyKey] !== undefined) updates[docKey] = req.body[bodyKey];
     }
-    if (Object.keys(updates).length === 1) return res.status(400).json({ error: 'Nothing to update' });
+    // Coordinates: typed in by hand, or looked up again from the address when
+    // the address changed (or when asked with locate: true).
+    const hasCoords = req.body.lat !== undefined || req.body.lng !== undefined;
+    if (hasCoords) {
+      const lat = num(req.body.lat), lng = num(req.body.lng);
+      if (lat !== null && (!Number.isFinite(lat) || Math.abs(lat) > 90)) return res.status(400).json({ error: 'Latitude must be between -90 and 90.' });
+      if (lng !== null && (!Number.isFinite(lng) || Math.abs(lng) > 180)) return res.status(400).json({ error: 'Longitude must be between -180 and 180.' });
+      updates.lat = lat; updates.lng = lng;
+    }
+    if (Object.keys(updates).length === 1 && !req.body.locate) return res.status(400).json({ error: 'Nothing to update' });
 
     const ref = db.collection('restaurants').doc(req.params.id);
     const existing = await ref.get();
     if (!existing.exists) return res.status(404).json({ error: 'Restaurant not found' });
+
+    if (!hasCoords && (req.body.locate || (updates.address && updates.address !== existing.data().address))) {
+      const g = await geocode(updates.address || existing.data().address);
+      updates.lat = g ? g.lat : null; updates.lng = g ? g.lng : null;
+    }
 
     await ref.set(updates, { merge: true });
     const snap = await ref.get();
