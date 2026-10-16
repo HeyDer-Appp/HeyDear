@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import { getMapCity, setMapCity } from '../../utils/cityMap';
 import api from '../../utils/api';
-import { openCheckout } from '../../utils/checkout';
+import { startCheckout } from '../../utils/checkout';
 import { success as hapticSuccess } from '../../utils/haptics';
 import { flagUrl } from '../../utils/flags';
 import { useCachedFetch } from '../../utils/useCachedFetch';
@@ -889,10 +889,7 @@ export default function PortalDashboard() {
         if (cancelled) return;
         if (res.data.paid) {
           sessionStorage.removeItem('heyder_pending_session_id');
-          setShowPayment(false);
-          setShowConfirmSummary(false);
-          setSubmittingPayment(false);
-          await refetchDinners();
+          navigate('/profile/success');
           return;
         }
       } catch { /* treated as "not confirmed yet" below */ }
@@ -909,11 +906,14 @@ export default function PortalDashboard() {
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('focus', onVisible);
     window.addEventListener('heyder:checkoutClosed', onVisible);
+    const onCancel = () => { sessionStorage.removeItem('heyder_pending_session_id'); setSubmittingPayment(false); };
+    window.addEventListener('heyder:checkoutCancelled', onCancel);
     return () => {
       cancelled = true;
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('focus', onVisible);
       window.removeEventListener('heyder:checkoutClosed', onVisible);
+      window.removeEventListener('heyder:checkoutCancelled', onCancel);
     };
   }, []);
   const handleConfirmClick = () => {
@@ -1037,10 +1037,11 @@ export default function PortalDashboard() {
         email: attendeeUser?.email,
         plan: selectedPlan,
         couponCode: appliedCoupon?.code,
+        embedded: true,
       });
       sessionStorage.setItem('heyder_quiz_answers', JSON.stringify(fullAnswers));
       sessionStorage.setItem('heyder_pending_session_id', res.data.sessionId);
-      openCheckout(res.data.url);
+      await startCheckout(res.data);
     } catch (err) {
       toast.error(err.response?.data?.error || 'Payment setup failed. Please try again.', { id: 'payment-setup-error' });
       setSubmittingPayment(false);
@@ -1545,7 +1546,11 @@ export default function PortalDashboard() {
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 32, stiffness: 340 }}
-            className="w-full max-w-lg bg-cream rounded-t-3xl max-h-[75vh] overflow-y-auto p-5 pb-8"
+            className="w-full max-w-lg bg-cream rounded-t-3xl max-h-[75vh] overflow-y-auto p-5"
+            // The floating bottom nav sits above this sheet, so the list stops short of it
+            // instead of running underneath.
+            style={{ paddingBottom: 'calc(7rem + env(safe-area-inset-bottom))' }}
+            data-no-ptr
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">

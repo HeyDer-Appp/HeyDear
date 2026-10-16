@@ -193,7 +193,7 @@ router.post('/subscription/manage', attendeeAuth, async (req, res) => {
     const baseUrl = (process.env.CLIENT_URL || 'http://localhost:5173').replace(/\/+$/, '');
     const session = await stripe.billingPortal.sessions.create({
       customer: customerId,
-      return_url: `${baseUrl}/portal/profile`,
+      return_url: `${baseUrl}/billing-return`,
     });
     res.json({ url: session.url });
   } catch (err) {

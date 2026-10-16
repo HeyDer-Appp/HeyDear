@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
-import { openCheckout } from '../../utils/checkout';
+import { startCheckout } from '../../utils/checkout';
 import { fadeUpVariant, staggerContainerVariant, fadeLeftVariant, choiceBase } from '../Quiz';
 
 // Booking again is just "pick a Tuesday, pay (or not, if subscribed)" — a
@@ -83,6 +83,8 @@ export default function BookDinner() {
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('focus', onVisible);
     window.addEventListener('heyder:checkoutClosed', onVisible);
+    const onCancel = () => { sessionStorage.removeItem('heyder_pending_session_id'); setSubmitting(false); };
+    window.addEventListener('heyder:checkoutCancelled', onCancel);
     checkPendingPayment();
 
     return () => {
@@ -90,6 +92,7 @@ export default function BookDinner() {
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('focus', onVisible);
       window.removeEventListener('heyder:checkoutClosed', onVisible);
+      window.removeEventListener('heyder:checkoutCancelled', onCancel);
     };
   }, [navigate]);
 
@@ -194,6 +197,7 @@ export default function BookDinner() {
         email: attendeeUser?.email,
         plan,
         couponCode: appliedCoupon?.code,
+        embedded: true,
       });
       sessionStorage.setItem('heyder_quiz_answers', JSON.stringify(fullAnswers));
       sessionStorage.setItem('heyder_pending_session_id', res.data.sessionId);
@@ -201,7 +205,7 @@ export default function BookDinner() {
       // than loading the whole Stripe.js SDK just to call its (now legacy)
       // redirectToCheckout — see the matching comment in Quiz.jsx's
       // handlePayment for why.
-      openCheckout(res.data.url);
+      await startCheckout(res.data);
     } catch (err) {
       toast.error(err.response?.data?.error || 'Payment setup failed. Please try again.');
       setSubmitting(false);

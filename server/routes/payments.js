@@ -66,7 +66,7 @@ router.post('/validate-coupon', async (req, res) => {
 // flaky network) and silently left a real charge with no subscription record.
 router.post('/create-checkout', attendeeAuth, async (req, res) => {
   try {
-    const { plan, couponCode, context } = req.body;
+    const { plan, couponCode, context, embedded } = req.body;
     const email = req.user.email;
     // A trailing slash on CLIENT_URL (easy to set by accident, and exactly
     // what was live in production) produces "https://host//profile/success"
@@ -117,12 +117,14 @@ router.post('/create-checkout', attendeeAuth, async (req, res) => {
       discountPercent,
       oneTimeAmount: pricing.oneTimeAmount,
       subscriptionAmount: pricing.subscriptionAmount,
+      embedded: !!embedded,
+      returnUrl: `${baseUrl}/profile/success?session_id={CHECKOUT_SESSION_ID}`,
       successUrl: `${baseUrl}/profile/success?session_id={CHECKOUT_SESSION_ID}`,
       cancelUrl: `${baseUrl}/profile?step=payment&cancelled=true`,
       metadata: { email, ...(appliedCoupon ? { couponCode: appliedCoupon } : {}), ...(bookingId ? { bookingId } : {}) },
     });
 
-    res.json({ sessionId: session.id, url: session.url, discountPercent });
+    res.json({ sessionId: session.id, url: session.url, clientSecret: embedded ? session.client_secret : null, discountPercent });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to create checkout session' });
@@ -237,7 +239,8 @@ router.get('/verify/:sessionId', async (req, res) => {
     const Stripe = require('stripe');
     const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
     const session = await stripe.checkout.sessions.retrieve(sessionId);
-    res.json({ paid: session.payment_status === 'paid', session });
+    // Only the answer — the session object itself (client_secret and all) isn't for callers.
+    res.json({ paid: session.payment_status === 'paid' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Could not verify payment' });

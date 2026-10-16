@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import api from '../utils/api';
-import { openCheckout } from '../utils/checkout';
+import { startCheckout } from '../utils/checkout';
 import { tick } from '../utils/haptics';
 import { useAuth } from '../context/AuthContext';
 import { fileToResizedBase64 } from '../utils/image';
@@ -902,6 +902,8 @@ export default function Quiz() {
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('focus', onVisible);
     window.addEventListener('heyder:checkoutClosed', onVisible);
+    const onCancel = () => { sessionStorage.removeItem('heyder_pending_session_id'); setSubmitting(false); };
+    window.addEventListener('heyder:checkoutCancelled', onCancel);
     checkPendingPayment();
 
     return () => {
@@ -909,6 +911,7 @@ export default function Quiz() {
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('focus', onVisible);
       window.removeEventListener('heyder:checkoutClosed', onVisible);
+      window.removeEventListener('heyder:checkoutCancelled', onCancel);
     };
   }, [navigate]);
 
@@ -1219,6 +1222,7 @@ export default function Quiz() {
         email: attendeeUser?.email,
         plan,
         couponCode: appliedCoupon?.code,
+        embedded: true,
         ...(applySignupDiscount && !appliedCoupon ? { context: 'signup' } : {}),
       });
       sessionStorage.setItem('heyder_quiz_answers', JSON.stringify(answers));
@@ -1234,7 +1238,7 @@ export default function Quiz() {
       // redirectToCheckout — one less external script that can fail to
       // load (slow network, an ad-blocker, a CSP quirk) and surface as a
       // vague "Payment setup failed" with no useful detail behind it.
-      openCheckout(res.data.url);
+      await startCheckout(res.data);
     } catch (err) {
       toast.error(err.response?.data?.error || 'Payment setup failed. Please try again.');
       setSubmitting(false);

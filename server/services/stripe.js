@@ -18,11 +18,19 @@ function discountedAmount(amount, discountPercent) {
 // (server/services/pricing.js) — callers fetch those and pass them in
 // rather than this module reading a value fixed at process start, so a
 // price change from the admin panel takes effect on the very next checkout.
+// embedded: true renders Checkout inside the app's own page (Stripe's Embedded
+// Checkout) instead of sending the person to a stripe.com page — in the native
+// app that page would open in the phone's browser, a different session from
+// the app. It needs a returnUrl (only used if a payment method has to redirect
+// away and back) instead of success/cancel URLs.
 async function createCheckoutSession({
-  plan, userId, email, successUrl, cancelUrl, metadata = {}, discountPercent = 0,
+  plan, userId, email, successUrl, cancelUrl, returnUrl, embedded = false, metadata = {}, discountPercent = 0,
   oneTimeAmount = PRICING_DEFAULTS.oneTimeAmount, subscriptionAmount = PRICING_DEFAULTS.subscriptionAmount,
 }) {
   const currency = process.env.STRIPE_CURRENCY || 'nzd';
+  const where = embedded
+    ? { ui_mode: 'embedded', return_url: returnUrl, redirect_on_completion: 'if_required' }
+    : { success_url: successUrl, cancel_url: cancelUrl };
 
   if (plan === 'subscription') {
     return stripe.checkout.sessions.create({
@@ -46,8 +54,7 @@ async function createCheckoutSession({
       ],
       metadata: { userId, plan: 'subscription', ...metadata },
       subscription_data: { metadata: { userId, ...metadata } },
-      success_url: successUrl,
-      cancel_url: cancelUrl,
+      ...where,
     });
   }
 
@@ -70,8 +77,7 @@ async function createCheckoutSession({
       },
     ],
     metadata: { userId, plan: 'one_time', ...metadata },
-    success_url: successUrl,
-    cancel_url: cancelUrl,
+    ...where,
   });
 }
 

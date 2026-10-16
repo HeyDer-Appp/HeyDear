@@ -5,6 +5,8 @@ import { Capacitor } from '@capacitor/core';
 import { App as CapacitorApp } from '@capacitor/app';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import NativePushBootstrap from './components/NativePushBootstrap';
+import CheckoutHost from './components/CheckoutHost';
+import BillingReturn from './pages/BillingReturn';
 import PullToRefresh from './components/PullToRefresh';
 import OfflineBanner from './components/OfflineBanner';
 import TabSwipe, { tabIndexOf } from './components/TabSwipe';
@@ -217,6 +219,7 @@ function AppRoutes() {
   return (
     <>
     <NativePushBootstrap />
+    <CheckoutHost />
     <OfflineBanner />
     {pathname.startsWith('/portal') && <PullToRefresh />}
     {/* No route fade for the profile-completion handoff: Quiz.jsx has already
@@ -228,6 +231,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/" element={<HomeRoute />} />
       <Route path="/about" element={<About />} />
+      <Route path="/billing-return" element={<BillingReturn />} />
       <Route path="/quiz" element={<Navigate to="/profile" replace />} />
       <Route path="/profile" element={<ProfileRoute><Quiz /></ProfileRoute>} />
       <Route path="/profile/success" element={<ProfileRoute><QuizSuccess /></ProfileRoute>} />
