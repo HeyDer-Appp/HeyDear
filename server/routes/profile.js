@@ -115,12 +115,16 @@ router.post('/submit', attendeeAuth, quizLimiter, async (req, res) => {
     // later through BookDinner.jsx, never for free via this shortcut.
     const parsedDate = skip_booking ? null : parseTuesdayDate(field_CdZldwp5q09o);
 
+    // This person's existing bookings, read once up front (also used below to
+    // find the booking for this date without a query inside the transaction).
+    let existingBookingsSnap = null;
+
     // One dinner at a time — re-submitting the same date (e.g. editing an
     // answer mid-flow) is fine, but a different date while an unresolved
     // (still-pending) or upcoming (already-matched) booking exists just
     // creates confusing duplicate bookings on the dashboard.
     if (!skip_booking) {
-      const existingBookingsSnap = await db.collection('bookings').where('userId', '==', req.user.id).get();
+      existingBookingsSnap = await db.collection('bookings').where('userId', '==', req.user.id).get();
       for (const doc of existingBookingsSnap.docs) {
         const b = doc.data();
         if (b.tuesdayDate === parsedDate) continue;
@@ -152,6 +156,18 @@ router.post('/submit', attendeeAuth, quizLimiter, async (req, res) => {
         : answers.field_OVB7lzEjSl7C ? [answers.field_OVB7lzEjSl7C] : [];
     }
 
+    // The booking for this person + date. A query read inside the transaction
+    // locks the whole range of that date's bookings, so when many people sign
+    // up for the same Tuesday at once the transactions collided and some failed
+    // with a 500 (seen with 50 people at once). Pointing at one known document
+    // — an existing one, or an id made from person + date — only locks that
+    // person's own booking, and also stops a double tap creating two bookings.
+    let bookingRefForDate = null;
+    if (parsedDate && !skip_booking) {
+      const found = existingBookingsSnap && existingBookingsSnap.docs.find((d) => d.data().tuesdayDate === parsedDate);
+      bookingRefForDate = found ? found.ref : db.collection('bookings').doc(`${req.user.id}_${parsedDate}`);
+    }
+
     const result = await db.runTransaction(async (tx) => {
       // Firestore transactions require every read to happen before any
       // write, so all three lookups run first, then every tx.set() after.
@@ -160,13 +176,7 @@ router.post('/submit', attendeeAuth, quizLimiter, async (req, res) => {
       const ambRef = referral_code ? db.collection('ambassadors').doc(referral_code) : null;
       const ambSnap = ambRef ? await tx.get(ambRef) : null;
 
-      const existingBookingSnap = (parsedDate && !skip_booking)
-        ? await tx.get(
-            db.collection('bookings')
-              .where('userId', '==', req.user.id)
-              .where('tuesdayDate', '==', parsedDate)
-          )
-        : null;
+      const existingBookingSnap = bookingRefForDate ? await tx.get(bookingRefForDate) : null;
 
       // Normally /auth/attendee/register creates this doc right after
       // signup, but don't hard-fail if it's somehow missing (e.g. that call
@@ -216,8 +226,8 @@ router.post('/submit', attendeeAuth, quizLimiter, async (req, res) => {
         return { bookingRef: null, mergedUser: { ...existingUser, ...userUpdate, id: req.user.id } };
       }
 
-      const isNewBooking = !existingBookingSnap || existingBookingSnap.empty;
-      const bookingRef = isNewBooking ? db.collection('bookings').doc() : existingBookingSnap.docs[0].ref;
+      const isNewBooking = !existingBookingSnap || !existingBookingSnap.exists;
+      const bookingRef = bookingRefForDate;
 
       const bookingUpdate = {
         userId: req.user.id,

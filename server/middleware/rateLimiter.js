@@ -2,7 +2,9 @@ const rateLimit = require('express-rate-limit');
 
 const quizLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
-  max: process.env.NODE_ENV === 'production' ? 5 : 500,
+  // Per IP — and one venue/office/home wifi is one IP, so this has to leave
+  // room for several people signing up (and a few retries each) from the same place.
+  max: process.env.NODE_ENV === 'production' ? 25 : 500,
   message: { error: 'Too many submissions from this IP, please try again in an hour.' },
   standardHeaders: true,
   legacyHeaders: false,
@@ -28,7 +30,7 @@ const apiLimiter = rateLimit({
 
 const feedbackLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
-  max: 10,
+  max: process.env.NODE_ENV === 'production' ? 40 : 1000,
   message: { error: 'Too many submissions from this IP, please try again in an hour.' },
   standardHeaders: true,
   legacyHeaders: false,

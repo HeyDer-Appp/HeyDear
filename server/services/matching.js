@@ -44,7 +44,19 @@ function budgetTier(b) {
 
 const sizeCost = (n) => (n >= 6 ? 0 : n === 5 ? 3 : 8) + Math.abs(n - 6.5) * 0.01;
 
-function planComposition(M, F) {
+// `variant` 0 is the plain cheapest plan. Higher variants nudge the choice
+// between equally good table shapes (a 3:4 vs a 4:3 vs a 2:5…) so different
+// restarts try different shapes — which one fits a crowd's ages depends on who
+// is actually in it, and the cheapest-by-size plan alone sometimes can't be
+// seated inside the age cap.
+function jitter(sm, sf, m, f, variant) {
+  if (!variant) return 0;
+  let h = (Math.imul(sm + 1, 73856093) ^ Math.imul(sf + 1, 19349663) ^ Math.imul(m + 1, 83492791) ^ Math.imul(f + 1, 40503) ^ Math.imul(variant, 2654435761)) >>> 0;
+  h = Math.imul(h ^ (h >>> 15), 2246822519) >>> 0;
+  return (h / 4294967296) * 2.5; // always below the cost of a 5-person table
+}
+
+function planComposition(M, F, variant = 0) {
   const memo = new Map();
   const solve = (m, f) => {
     if (m === 0 && f === 0) return { cost: 0, specs: [] };
@@ -55,7 +67,7 @@ function planComposition(M, F) {
       if (sm > m || sf > f) continue;
       const rest = solve(m - sm, f - sf);
       if (!rest) continue;
-      const cost = sizeCost(sm + sf) + rest.cost;
+      const cost = sizeCost(sm + sf) + jitter(sm, sf, m, f, variant) + rest.cost;
       if (!best || cost < best.cost) best = { cost, specs: [[sm, sf], ...rest.specs] };
     }
     memo.set(key, best);
@@ -185,8 +197,8 @@ function mulberry32(a) {
   };
 }
 
-function matchGroups(rawPeople, opts = {}) {
-  const { seed = 1, restarts = 6, iterations = 12000, history = null, learnedFn = null, learnedWeight = 1 } = opts;
+function matchOnce(rawPeople, opts = {}) {
+  const { seed = 1, restarts = 12, iterations = 9000, history = null, learnedFn = null, learnedWeight = 1 } = opts;
   const ctx = { history, learnedFn, learnedWeight };
 
   const people = rawPeople.map((raw) => ({ id: raw.id || raw.user_id, raw, g: normGender(raw.gender), age: ageOf(raw.dob), tier: budgetTier(raw.budget), slot: null, at: raw.submitted_at?.toMillis?.() || 0 }));
@@ -213,6 +225,8 @@ function matchGroups(rawPeople, opts = {}) {
   let best = null;
 
   for (let r = 0; r < restarts; r++) {
+    // Same people, a different (equally legal) table shape each restart.
+    const specsR = r === 0 ? specs : planComposition(M.length, F.length, r).specs;
     const rand = mulberry32(seed * 1000 + r * 7919 + 13);
     const men = M.slice().sort(byAge);
     const women = F.slice().sort(byAge);
@@ -222,11 +236,11 @@ function matchGroups(rawPeople, opts = {}) {
       for (let i = 0; i < Math.floor(women.length / 2); i++) { const a = Math.floor(rand() * women.length), b = Math.floor(rand() * women.length); [women[a], women[b]] = [women[b], women[a]]; }
     }
     // Age-sorted chunks: younger tables get the younger men and women.
-    const order = specs.map((s, i) => i).sort((a, b) => (specs[a][0] + specs[a][1]) - (specs[b][0] + specs[b][1]));
+    const order = specsR.map((s, i) => i).sort((a, b) => (specsR[a][0] + specsR[a][1]) - (specsR[b][0] + specsR[b][1]));
     let mi = 0, fi = 0;
-    const tables = specs.map(() => []);
+    const tables = specsR.map(() => []);
     order.forEach((ti) => {
-      const [sm, sf] = specs[ti];
+      const [sm, sf] = specsR[ti];
       tables[ti] = [...men.slice(mi, mi + sm), ...women.slice(fi, fi + sf)];
       mi += sm; fi += sf;
     });
@@ -268,6 +282,63 @@ function matchGroups(rawPeople, opts = {}) {
     v.issues.forEach((iss) => warnings.push({ table: i, ...iss }));
   });
   return { tables: outTables, unplaced, score: Math.round(best.total * 10) / 10, warnings };
+}
+
+// The age cap is a hard rule, but some crowds simply cannot be seated inside it
+// whatever the shuffle (e.g. the only people over 40 are all men, and every
+// table needs women too). When the best arrangement still has a table over the
+// cap, leave out the outlier who causes it — the admin sees them in "waiting"
+// with the reason and can still seat them by hand — rather than hand over a
+// table that quietly breaks the rule. At most three people are left out this way.
+const AGE_REASON = "Doesn't fit any table within the 10-year age rule";
+// How far over the cap the tables are, in total years (0 = every table is inside it).
+function ageExcess(res, people) {
+  const byId = new Map(people.map((p) => [p.id || p.user_id, p]));
+  let over = 0;
+  for (const t of res.tables) {
+    const ages = t.map((id) => ageOf(byId.get(id).dob)).filter((a) => a !== null);
+    if (ages.length) over += Math.max(0, Math.max(...ages) - Math.min(...ages) - MAX_AGE_SPREAD);
+  }
+  return over;
+}
+
+function matchGroups(rawPeople, opts = {}) {
+  let res = matchOnce(rawPeople, opts);
+  if (opts.strictAge === false) return res;
+
+  let people = rawPeople;
+  const leftOut = [];
+  const idOf = (p) => p.id || p.user_id;
+  for (let round = 0; round < 4; round++) {
+    const excess = ageExcess(res, people);
+    if (excess <= 0) break;
+    const byId = new Map(people.map((p) => [idOf(p), p]));
+    const candidates = new Set();
+    const breaks = res.warnings.filter((w) => w.code === 'age' && w.level === 'red');
+    for (const b of breaks) {
+      const ids = res.tables[b.table].slice().sort((x, y) => (ageOf(byId.get(x).dob) ?? 30) - (ageOf(byId.get(y).dob) ?? 30));
+      candidates.add(ids[0]); candidates.add(ids[ids.length - 1]);
+    }
+    const quick = { ...opts, restarts: 4, iterations: 4000 };
+    let bestTry = null;
+    const seated = (r) => r.tables.reduce((n, t) => n + t.length, 0);
+    const seatedNow = seated(res);
+    for (const c of candidates) {
+      const rest = people.filter((p) => idOf(p) !== c);
+      const r2 = matchOnce(rest, quick);
+      // Leaving one person out must not cost anyone else their seat (it can, when
+      // the gender numbers only just worked) — that would be worse than the breach.
+      if (seated(r2) < seatedNow - 1) continue;
+      const score = ageExcess(r2, rest) * 10 + r2.unplaced.length;
+      if (!bestTry || score < bestTry.score) bestTry = { c, rest, score, excess: ageExcess(r2, rest) };
+    }
+    if (!bestTry || bestTry.excess >= excess) break; // leaving them out wouldn't help
+    people = bestTry.rest;
+    leftOut.push({ id: bestTry.c, reason: AGE_REASON });
+    res = matchOnce(people, opts);
+  }
+  if (leftOut.length) res = { ...res, unplaced: [...res.unplaced, ...leftOut] };
+  return res;
 }
 
 module.exports = { matchGroups, validateTable, tableFeatures, planComposition, isAllowedSplit, budgetTier, ageOf, normGender, pairKey, ALLOWED_SPLITS };

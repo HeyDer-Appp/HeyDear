@@ -601,14 +601,16 @@ router.post('/auto/:dinnerId', adminAuth, async (req, res) => {
     const confirmedTables = tablesSnap.docs.filter((d) => d.data().status === 'confirmed');
 
     // 1. Put everyone from the draft tables back in the pool.
-    for (const t of openTables) {
-      const members = await db.collection('tableMembers').where('tableId', '==', t.id).get();
-      const bookings = await db.collection('bookings').where('tableId', '==', t.id).get();
+    await Promise.all(openTables.map(async (t) => {
+      const [members, bookings] = await Promise.all([
+        db.collection('tableMembers').where('tableId', '==', t.id).get(),
+        db.collection('bookings').where('tableId', '==', t.id).get(),
+      ]);
       await Promise.all([
         ...members.docs.map((m) => m.ref.delete()),
         ...bookings.docs.map((b) => b.ref.set({ matched: false, tableId: null, dinnerId: null }, { merge: true })),
       ]);
-    }
+    }));
     await Promise.all(openTables.map((t) => t.ref.delete()));
 
     // 2. Everyone unplaced and paid for (people held over to next week are skipped).
@@ -640,7 +642,7 @@ router.post('/auto/:dinnerId', adminAuth, async (req, res) => {
         status: 'open', autoAllocated: true,
         createdAt: admin.firestore.FieldValue.serverTimestamp(), updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
-      for (const uid of memberIds) await seatBooking(ref.id, dinnerId, uid, bookingByUser[uid]);
+      await Promise.all(memberIds.map((uid) => seatBooking(ref.id, dinnerId, uid, bookingByUser[uid])));
       created.push(ref.id);
     }
 
