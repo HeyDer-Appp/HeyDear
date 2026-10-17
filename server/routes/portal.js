@@ -665,7 +665,7 @@ router.post('/checkin/:tableId', attendeeAuth, async (req, res) => {
     }
 
     const metres = geo.distanceMetres(lat, lng, rest.lat, rest.lng);
-    if (metres > geo.CHECKIN_RADIUS_M) return res.json({ checkedIn: false, reason: 'too_far' });
+    if (metres > (rest.checkinRadius || geo.CHECKIN_RADIUS_M)) return res.json({ checkedIn: false, reason: 'too_far' });
 
     await memberRef.set({
       checkedInAt: admin.firestore.FieldValue.serverTimestamp(),

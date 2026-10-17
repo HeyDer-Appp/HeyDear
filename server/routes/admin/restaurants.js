@@ -22,6 +22,9 @@ async function geocode(address) {
   }
 }
 const num = (v) => (v === '' || v === null || v === undefined ? null : Number(v));
+// How close (metres) a diner has to be for the automatic check-in. Per venue, since a big
+// venue with a car park needs more room than a tiny bar.
+const radiusOf = (v) => { const n = Number(v); return Number.isFinite(n) ? Math.min(500, Math.max(50, Math.round(n))) : 150; };
 
 // Restaurants are a standing roster — a partner is added once when they come
 // on board with HeyDer, then reused across every dinner going forward,
@@ -41,6 +44,15 @@ router.get('/', adminAuth, async (req, res) => {
   }
 });
 
+// Search box on the map picker.
+router.get('/geocode', adminAuth, async (req, res) => {
+  const q = String(req.query.q || '').trim();
+  if (!q) return res.status(400).json({ error: 'Type an address or place name.' });
+  const g = await geocode(q);
+  if (!g) return res.status(404).json({ error: 'Could not find that place.' });
+  res.json(g);
+});
+
 router.post('/', adminAuth, async (req, res) => {
   try {
     const { name, address, booking_time, menu_price_min, menu_price_max, capacity, notes, kind, area, activity } = req.body;
@@ -54,6 +66,7 @@ router.post('/', adminAuth, async (req, res) => {
       capacity: capacity || 6,
       notes: notes || null,
       kind: kind === 'afterparty' ? 'afterparty' : 'restaurant',
+      checkinRadius: radiusOf(req.body.checkinRadius),
       ...(await (async () => {
         const lat = num(req.body.lat), lng = num(req.body.lng);
         if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng };
@@ -84,6 +97,7 @@ router.put('/:id', adminAuth, async (req, res) => {
     }
     // Coordinates: typed in by hand, or looked up again from the address when
     // the address changed (or when asked with locate: true).
+    if (req.body.checkinRadius !== undefined) updates.checkinRadius = radiusOf(req.body.checkinRadius);
     const hasCoords = req.body.lat !== undefined || req.body.lng !== undefined;
     if (hasCoords) {
       const lat = num(req.body.lat), lng = num(req.body.lng);
