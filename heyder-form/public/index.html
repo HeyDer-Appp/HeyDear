@@ -274,36 +274,36 @@ function buildSteps() {
       choices: ['Not Applicable', 'Gluten free', 'Dairy free', 'Nut free', 'Vegan', 'Vegetarian', 'Other'], required: true },
     { type: 'contact', title: 'Your details', required: true },
     { type: 'about', title: 'About you', required: true },
+    { type: 'legal' },
     { type: 'payment' },
     { type: 'done' },
   ];
 }
 // numbered questions only (welcome/payment/done aren't numbered)
-const qNumber = i => steps.slice(0, i + 1).filter(s => !['welcome', 'payment', 'done', 'waitlist'].includes(s.type)).length;
+const qNumber = i => steps.slice(0, i + 1).filter(s => !['welcome', 'payment', 'done', 'legal'].includes(s.type)).length;
 const lastQuestionIndex = () => steps.findIndex(s => s.type === 'about');
-const contactIndex = () => steps.findIndex(s => s.type === 'contact');
 const isOutside = () => A.location === 'None of the above';
 
-// "None of the above" skips the whole quiz and only collects contact details for the waitlist.
+// Same branching as the Typeform: Wellington is sent to its own form, anything else ends the quiz.
+const WELLINGTON_FORM = 'https://form.typeform.com/to/etGtpU3d';
 function nextIndex(from) {
-  if (steps[from].key === 'location' && isOutside()) return contactIndex();
-  if (steps[from].type === 'contact' && isOutside()) return steps.findIndex(s => s.type === 'waitlist' || s.type === 'done');
+  if (steps[from].key === 'location') {
+    if (A.location === 'Wellington') { setTimeout(() => { location.href = WELLINGTON_FORM; }, 250); return from; }
+    if (isOutside()) { A.__finish = 'unavailable'; return steps.length - 1; }
+  }
   return from + 1;
 }
-function prevIndex(from) {
-  if (from === contactIndex() && isOutside()) return 1;
-  return from - 1;
-}
+function prevIndex(from) { return from - 1; }
 
 // ---------- rendering ----------
 const stage = $('#stage');
 function setProgress() {
   const total = steps.length - 2; // everything before payment/done
   const cur = Math.min(idx, total);
-  const pct = ['payment', 'done', 'waitlist'].includes(steps[idx].type) ? 100 : (cur / total) * 100;
+  const pct = ['legal', 'payment', 'done'].includes(steps[idx].type) ? 100 : (cur / total) * 100;
   $('#progress i').style.width = pct + '%';
   const nav = $('#nav');
-  nav.hidden = ['welcome', 'done', 'waitlist'].includes(steps[idx].type);
+  nav.hidden = ['welcome', 'done'].includes(steps[idx].type);
   $('#prev').disabled = idx <= 1;
   $('#next').disabled = !canProceedSilently();
 }
@@ -331,7 +331,7 @@ function show(i, back = false) {
   if (focusable) setTimeout(() => focusable.focus({ preventScroll: true }), 350);
 }
 function go(dir) {
-  if (dir > 0) { if (!validate(true)) return; const n = nextIndex(idx); if (n < steps.length) show(n); }
+  if (dir > 0) { if (!validate(true)) return; const n = nextIndex(idx); if (n !== idx && n < steps.length) show(n); }
   else { const p = prevIndex(idx); if (p >= 1) show(p, true); }
 }
 
@@ -363,10 +363,21 @@ function renderStep(s, i) {
     case 'text': return renderText(s, i);
     case 'contact': return renderContact(s, i);
     case 'about': return renderAbout(s, i);
+    case 'legal': return renderLegal();
     case 'payment': return renderPayment();
-    case 'waitlist': return renderWaitlist();
     case 'done': return renderDone();
   }
+}
+
+function renderLegal() {
+  const err = errorPill('Please accept to continue');
+  const root = wrap(el('div', {}, el('h2', { class: 'title' },
+    el('span', { class: 'num' }, String(qNumber(idx) + 1)),
+    el('span', {}, 'With proceeding forward you are accepting our ', el('a', { href: 'https://heyder.nz/terms-conditions/', target: '_blank', rel: 'noopener', style: 'color:inherit' }, 'terms & conditions'), el('span', { class: 'req' }, '*'))),
+    el('div', { class: 'body' }, el('div', { class: 'choices' },
+      el('button', { class: 'choice', type: 'button', 'data-autofocus': '1', onclick: () => { A.legal = true; go(1); } }, el('span', { class: 'key' }, 'Y'), el('span', {}, 'I accept')),
+      el('button', { class: 'choice', type: 'button', onclick: () => showError(root, 'You need to accept the terms to continue') }, el('span', { class: 'key' }, 'N'), el('span', {}, "I don't accept"))), err)));
+  return root;
 }
 
 function renderWelcome() {
@@ -530,7 +541,7 @@ function renderAbout(s, i) {
     el('div', { class: 'field', 'data-f': 'dob' }, el('label', {}, 'How old are you?*'), el('div', { class: 'dob' }, dd, el('span', { class: 'sep' }, '/'), mm, el('span', { class: 'sep' }, '/'), yy), errorPill()),
     el('div', { class: 'field', 'data-f': 'gender' }, el('label', {}, 'What is your gender?*'), gList, errorPill()),
     el('div', { class: 'field', 'data-f': 'country' }, el('label', {}, 'What country are you from?*'), el('div', { class: 'country-wrap' }, cInput, cList), errorPill()),
-    okRow(() => go(1), 'Submit'))));
+    okRow(() => go(1)))));
   return root;
 }
 function syncDob(root) {
@@ -544,6 +555,7 @@ function validate(interactive) {
   const s = steps[idx];
   const root = stage.lastElementChild;
   const fail = (node, msg) => { if (interactive) showError(node || root, msg); return false; };
+  if (s.type === 'legal') return A.legal === true;
   if (s.type === 'choice' || s.type === 'scale') {
     if (A[s.key] === undefined || A[s.key] === '') return fail(root);
   } else if (s.type === 'multi') {
@@ -585,7 +597,7 @@ function validate(interactive) {
 async function submitAnswers() {
   if (submitting) return null;
   submitting = true;
-  const btn = stage.querySelector('.ok-row .btn'); if (btn) { btn.disabled = true; btn.textContent = 'Submitting…'; }
+  const btn = stage.querySelector('.ok-row .btn');
   try {
     const answers = { ...A, phone: `${A.phoneCode} ${A.phone}`.trim() };
     const r = await fetch(BASE + '/api/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ answers }) });
@@ -595,7 +607,7 @@ async function submitAnswers() {
     try { sessionStorage.setItem('heyder_form_sub', JSON.stringify({ id: data.id, name: A.firstName, email: A.email, tuesday: A.tuesday })); } catch {}
     return data;
   } catch (err) {
-    if (btn) { btn.disabled = false; btn.textContent = steps[idx].type === 'about' ? 'Submit' : 'OK'; }
+    if (btn) { btn.disabled = false; btn.textContent = 'OK'; }
     showError(stage.lastElementChild, err.message || 'Something went wrong');
     return null;
   } finally { submitting = false; }
@@ -615,8 +627,8 @@ function renderPayment() {
     q.innerHTML = '';
     const d = P.coupon ? P.coupon.discountPercent : 0;
     const price = base => money(Math.round(base * (1 - d / 100)));
-    q.append(el('h2', { class: 'title', style: 'justify-content:flex-start' }, 'Reserve your spot'),
-      el('p', { class: 'desc' }, 'Choose how you\'d like to join.'));
+    q.append(el('h2', { class: 'title', style: 'justify-content:flex-start' }, 'Confirm booking'),
+      el('p', { class: 'desc' }, CONFIG.subscriptionEnabled ? "Choose how you'd like to join." : 'By paying you are confirming your reservation'));
     const body = el('div', { class: 'body' }); q.append(body);
     const planCard = (id, name, base, sub, badge, per) => {
       const p = el('button', { type: 'button', class: 'plan' + (P.plan === id ? ' on' : ''), onclick: () => { P.plan = id; P.couponErr = ''; if (P.coupon && P.coupon.type && P.coupon.type !== id) P.coupon = null; draw(); } },
@@ -626,9 +638,9 @@ function renderPayment() {
         P.plan === id ? el('p', { class: 'sub' }, sub) : '');
       return p;
     };
-    body.append(
-      planCard('one_time', 'One-time reservation', cfg.oneTimeAmount, `Reserve the ${A.tuesday || "this Tuesday's"} dinner.`),
-      planCard('subscription', 'Monthly membership', cfg.subscriptionAmount, 'Unlimited HeyDer dinners this month.', 'Best value', true));
+    P.plan = CONFIG.subscriptionEnabled ? P.plan : 'one_time';
+    body.append(planCard('one_time', 'HeyDer Booking fee', cfg.oneTimeAmount, `Reserve the ${A.tuesday || "this Tuesday's"} dinner.`));
+    if (CONFIG.subscriptionEnabled) body.append(planCard('subscription', 'Monthly membership', cfg.subscriptionAmount, 'Unlimited HeyDer dinners this month.', 'Best value', true));
     // coupon
     if (P.coupon) {
       body.append(el('div', { class: 'coupon-ok' }, el('span', {}, `✓ Code ${P.coupon.code} applied — ${P.coupon.discountPercent}% off`),
@@ -650,7 +662,7 @@ function renderPayment() {
       if (P.couponErr) body.append(el('div', { class: 'err', style: 'margin:-8px 0 14px' }, '⚠ ' + P.couponErr));
     }
     const pay = el('button', { type: 'button', class: 'btn pay-btn', onclick: () => startPayment(false, q, draw, pay) },
-      CONFIG.paymentsLive ? (P.plan === 'subscription' ? `Subscribe ${price(cfg.subscriptionAmount)}/mo` : `Pay ${price(cfg.oneTimeAmount)} & Complete Booking`) : 'Complete Booking (Test Mode)');
+      CONFIG.paymentsLive ? (P.plan === 'subscription' ? `Subscribe ${price(cfg.subscriptionAmount)}/mo` : `Pay ${price(cfg.oneTimeAmount)} & Confirm Booking`) : 'Complete Booking (Test Mode)');
     body.append(pay, el('button', { type: 'button', class: 'skip-link', onclick: () => skipModal(q, draw) }, 'Skip for now — set up my account'),
       el('p', { class: 'legal' }, 'By proceeding you are accepting our ', el('a', { href: 'https://heyder.nz/terms-conditions', target: '_blank', rel: 'noopener' }, 'terms & conditions'), ' / ', el('a', { href: 'https://heyder.nz/privacy-policy', target: '_blank', rel: 'noopener' }, 'privacy policy'), '.'));
   };
@@ -687,8 +699,8 @@ async function mountCheckout(clientSecret, sessionId, q, redraw) {
   const stripe = window.Stripe(CONFIG.stripePublishableKey);
   q.innerHTML = '';
   const holder = el('div', { id: 'checkout' });
-  q.append(el('h2', { class: 'title', style: 'justify-content:flex-start' }, 'Reserve your spot'), holder,
-    el('button', { class: 'back-link', type: 'button', onclick: () => redraw() }, '← Change plan'));
+  q.append(el('h2', { class: 'title', style: 'justify-content:flex-start' }, 'Confirm booking'), holder,
+    el('button', { class: 'back-link', type: 'button', onclick: () => redraw() }, '← Back'));
   checkoutObj = await stripe.initEmbeddedCheckout({ clientSecret, onComplete: async () => {
     holder.innerHTML = '<p style="padding:24px">Confirming your payment…</p>';
     for (let n = 0; n < 6; n++) {
@@ -721,14 +733,15 @@ function finish(kind) {
   show(steps.length - 1);
 }
 
-function renderWaitlist() { return renderDone(); }
 function renderDone() {
-  const name = A.firstName || '';
-  let h = 'Thank you!', p = "Your details are saved. We'll be in touch soon.";
-  if (isOutside()) { h = `Thanks${name ? ', ' + name : ''}!`; p = "We're only curating dinners in Auckland & Wellington for now. We'll email you as soon as we come to your city."; }
-  else if (A.__finish === 'paid') { h = `You're in${name ? ', ' + name : ''}! 🎉`; p = `Your spot ${A.tuesday ? 'for ' + A.tuesday : ''} is reserved. We'll email ${A.email || 'you'} with your restaurant and table details before the dinner.`; }
-  else if (A.__finish === 'skipped') { h = `Thanks${name ? ', ' + name : ''}!`; p = `Your profile is saved. Reserve a Tuesday whenever you're ready — we'll email ${A.email || 'you'} with the details.`; }
-  return el('div', { class: 'screen' }, el('div', { class: 'q left done' }, el('h1', {}, h), el('p', {}, p)));
+  if (A.__finish === 'unavailable') {
+    return el('div', { class: 'screen' }, el('div', { class: 'q left done' },
+      el('h1', {}, 'Unfortunately we are only available for users in Auckland & Wellington'), el('p', {}, 'We will be expanding soon.'),
+      el('div', { class: 'ok-row' }, el('a', { class: 'btn', href: 'https://heyder.nz/', style: 'text-decoration:none' }, 'Back to home'))));
+  }
+  return el('div', { class: 'screen' }, el('div', { class: 'q left done' },
+    el('h1', {}, 'Your response has been recorded. Thank you'),
+    el('div', { class: 'ok-row' }, el('a', { class: 'btn', href: 'https://heyder.nz/thank-you/', style: 'text-decoration:none' }, 'Finish'))));
 }
 
 // ---------- keyboard ----------
@@ -737,6 +750,7 @@ document.addEventListener('keydown', e => {
   const tag = (e.target.tagName || '').toLowerCase();
   const typing = tag === 'input' || tag === 'textarea' || tag === 'select';
   if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (s.type === 'legal') { const k = e.key.toLowerCase(); if (k === 'y') { A.legal = true; go(1); } else if (k === 'n') stage.lastElementChild.querySelectorAll('.choice')[1].click(); return; }
   if (s.type === 'welcome' && e.key === 'Enter') { e.preventDefault(); show(1); return; }
   if (e.key === 'Enter' && !typing && ['choice', 'multi', 'scale'].includes(s.type)) { e.preventDefault(); go(1); return; }
   if (typing) return;
@@ -756,16 +770,16 @@ document.addEventListener('keydown', e => {
 $('#prev').addEventListener('click', () => go(-1));
 $('#next').addEventListener('click', () => go(1));
 
-// OK on contact (waitlist) and about-you submits to the backend.
+// Accepting the terms (the step before payment) saves the answers to the backend.
 const _go = go;
 go = async function (dir) {
   const s = steps[idx];
-  const submitHere = dir > 0 && (s.type === 'about' || (s.type === 'contact' && isOutside()));
+  const submitHere = dir > 0 && s.type === 'legal';
   if (submitHere) {
-    if (!validate(true)) return;
+    if (A.legal !== true) return;
     const res = await submitAnswers();
     if (!res) return;
-    if (res.waitlist) { A.__finish = 'waitlist'; show(steps.length - 1); } else show(idx + 1);
+    show(idx + 1);
     return;
   }
   return _go(dir);

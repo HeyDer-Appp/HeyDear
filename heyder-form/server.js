@@ -9,8 +9,10 @@ const Stripe = require('stripe');
 const PORT = process.env.PORT || 3100;
 const BASE_URL = (process.env.BASE_URL || `http://localhost:${PORT}`).replace(/\/+$/, '');
 const CURRENCY = process.env.STRIPE_CURRENCY || 'nzd';
-// Amounts in cents — same defaults as the HeyDer app ($10 one-time, $15/month).
-const ONE_TIME_AMOUNT = parseInt(process.env.STRIPE_ONE_TIME_AMOUNT, 10) || 1000;
+// Amounts in cents. Defaults match the live Typeform's payment step: one-time "HeyDer Booking fee", NZ$9.00.
+const ONE_TIME_AMOUNT = parseInt(process.env.STRIPE_ONE_TIME_AMOUNT, 10) || 900;
+// The Typeform has no membership option; set SUBSCRIPTION_ENABLED=true to also offer the app's monthly plan.
+const SUBSCRIPTION_ENABLED = process.env.SUBSCRIPTION_ENABLED === 'true';
 const SUBSCRIPTION_AMOUNT = parseInt(process.env.STRIPE_SUBSCRIPTION_AMOUNT, 10) || 1500;
 // Offered only when someone tries to skip payment, never up front (same as the app).
 const SKIP_DISCOUNT_PERCENT = parseInt(process.env.SKIP_DISCOUNT_PERCENT, 10) || 10;
@@ -337,7 +339,7 @@ async function markPaid(session) {
   if (sub.status === 'Paid' && sub.stripeSession === session.id) return sub; // webhook + verify can both fire
   Object.assign(sub, {
     status: 'Paid',
-    plan: session.metadata.plan === 'subscription' ? 'Monthly membership' : 'One-time reservation',
+    plan: session.metadata.plan === 'subscription' ? 'Monthly membership' : 'Booking fee',
     coupon: session.metadata.couponCode || '',
     amountPaid: session.amount_total,
     stripeSession: session.id,
@@ -353,6 +355,7 @@ app.get('/api/config', (req, res) => {
     stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY || null,
     paymentsLive: !!(stripe && process.env.STRIPE_PUBLISHABLE_KEY),
     pricing: { oneTimeAmount: ONE_TIME_AMOUNT, subscriptionAmount: SUBSCRIPTION_AMOUNT, currency: CURRENCY },
+    subscriptionEnabled: SUBSCRIPTION_ENABLED,
     skipDiscountPercent: SKIP_DISCOUNT_PERCENT,
     tuesdays: nextTuesdays(2),
   });
@@ -391,7 +394,7 @@ app.post('/api/checkout', rateLimit(10, 60 * 1000), async (req, res) => {
     const sub = store[req.body.id];
     if (!sub || sub.status === 'Waitlist (outside Auckland/Wellington)') return res.status(404).json({ error: 'Submission not found.' });
     if (sub.status === 'Paid') return res.status(409).json({ error: 'This booking is already paid.' });
-    const plan = req.body.plan === 'subscription' ? 'subscription' : 'one_time';
+    const plan = req.body.plan === 'subscription' && SUBSCRIPTION_ENABLED ? 'subscription' : 'one_time';
 
     // A coupon always wins over the "pay now" incentive — they never stack (same rule as the app).
     let discountPercent = 0;
@@ -406,7 +409,7 @@ app.post('/api/checkout', rateLimit(10, 60 * 1000), async (req, res) => {
       discountPercent = SKIP_DISCOUNT_PERCENT;
     }
 
-    const planLabel = plan === 'subscription' ? 'Monthly membership' : 'One-time reservation';
+    const planLabel = plan === 'subscription' ? 'Monthly membership' : 'Booking fee';
     const amount = discountedAmount(plan, discountPercent);
 
     // No Stripe keys yet: complete the booking in test mode so the whole flow can be tried end to end.
@@ -431,7 +434,7 @@ app.post('/api/checkout', rateLimit(10, 60 * 1000), async (req, res) => {
       : {
           price_data: {
             currency: CURRENCY,
-            product_data: { name: 'HeyDer Dinner Reservation', description: 'One-time reservation for a HeyDer Tuesday dinner.' },
+            product_data: { name: 'HeyDer Booking fee', description: 'By paying you are confirming your reservation' },
             unit_amount: amount,
           },
           quantity: 1,

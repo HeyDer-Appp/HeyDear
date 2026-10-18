@@ -4,9 +4,9 @@ A separate, self-contained copy of the HeyDer Typeform quiz (`form.typeform.com/
 It has nothing to do with the HeyDer app code — own server, own folder.
 
 - **Form**: same 22 questions, same order, one question per screen, same look (cream background, lettered pills, 0–10 scale, keyboard shortcuts).
-  "None of the above" for location skips the quiz and only collects contact details (waitlist).
-- **Payment** (same as the HeyDer app): One-time reservation ($10) or Monthly membership ($15/mo, "Best value"), NZD,
-  coupon codes, embedded Stripe Checkout inside the page, and a "Skip for now" → "Pay now & save 10%" offer.
+- **Payment** (same as the Typeform): one-time "HeyDer Booking fee", NZ$9.00, embedded Stripe Checkout inside the page.
+  Extras from the HeyDer app: coupon codes and "Skip for now" → "Pay now & save 10%". The app's monthly plan is off unless `SUBSCRIPTION_ENABLED=true`.
+- **Branching** (same as the Typeform): Wellington is sent to its own Typeform, "None of the above" ends with the Auckland & Wellington message.
 - **Google Sheet**: one row per person. A row is added when they submit, then the payment columns
   (status / plan / coupon / amount / Stripe session) are updated when they pay or skip.
   Statuses: `Pending payment`, `Paid`, `Skipped payment`, `Waitlist (outside Auckland/Wellington)`, `Paid (test mode)`.
