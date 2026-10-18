@@ -1,0 +1,4 @@
+{
+  "FRIEND20": { "discountPercent": 20, "active": true },
+  "MEMBER15": { "discountPercent": 15, "type": "subscription", "expiresAt": "2026-12-31" }
+}

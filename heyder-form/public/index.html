@@ -1,0 +1,795 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Auckland - Take the Quiz</title>
+<meta name="description" content="Make friends with people who wished for someone like you.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #E7DDBF;
+    --ink: #000;
+    --ink-soft: rgba(0,0,0,.62);
+    --accent: #9b4f96;          /* Typeform button purple */
+    --choice: rgba(0,0,0,.055);
+    --choice-hover: rgba(0,0,0,.09);
+    --line: rgba(0,0,0,.45);
+    --error-bg: #f3dcd3;
+    --error: #8d2a1a;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: 'Poppins', system-ui, sans-serif; font-size: 16px;
+    overflow: hidden; -webkit-font-smoothing: antialiased;
+  }
+  button { font: inherit; cursor: pointer; }
+
+  /* top progress */
+  #progress { position: fixed; top: 0; left: 0; right: 0; height: 4px; background: rgba(0,0,0,.28); z-index: 20; }
+  #progress i { display: block; height: 100%; width: 0; background: #000; transition: width .45s ease; }
+
+  #logo { position: fixed; top: 22px; left: 18px; z-index: 15; height: 28px; filter: brightness(0); }
+
+  /* stage */
+  #stage { position: fixed; inset: 0; overflow-y: auto; overflow-x: hidden; }
+  .screen {
+    min-height: 100%; display: flex; align-items: center; justify-content: center;
+    padding: 90px 24px 110px; animation: in .45s cubic-bezier(.22,1,.36,1) both;
+  }
+  .screen.back { animation-name: inBack; }
+  .screen.out { animation: out .25s ease both; pointer-events: none; }
+  .screen.out.back { animation-name: outBack; }
+  @keyframes in { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: none; } }
+  @keyframes inBack { from { opacity: 0; transform: translateY(-40px); } to { opacity: 1; transform: none; } }
+  @keyframes out { to { opacity: 0; transform: translateY(-40px); } }
+  @keyframes outBack { to { opacity: 0; transform: translateY(40px); } }
+
+  .q { width: 100%; max-width: 640px; text-align: center; }
+  .q.left { text-align: left; max-width: 640px; }
+  .title { font-size: 24px; line-height: 1.3; margin: 0; font-weight: 400; display: flex; gap: 10px; justify-content: center; align-items: baseline; }
+  .title .num {
+    flex: none; background: #000; color: #fff; font-size: 11px; font-weight: 600; min-width: 20px; height: 20px;
+    padding: 0 4px; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; position: relative; top: -3px;
+  }
+  .title .req { margin-left: 2px; }
+  .desc { margin: 10px 0 0; color: var(--ink-soft); font-size: 16px; line-height: 1.4; }
+  .hint { margin: 8px 0 0; color: var(--ink-soft); font-size: 14px; }
+  .body { margin-top: 26px; }
+
+  /* choices */
+  .choices { width: fit-content; min-width: 220px; max-width: 100%; margin: 0 auto; display: flex; flex-direction: column; gap: 8px; text-align: left; }
+  .choice {
+    display: flex; align-items: center; gap: 10px; border: 1.5px solid rgba(0,0,0,.12); background: var(--choice);
+    border-radius: 999px; padding: 8px 18px 8px 8px; color: #000; font-size: 16px; text-align: left;
+    transition: background .15s, border-color .15s; min-height: 40px;
+  }
+  .choice:hover { background: var(--choice-hover); }
+  .choice .key {
+    flex: none; width: 22px; height: 22px; border-radius: 50%; border: 1px solid rgba(0,0,0,.55); font-size: 11px; font-weight: 500;
+    display: inline-flex; align-items: center; justify-content: center; background: transparent;
+  }
+  .choice.on { border: 2px solid #000; padding: 7.5px 17.5px 7.5px 7.5px; background: rgba(0,0,0,.04); }
+  .choice.on .key { background: #000; color: #fff; border-color: #000; }
+  .choice.multi .key { border-radius: 6px; }
+  .other-input { margin-top: 12px; width: 100%; }
+
+  /* inputs */
+  .field { margin-top: 22px; text-align: center; }
+  .field:first-child { margin-top: 0; }
+  .field label { display: block; font-size: 16px; margin-bottom: 4px; }
+  .line, .field input, .field select, .field textarea {
+    width: 100%; background: transparent; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; outline: 0;
+    font: inherit; font-size: 24px; color: #000; padding: 8px 0 8px; text-align: left;
+  }
+  .field input::placeholder, .field textarea::placeholder, .line::placeholder { color: rgba(0,0,0,.35); }
+  .field input:focus, .field textarea:focus, .field select:focus, .line:focus { border-bottom: 2px solid #000; padding-bottom: 7px; }
+  textarea.line { resize: none; height: 96px; display: block; }
+  .small-hint { font-size: 13px; color: var(--ink-soft); margin: 8px 0 0; text-align: left; }
+  .phone { display: flex; gap: 8px; align-items: flex-end; }
+  .phone select { width: 92px; flex: none; font-size: 18px; padding-right: 0; appearance: none; background: transparent; }
+  .dob { display: flex; align-items: flex-end; gap: 10px; }
+  .dob input { text-align: center; font-size: 22px; }
+  .dob .sep { padding-bottom: 8px; color: rgba(0,0,0,.4); font-size: 22px; }
+  .dob .dd, .dob .mm { width: 25%; } .dob .yy { width: 40%; }
+  .field .sub { margin-top: 6px; text-align: left; }
+  .field .choices { margin: 8px auto 0; }
+  .country-wrap { position: relative; }
+  .country-list {
+    position: absolute; left: 0; right: 0; top: 100%; z-index: 30; max-height: 180px; overflow-y: auto; background: #f3ecd4; border: 1px solid rgba(0,0,0,.2);
+    border-radius: 8px; text-align: left; box-shadow: 0 8px 24px rgba(0,0,0,.15);
+  }
+  .country-list div { padding: 9px 14px; cursor: pointer; font-size: 16px; }
+  .country-list div:hover, .country-list div.hl { background: rgba(0,0,0,.08); }
+
+  /* scale */
+  .scale { display: flex; gap: 8px; justify-content: center; flex-wrap: nowrap; }
+  .scale button {
+    flex: 1 1 0; max-width: 48px; aspect-ratio: 1; border-radius: 50%; border: 1.5px solid rgba(0,0,0,.12); background: var(--choice); color: #000; font-size: 15px;
+    transition: background .15s; padding: 0;
+  }
+  .scale button:hover { background: var(--choice-hover); }
+  .scale button.on { background: #000; color: #fff; border-color: #000; }
+  .scale-labels { display: flex; justify-content: space-between; margin-top: 8px; color: var(--ink-soft); font-size: 14px; }
+  .scale-note { margin-top: 10px; color: var(--ink-soft); font-size: 14px; }
+  .scale-split { display: flex; justify-content: space-between; margin-bottom: 14px; font-size: 14px; color: var(--ink-soft); }
+
+  /* buttons */
+  .ok-row { margin-top: 22px; display: flex; align-items: center; gap: 14px; justify-content: center; }
+  .left .ok-row { justify-content: flex-start; }
+  .btn {
+    background: #fff; color: var(--accent); border: 0; border-radius: 999px; padding: 10px 22px; font-weight: 600; font-size: 16px; min-height: 40px;
+    box-shadow: 0 1px 2px rgba(0,0,0,.06); transition: opacity .15s, transform .1s;
+  }
+  .btn:hover { opacity: .88; }
+  .btn:active { transform: scale(.98); }
+  .btn[disabled] { opacity: .5; cursor: default; }
+  .enter-hint { font-size: 13px; color: var(--ink-soft); }
+  .enter-hint b { font-weight: 600; }
+
+  /* errors */
+  .err { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; background: var(--error-bg); color: var(--error); font-size: 13px; padding: 5px 12px; border-radius: 999px; }
+  .err.hidden, .field .err.hidden { display: none; }
+  .field .err { display: flex; width: fit-content; margin: 8px auto 0; }
+
+  /* welcome */
+  .welcome h1 { font-size: 32px; line-height: 1.3; font-weight: 400; margin: 0; max-width: 520px; }
+  .welcome p { margin: 10px 0 0; font-size: 16px; color: rgba(0,0,0,.75); }
+
+  /* payment */
+  .plan {
+    display: block; width: 100%; text-align: left; border: 1.5px solid rgba(0,0,0,.14); background: var(--choice); border-radius: 14px;
+    padding: 16px 18px; margin-bottom: 12px; position: relative; color: #000; transition: background .15s, border-color .15s;
+  }
+  .plan:hover { background: var(--choice-hover); }
+  .plan.on { border: 2px solid #000; padding: 15.5px 17.5px; background: rgba(255,255,255,.4); }
+  .plan .row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+  .plan .name { font-weight: 500; font-size: 17px; }
+  .plan .price { font-size: 24px; }
+  .plan .price s { font-size: 13px; color: rgba(0,0,0,.4); margin-right: 6px; }
+  .plan .price small { font-size: 14px; }
+  .plan .sub { margin: 6px 0 0; font-size: 14px; color: var(--ink-soft); }
+  .plan .badge { position: absolute; top: -10px; right: 16px; background: #000; color: #fff; font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; padding: 3px 10px; border-radius: 999px; }
+  .coupon { display: flex; gap: 8px; margin: 4px 0 16px; }
+  .coupon input { flex: 1; min-width: 0; background: transparent; border: 0; border-bottom: 1px solid var(--line); font: inherit; font-size: 18px; padding: 8px 0; outline: 0; text-transform: uppercase; }
+  .coupon input:focus { border-bottom: 2px solid #000; }
+  .coupon .btn { padding: 8px 18px; }
+  .coupon-ok { display: flex; justify-content: space-between; align-items: center; background: rgba(40,120,70,.12); border: 1px solid rgba(40,120,70,.35); color: #1d6b43; border-radius: 12px; padding: 10px 14px; font-size: 14px; margin: 4px 0 16px; }
+  .coupon-ok button { background: none; border: 0; color: rgba(0,0,0,.55); font-size: 13px; text-decoration: underline; }
+  .pay-btn { width: 100%; background: #000; color: #fff; padding: 14px 22px; font-size: 16px; }
+  .skip-link { display: block; margin: 16px auto 0; background: none; border: 0; color: var(--ink-soft); font-size: 14px; text-decoration: underline; }
+  .legal { font-size: 12px; color: var(--ink-soft); margin-top: 18px; }
+  .legal a { color: #000; }
+  #checkout { margin-top: 8px; background: #fff; border-radius: 14px; overflow: hidden; min-height: 200px; }
+  .back-link { background: none; border: 0; color: var(--ink-soft); font-size: 14px; margin-top: 14px; text-decoration: underline; }
+
+  /* modal */
+  .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 50; display: flex; align-items: center; justify-content: center; padding: 24px; }
+  .modal { background: var(--bg); border-radius: 18px; padding: 28px 24px; max-width: 360px; width: 100%; text-align: center; }
+  .modal h3 { margin: 6px 0 8px; font-weight: 500; font-size: 20px; }
+  .modal p { margin: 0 0 18px; color: var(--ink-soft); font-size: 14px; }
+  .modal .link { background: none; border: 0; color: var(--ink-soft); font-size: 13px; margin-top: 12px; text-decoration: underline; }
+
+  /* done */
+  .done h1 { font-size: 32px; font-weight: 400; margin: 0; line-height: 1.3; }
+  .done p { margin: 12px 0 0; font-size: 18px; color: rgba(0,0,0,.75); line-height: 1.5; }
+
+  /* nav */
+  #nav { position: fixed; right: 18px; bottom: 18px; display: flex; z-index: 20; }
+  #nav button {
+    width: 34px; height: 34px; background: #fff; color: var(--accent); border: 0; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 1px 2px rgba(0,0,0,.08);
+  }
+  #nav button:first-child { border-radius: 6px 0 0 6px; border-right: 1px solid rgba(155,79,150,.25); }
+  #nav button:last-child { border-radius: 0 6px 6px 0; }
+  #nav button[disabled] { opacity: .45; cursor: default; }
+  #nav svg { width: 14px; height: 14px; }
+
+  @media (max-width: 560px) {
+    .title { font-size: 21px; }
+    .welcome h1, .done h1 { font-size: 26px; }
+    .screen { padding: 80px 18px 100px; align-items: flex-start; }
+    .scale { gap: 4px; } .scale button { font-size: 12px; }
+    .line, .field input, .field select, .field textarea { font-size: 20px; }
+    #logo { left: 14px; }
+  }
+</style>
+</head>
+<body>
+<div id="progress"><i></i></div>
+<img id="logo" alt="HeyDer" src="https://heyder.nz/wp-content/uploads/2026/04/logo1.png">
+<div id="stage"></div>
+<div id="nav" hidden>
+  <button id="prev" aria-label="Previous question"><svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9.5 7 4.5l5 5"/></svg></button>
+  <button id="next" aria-label="Next question"><svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4.5 7 9.5l5-5"/></svg></button>
+</div>
+
+<script>
+'use strict';
+const $ = (s, r = document) => r.querySelector(s);
+const el = (tag, props = {}, ...kids) => {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(props)) {
+    if (k === 'class') n.className = v; else if (k === 'html') n.innerHTML = v;
+    else if (k.startsWith('on')) n.addEventListener(k.slice(2), v); else n.setAttribute(k, v);
+  }
+  kids.flat().forEach(c => n.append(c));
+  return n;
+};
+// Works at the site root or under a sub-path such as /type-form
+const BASE = location.pathname.replace(/\/+$/, '');
+const LETTERS = 'ABCDEFGHIJKLMNOP';
+const ISO_COUNTRIES = (() => {
+  const dn = new Intl.DisplayNames(['en'], { type: 'region' });
+  const out = [];
+  for (let a = 65; a <= 90; a++) for (let b = 65; b <= 90; b++) {
+    const code = String.fromCharCode(a, b);
+    let name; try { name = dn.of(code); } catch { continue; }
+    if (name && name !== code && !['European Union', 'United Nations', 'Unknown Region', 'Pseudo-Accents', 'Pseudo-Bidi'].includes(name) && !/^(Antarctica|Ascension|Clipperton|Diego|Tristan)/.test(name)) out.push(name);
+  }
+  return out.sort((x, y) => x.localeCompare(y));
+})();
+const DIAL = [['🇳🇿', '+64'], ['🇦🇺', '+61'], ['🇮🇳', '+91'], ['🇬🇧', '+44'], ['🇺🇸', '+1'], ['🇨🇦', '+1'], ['🇿🇦', '+27'], ['🇸🇬', '+65'], ['🇵🇭', '+63'], ['🇫🇯', '+679'], ['🇼🇸', '+685'], ['🇹🇴', '+676'], ['🇨🇳', '+86'], ['🇯🇵', '+81'], ['🇰🇷', '+82'], ['🇩🇪', '+49'], ['🇫🇷', '+33'], ['🇮🇪', '+353']];
+
+let CONFIG = { tuesdays: [], pricing: { oneTimeAmount: 1000, subscriptionAmount: 1500 }, skipDiscountPercent: 10 };
+const A = { phoneCode: '+64' };         // answers
+let steps = [];
+let idx = 0;
+let submissionId = null;
+let submitting = false;
+let advanceTimer = null;
+let scaleBuffer = '';
+let scaleTimer = null;
+
+// ---------- question definitions (mirrors the Typeform, in order) ----------
+const choice = (key, title, choices, extra = {}) => ({ type: 'choice', key, title, choices, required: true, ...extra });
+const scale = (key, title, extra = {}) => ({ type: 'scale', key, title, required: true, ...extra });
+function buildSteps() {
+  steps = [
+    { type: 'welcome' },
+    choice('location', 'Your Location', ['Auckland', 'Wellington', 'None of the above'], { desc: 'We are currently curating dinners in Auckland & Wellington.' }),
+    choice('lookingFor', "I'm looking for", ['meaningful friendships', 'a fun night out']),
+    choice('tuesday', 'Which Tuesday night works for you?', CONFIG.tuesdays),
+    choice('relationship', 'Your relationship status', ['Single', 'Married', 'In a relationship', "It's complicated", 'Prefer not to say']),
+    choice('lifeStage', 'How would you describe your current life stage?', ['Not Working', 'Student', 'Building Foundations', 'Settled Professional', 'New to city']),
+    choice('personality', 'Would you consider yourself as', ['Outgoing', 'Reserved', 'Bit of both']),
+    choice('battery', 'Your social battery', ['Never runs out', 'Need occasional charging', 'Drains pretty fast']),
+    choice('career', 'If you were paid equally which career would you choose', ['Rom-com actor', 'Counsellor', 'Stand up comedian', 'Life Coach']),
+    scale('deepConvo', 'I enjoy having deep conversations in a group', { low: 'Disagree', high: 'Strongly Agree', note: '0 = Disagree, 10 = Strongly Agree' }),
+    scale('sarcastic', 'I am sarcastic in nature', { low: 'Disagree', high: 'Agree', note: '0 = Disagree, 10 = Agree' }),
+    scale('financial', 'When i think about the future-financial security comes first', { low: 'Disagree', high: 'Agree', note: '0 = Disagree, 10 = Agree' }),
+    scale('initiates', "I'm someone who usually initiate plans", { low: 'Disagree', high: 'Agree', note: '0 = Disagree, 10 = Agree' }),
+    scale('curious', 'You straight up ask questions when curious', { low: "I don't bother", high: 'Want to know more', note: "0 = I don't bother, 10 = Want to know more" }),
+    scale('reliability', 'How important is it that people show up when they say they will?', { split: ['0-5 Not that important', '6-10 Important'] }),
+    choice('socialCircle', 'Your current social circle is', ['Small but close', 'Decent but need depth', 'Mostly online', 'Pretty much none']),
+    choice('topics', 'You like talking about ', ['Pop Culture', 'Sports', 'Politics']),
+    choice('weekend', 'On a typical weekend you are usually-', ['Out somewhere with people', 'Spending time with family', 'By myself recharging', 'Engage myself in a hobby']),
+    { type: 'text', key: 'careerToKid', title: 'How would you describe your career/job to a kid?', placeholder: 'Be creative.', required: true },
+    choice('budget', 'What budget would be ideal for you to spend on a Set Menu?', ['$50-$55', '$55-$60'], { desc: 'We choose restaurants with 4.3 rating or above and ability to take care of allergens.' }),
+    { type: 'multi', key: 'dietary', title: 'Any food allergens/dietary preference we need to inform the restaurant prior to booking ? ', desc: 'We choose restaurants with 4.3 rating and above.', hint: 'Choose as many as you like',
+      choices: ['Not Applicable', 'Gluten free', 'Dairy free', 'Nut free', 'Vegan', 'Vegetarian', 'Other'], required: true },
+    { type: 'contact', title: 'Your details', required: true },
+    { type: 'about', title: 'About you', required: true },
+    { type: 'payment' },
+    { type: 'done' },
+  ];
+}
+// numbered questions only (welcome/payment/done aren't numbered)
+const qNumber = i => steps.slice(0, i + 1).filter(s => !['welcome', 'payment', 'done', 'waitlist'].includes(s.type)).length;
+const lastQuestionIndex = () => steps.findIndex(s => s.type === 'about');
+const contactIndex = () => steps.findIndex(s => s.type === 'contact');
+const isOutside = () => A.location === 'None of the above';
+
+// "None of the above" skips the whole quiz and only collects contact details for the waitlist.
+function nextIndex(from) {
+  if (steps[from].key === 'location' && isOutside()) return contactIndex();
+  if (steps[from].type === 'contact' && isOutside()) return steps.findIndex(s => s.type === 'waitlist' || s.type === 'done');
+  return from + 1;
+}
+function prevIndex(from) {
+  if (from === contactIndex() && isOutside()) return 1;
+  return from - 1;
+}
+
+// ---------- rendering ----------
+const stage = $('#stage');
+function setProgress() {
+  const total = steps.length - 2; // everything before payment/done
+  const cur = Math.min(idx, total);
+  const pct = ['payment', 'done', 'waitlist'].includes(steps[idx].type) ? 100 : (cur / total) * 100;
+  $('#progress i').style.width = pct + '%';
+  const nav = $('#nav');
+  nav.hidden = ['welcome', 'done', 'waitlist'].includes(steps[idx].type);
+  $('#prev').disabled = idx <= 1;
+  $('#next').disabled = !canProceedSilently();
+}
+function canProceedSilently() {
+  const s = steps[idx];
+  if (!s || !s.key) return false;
+  return s.type === 'multi' ? (A[s.key] || []).length > 0 : A[s.key] !== undefined && A[s.key] !== '';
+}
+
+function show(i, back = false) {
+  clearTimeout(advanceTimer);
+  const old = stage.firstElementChild;
+  idx = i;
+  const node = renderStep(steps[i], i);
+  node.classList.toggle('back', back);
+  if (old) {
+    old.classList.add('out'); old.classList.toggle('back', back);
+    setTimeout(() => { old.remove(); }, 230);
+  }
+  stage.append(node);
+  stage.scrollTop = 0;
+  setProgress();
+  document.title = 'Auckland - Take the Quiz' + (steps[i].title ? ' | ' + steps[i].title.trim() : '');
+  const focusable = node.querySelector('[data-autofocus]');
+  if (focusable) setTimeout(() => focusable.focus({ preventScroll: true }), 350);
+}
+function go(dir) {
+  if (dir > 0) { if (!validate(true)) return; const n = nextIndex(idx); if (n < steps.length) show(n); }
+  else { const p = prevIndex(idx); if (p >= 1) show(p, true); }
+}
+
+function titleBlock(s, i) {
+  const head = el('h2', { class: 'title' },
+    el('span', { class: 'num' }, String(qNumber(i))),
+    el('span', {}, s.title.trimEnd(), s.required ? el('span', { class: 'req' }, '*') : ''));
+  const box = el('div', {}, head);
+  if (s.desc) box.append(el('p', { class: 'desc' }, s.desc));
+  if (s.hint) box.append(el('p', { class: 'hint' }, s.hint));
+  return box;
+}
+function errorPill(msg = 'Please fill this in') {
+  return el('div', { class: 'err hidden', role: 'alert' }, '⚠ ', el('span', {}, msg));
+}
+function showError(node, msg) {
+  const e = node.querySelector('.err'); if (!e) return;
+  if (msg) e.lastChild.textContent = msg;
+  e.classList.remove('hidden');
+}
+const wrap = (...kids) => el('div', { class: 'screen' }, el('div', { class: 'q' }, kids));
+
+function renderStep(s, i) {
+  switch (s.type) {
+    case 'welcome': return renderWelcome();
+    case 'choice': return renderChoice(s, i);
+    case 'multi': return renderMulti(s, i);
+    case 'scale': return renderScale(s, i);
+    case 'text': return renderText(s, i);
+    case 'contact': return renderContact(s, i);
+    case 'about': return renderAbout(s, i);
+    case 'payment': return renderPayment();
+    case 'waitlist': return renderWaitlist();
+    case 'done': return renderDone();
+  }
+}
+
+function renderWelcome() {
+  const s = el('div', { class: 'screen' }, el('div', { class: 'q left welcome' },
+    el('h1', {}, 'Make friends with people who wished for someone like you.'),
+    el('p', {}, 'Takes 4 min.'),
+    el('div', { class: 'ok-row' }, el('button', { class: 'btn', 'data-autofocus': '1', onclick: () => show(1) }, 'Continue'),
+      el('span', { class: 'enter-hint' }, 'press ', el('b', {}, 'Enter ↵')))));
+  return s;
+}
+
+function okRow(onClick, label = 'OK') {
+  const b = el('button', { class: 'btn', type: 'button', onclick: onClick }, label);
+  return el('div', { class: 'ok-row' }, b, el('span', { class: 'enter-hint' }, 'press ', el('b', {}, 'Enter ↵')));
+}
+
+function renderChoice(s, i) {
+  const err = errorPill();
+  const list = el('div', { class: 'choices', role: 'radiogroup' });
+  s.choices.forEach((c, n) => {
+    const b = el('button', { class: 'choice' + (A[s.key] === c ? ' on' : ''), type: 'button', role: 'radio', 'data-i': n, onclick: () => pick(s, c, list, err) },
+      el('span', { class: 'key' }, LETTERS[n]), el('span', {}, c));
+    list.append(b);
+  });
+  const root = wrap(titleBlock(s, i), el('div', { class: 'body' }, list, err, okRow(() => go(1))));
+  return root;
+}
+function pick(s, value, list, err) {
+  A[s.key] = value;
+  list.querySelectorAll('.choice').forEach((b, n) => b.classList.toggle('on', s.choices[n] === value));
+  err.classList.add('hidden');
+  $('#next').disabled = false;
+  clearTimeout(advanceTimer);
+  advanceTimer = setTimeout(() => go(1), 380);
+}
+
+function renderMulti(s, i) {
+  const err = errorPill();
+  A[s.key] = A[s.key] || [];
+  const list = el('div', { class: 'choices' });
+  const otherWrap = el('div', { class: 'other-input' });
+  const sync = () => {
+    list.querySelectorAll('.choice').forEach((b, n) => b.classList.toggle('on', A[s.key].includes(s.choices[n])));
+    otherWrap.innerHTML = '';
+    if (A[s.key].includes('Other')) {
+      otherWrap.append(el('input', { class: 'line', style: 'font-size:18px', type: 'text', placeholder: 'Type your answer here...', maxlength: 200, value: A.dietaryOther || '',
+        oninput: e => { A.dietaryOther = e.target.value; }, onkeydown: e => { if (e.key === 'Enter') { e.preventDefault(); go(1); } }, 'data-autofocus': '1' }));
+      setTimeout(() => otherWrap.firstChild && otherWrap.firstChild.focus(), 0);
+    }
+    $('#next').disabled = !A[s.key].length;
+  };
+  s.choices.forEach((c, n) => list.append(el('button', { class: 'choice multi', type: 'button', onclick: () => {
+    let cur = A[s.key];
+    if (c === 'Not Applicable') cur = cur.includes(c) ? [] : [c];
+    else { cur = cur.filter(x => x !== 'Not Applicable'); cur = cur.includes(c) ? cur.filter(x => x !== c) : [...cur, c]; }
+    A[s.key] = cur; err.classList.add('hidden'); sync();
+  } }, el('span', { class: 'key' }, LETTERS[n]), el('span', {}, c))));
+  const root = wrap(titleBlock(s, i), el('div', { class: 'body' }, list, otherWrap, err, okRow(() => go(1))));
+  sync();
+  return root;
+}
+
+function renderScale(s, i) {
+  const err = errorPill();
+  const row = el('div', { class: 'scale', role: 'radiogroup' });
+  for (let n = 0; n <= 10; n++) {
+    row.append(el('button', { type: 'button', class: A[s.key] === n ? 'on' : '', 'data-n': n, onclick: () => {
+      A[s.key] = n; row.querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.n === n));
+      err.classList.add('hidden'); $('#next').disabled = false;
+      clearTimeout(advanceTimer); advanceTimer = setTimeout(() => go(1), 380);
+    } }, String(n)));
+  }
+  const body = el('div', { class: 'body' });
+  if (s.split) body.append(el('div', { class: 'scale-split' }, el('span', {}, s.split[0]), el('span', {}, s.split[1])));
+  body.append(row);
+  if (s.low) body.append(el('div', { class: 'scale-labels' }, el('span', {}, s.low), el('span', {}, s.high)));
+  if (s.note) body.append(el('div', { class: 'scale-note' }, s.note));
+  body.append(err, okRow(() => go(1)));
+  return wrap(titleBlock(s, i), body);
+}
+
+function renderText(s, i) {
+  const err = errorPill();
+  const ta = el('textarea', { class: 'line', placeholder: s.placeholder || '', maxlength: 1000, 'data-autofocus': '1',
+    oninput: e => { A[s.key] = e.target.value; err.classList.add('hidden'); $('#next').disabled = !e.target.value.trim(); } });
+  ta.value = A[s.key] || '';
+  ta.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); go(1); } });
+  const root = el('div', { class: 'screen' }, el('div', { class: 'q left' },
+    titleBlock(s, i), el('div', { class: 'body' }, ta, el('p', { class: 'small-hint' }, 'Shift ⇧ + Enter ↵ to make a line break'), err,
+      okRow(() => go(1)))));
+  return root;
+}
+
+function renderContact(s, i) {
+  const mk = (key, label, ph, type = 'text', auto) => {
+    const inp = el('input', { type, placeholder: ph, autocomplete: auto, value: A[key] || '', maxlength: 200, 'data-k': key,
+      oninput: e => { A[key] = e.target.value; e.target.closest('.field').querySelector('.err').classList.add('hidden'); } });
+    return el('div', { class: 'field' }, el('label', {}, label, '*'), inp, errorPill());
+  };
+  const code = el('select', { 'aria-label': 'Country code', onchange: e => { A.phoneCode = e.target.value; } },
+    DIAL.map(([f, c]) => el('option', { value: c, ...(A.phoneCode === c ? { selected: '' } : {}) }, `${f} ${c}`)));
+  const phoneField = el('div', { class: 'field' }, el('label', {}, 'Phone number*'),
+    el('div', { class: 'phone' }, code, el('input', { type: 'tel', inputmode: 'tel', placeholder: '021 123 4567', autocomplete: 'tel-national', value: A.phone || '', 'data-k': 'phone', maxlength: 20,
+      oninput: e => { A.phone = e.target.value.replace(/[^\d\s()-]/g, ''); e.target.value = A.phone; e.target.closest('.field').querySelector('.err').classList.add('hidden'); } })), errorPill());
+  const root = el('div', { class: 'screen' }, el('div', { class: 'q' }, titleBlock(s, i),
+    el('div', { class: 'body' },
+      (() => { const f = mk('firstName', 'First name', 'Jane', 'text', 'given-name'); f.querySelector('input').setAttribute('data-autofocus', '1'); return f; })(),
+      mk('lastName', 'Last name', 'Smith', 'text', 'family-name'),
+      phoneField,
+      mk('email', 'Email', 'name@example.com', 'email', 'email'),
+      okRow(() => go(1)))));
+  root.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && e.target.tagName === 'INPUT') {
+      e.preventDefault();
+      const inputs = [...root.querySelectorAll('input[data-k]')];
+      const n = inputs.indexOf(e.target);
+      if (n < inputs.length - 1) inputs[n + 1].focus(); else go(1);
+    }
+  });
+  return root;
+}
+
+function renderAbout(s, i) {
+  const dob = (A.dob || '').split('-');
+  const part = (cls, ph, max, val) => el('input', { class: cls, inputmode: 'numeric', placeholder: ph, maxlength: max, value: val || '', 'data-dob': cls,
+    oninput: e => { e.target.value = e.target.value.replace(/\D/g, ''); syncDob(root); if (e.target.value.length === max) { const nxt = e.target.parentElement.querySelector(`.${e.target.dataset.next}`); if (nxt) nxt.focus(); } } });
+  const dd = part('dd', 'DD', 2, dob[2]); dd.dataset.next = 'mm';
+  const mm = part('mm', 'MM', 2, dob[1]); mm.dataset.next = 'yy';
+  const yy = part('yy', 'YYYY', 4, dob[0]);
+  dd.setAttribute('data-autofocus', '1');
+
+  const genders = ['Female', 'Male', 'Non-binary', 'Other'];
+  const gList = el('div', { class: 'choices' });
+  genders.forEach((g, n) => gList.append(el('button', { type: 'button', class: 'choice' + (A.gender === g ? ' on' : ''), onclick: () => {
+    A.gender = g; gList.querySelectorAll('.choice').forEach((b, k) => b.classList.toggle('on', genders[k] === g));
+    root.querySelector('[data-f=gender] .err').classList.add('hidden');
+  } }, el('span', { class: 'key' }, LETTERS[n]), el('span', {}, g))));
+
+  // Type-or-select country box, like Typeform's.
+  const cInput = el('input', { type: 'text', class: 'line', placeholder: 'Type or select an option', autocomplete: 'off', value: A.country || '' });
+  const cList = el('div', { class: 'country-list', hidden: '' });
+  let hl = -1;
+  const renderList = () => {
+    const q = cInput.value.trim().toLowerCase();
+    const items = ISO_COUNTRIES.filter(c => c.toLowerCase().includes(q));
+    cList.innerHTML = ''; hl = -1;
+    items.forEach(c => cList.append(el('div', { onmousedown: e => { e.preventDefault(); choose(c); } }, c)));
+    cList.hidden = !items.length;
+  };
+  const choose = c => { A.country = c; cInput.value = c; cList.hidden = true; root.querySelector('[data-f=country] .err').classList.add('hidden'); };
+  cInput.addEventListener('input', () => { A.country = ''; renderList(); });
+  cInput.addEventListener('focus', renderList);
+  cInput.addEventListener('blur', () => setTimeout(() => { cList.hidden = true; if (!A.country) { const m = ISO_COUNTRIES.find(c => c.toLowerCase() === cInput.value.trim().toLowerCase()); if (m) choose(m); } }, 120));
+  cInput.addEventListener('keydown', e => {
+    const items = [...cList.children];
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); hl = Math.max(0, Math.min(items.length - 1, hl + (e.key === 'ArrowDown' ? 1 : -1))); items.forEach((d, k) => d.classList.toggle('hl', k === hl)); items[hl] && items[hl].scrollIntoView({ block: 'nearest' }); }
+    else if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); if (A.country && A.country === cInput.value) go(1); else if (hl >= 0 && items[hl]) choose(items[hl].textContent); else if (items.length === 1) choose(items[0].textContent); else go(1); }
+  });
+
+  const root = el('div', { class: 'screen' }, el('div', { class: 'q' }, titleBlock(s, i), el('div', { class: 'body' },
+    el('div', { class: 'field', 'data-f': 'dob' }, el('label', {}, 'How old are you?*'), el('div', { class: 'dob' }, dd, el('span', { class: 'sep' }, '/'), mm, el('span', { class: 'sep' }, '/'), yy), errorPill()),
+    el('div', { class: 'field', 'data-f': 'gender' }, el('label', {}, 'What is your gender?*'), gList, errorPill()),
+    el('div', { class: 'field', 'data-f': 'country' }, el('label', {}, 'What country are you from?*'), el('div', { class: 'country-wrap' }, cInput, cList), errorPill()),
+    okRow(() => go(1), 'Submit'))));
+  return root;
+}
+function syncDob(root) {
+  const d = $('.dd', root).value, m = $('.mm', root).value, y = $('.yy', root).value;
+  A.dob = (y.length === 4 && d && m) ? `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}` : '';
+  root.querySelector('[data-f=dob] .err').classList.add('hidden');
+}
+
+// ---------- validation ----------
+function validate(interactive) {
+  const s = steps[idx];
+  const root = stage.lastElementChild;
+  const fail = (node, msg) => { if (interactive) showError(node || root, msg); return false; };
+  if (s.type === 'choice' || s.type === 'scale') {
+    if (A[s.key] === undefined || A[s.key] === '') return fail(root);
+  } else if (s.type === 'multi') {
+    if (!(A[s.key] || []).length) return fail(root);
+  } else if (s.type === 'text') {
+    if (!(A[s.key] || '').trim()) return fail(root);
+  } else if (s.type === 'contact') {
+    let ok = true;
+    const need = [['firstName', null], ['lastName', null], ['phone', v => v.replace(/\D/g, '').length >= 7 ? null : 'Please enter a valid phone number'],
+      ['email', v => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v) ? null : 'Please enter a valid email address']];
+    let firstBad = null;
+    for (const [k, check] of need) {
+      const v = (A[k] || '').trim();
+      const msg = !v ? 'Please fill this in' : (check && check(v));
+      if (msg) { ok = false; const f = root.querySelector(`[data-k=${k}]`).closest('.field'); if (interactive) showError(f, msg); firstBad = firstBad || f.querySelector('input'); }
+    }
+    if (!ok && firstBad) firstBad.focus();
+    return ok;
+  } else if (s.type === 'about') {
+    let ok = true;
+    const bad = (f, msg) => { ok = false; if (interactive) showError(root.querySelector(`[data-f=${f}]`), msg); };
+    syncDob(root);
+    if (!A.dob) bad('dob', 'Please enter your full date of birth');
+    else {
+      const [y, m, d] = A.dob.split('-').map(Number); const dt = new Date(y, m - 1, d);
+      const now = new Date(); const eighteen = new Date(now.getFullYear() - 18, now.getMonth(), now.getDate());
+      if (dt.getMonth() !== m - 1 || dt.getDate() !== d) bad('dob', 'That date does not exist');
+      else if (y < now.getFullYear() - 100) bad('dob', 'Please enter a valid date of birth');
+      else if (dt > eighteen) bad('dob', 'You must be 18 or older to join HeyDer');
+    }
+    if (!A.gender) bad('gender');
+    if (!A.country) { const t = root.querySelector('.country-wrap input').value.trim().toLowerCase(); const m = ISO_COUNTRIES.find(c => c.toLowerCase() === t); if (m) A.country = m; else bad('country'); }
+    return ok;
+  }
+  return true;
+}
+
+// ---------- submit (after the About-you / contact screen) ----------
+async function submitAnswers() {
+  if (submitting) return null;
+  submitting = true;
+  const btn = stage.querySelector('.ok-row .btn'); if (btn) { btn.disabled = true; btn.textContent = 'Submitting…'; }
+  try {
+    const answers = { ...A, phone: `${A.phoneCode} ${A.phone}`.trim() };
+    const r = await fetch(BASE + '/api/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ answers }) });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Could not submit');
+    submissionId = data.id;
+    try { sessionStorage.setItem('heyder_form_sub', JSON.stringify({ id: data.id, name: A.firstName, email: A.email, tuesday: A.tuesday })); } catch {}
+    return data;
+  } catch (err) {
+    if (btn) { btn.disabled = false; btn.textContent = steps[idx].type === 'about' ? 'Submit' : 'OK'; }
+    showError(stage.lastElementChild, err.message || 'Something went wrong');
+    return null;
+  } finally { submitting = false; }
+}
+
+// ---------- payment ----------
+const money = c => '$' + (c / 100).toFixed(2).replace(/\.00$/, '');
+const P = { plan: 'one_time', coupon: null, couponErr: '', checking: false };
+let checkoutObj = null;
+
+function renderPayment() {
+  const cfg = CONFIG.pricing;
+  const root = el('div', { class: 'screen' });
+  const q = el('div', { class: 'q left' }); root.append(q);
+  const draw = () => {
+    if (checkoutObj) { try { checkoutObj.destroy(); } catch {} checkoutObj = null; }
+    q.innerHTML = '';
+    const d = P.coupon ? P.coupon.discountPercent : 0;
+    const price = base => money(Math.round(base * (1 - d / 100)));
+    q.append(el('h2', { class: 'title', style: 'justify-content:flex-start' }, 'Reserve your spot'),
+      el('p', { class: 'desc' }, 'Choose how you\'d like to join.'));
+    const body = el('div', { class: 'body' }); q.append(body);
+    const planCard = (id, name, base, sub, badge, per) => {
+      const p = el('button', { type: 'button', class: 'plan' + (P.plan === id ? ' on' : ''), onclick: () => { P.plan = id; P.couponErr = ''; if (P.coupon && P.coupon.type && P.coupon.type !== id) P.coupon = null; draw(); } },
+        badge ? el('span', { class: 'badge' }, badge) : '',
+        el('div', { class: 'row' }, el('span', { class: 'name' }, name),
+          el('span', { class: 'price' }, d ? el('s', {}, money(base)) : '', price(base), per ? el('small', {}, '/mo') : '')),
+        P.plan === id ? el('p', { class: 'sub' }, sub) : '');
+      return p;
+    };
+    body.append(
+      planCard('one_time', 'One-time reservation', cfg.oneTimeAmount, `Reserve the ${A.tuesday || "this Tuesday's"} dinner.`),
+      planCard('subscription', 'Monthly membership', cfg.subscriptionAmount, 'Unlimited HeyDer dinners this month.', 'Best value', true));
+    // coupon
+    if (P.coupon) {
+      body.append(el('div', { class: 'coupon-ok' }, el('span', {}, `✓ Code ${P.coupon.code} applied — ${P.coupon.discountPercent}% off`),
+        el('button', { type: 'button', onclick: () => { P.coupon = null; draw(); } }, 'Remove')));
+    } else {
+      const inp = el('input', { type: 'text', placeholder: 'Coupon code', autocomplete: 'off', 'aria-label': 'Coupon code' });
+      const apply = el('button', { type: 'button', class: 'btn', onclick: async () => {
+        const code = inp.value.trim(); if (!code) return;
+        apply.disabled = true; apply.textContent = '…';
+        try {
+          const r = await fetch(BASE + '/api/validate-coupon', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code, plan: P.plan }) });
+          const j = await r.json();
+          if (!r.ok) throw new Error(j.error);
+          P.coupon = { code: j.code, discountPercent: j.discountPercent }; P.couponErr = ''; draw();
+        } catch (e) { P.couponErr = e.message || 'That code is invalid or has expired.'; draw(); }
+      } }, 'Apply');
+      inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); apply.click(); } });
+      body.append(el('div', { class: 'coupon' }, inp, apply));
+      if (P.couponErr) body.append(el('div', { class: 'err', style: 'margin:-8px 0 14px' }, '⚠ ' + P.couponErr));
+    }
+    const pay = el('button', { type: 'button', class: 'btn pay-btn', onclick: () => startPayment(false, q, draw, pay) },
+      CONFIG.paymentsLive ? (P.plan === 'subscription' ? `Subscribe ${price(cfg.subscriptionAmount)}/mo` : `Pay ${price(cfg.oneTimeAmount)} & Complete Booking`) : 'Complete Booking (Test Mode)');
+    body.append(pay, el('button', { type: 'button', class: 'skip-link', onclick: () => skipModal(q, draw) }, 'Skip for now — set up my account'),
+      el('p', { class: 'legal' }, 'By proceeding you are accepting our ', el('a', { href: 'https://heyder.nz/terms-conditions', target: '_blank', rel: 'noopener' }, 'terms & conditions'), ' / ', el('a', { href: 'https://heyder.nz/privacy-policy', target: '_blank', rel: 'noopener' }, 'privacy policy'), '.'));
+  };
+  draw();
+  return root;
+}
+
+async function startPayment(withSkipDiscount, q, redraw, btn) {
+  if (!submissionId) return;
+  if (btn) { btn.disabled = true; btn.textContent = 'Processing…'; }
+  try {
+    const r = await fetch(BASE + '/api/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: submissionId, plan: P.plan, couponCode: P.coupon && P.coupon.code, context: withSkipDiscount && !P.coupon ? 'skip-offer' : undefined }) });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || 'Payment setup failed. Please try again.');
+    if (j.testMode) { finish('paid'); return; }
+    await mountCheckout(j.clientSecret, j.sessionId, q, redraw);
+  } catch (e) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Try again'; }
+    const body = q.querySelector('.body'); const old = body.querySelector('.err.pay'); if (old) old.remove();
+    body.append(el('div', { class: 'err pay' }, '⚠ ' + e.message));
+  }
+}
+
+let stripeLoader = null;
+function loadStripe() {
+  if (window.Stripe) return Promise.resolve();
+  if (!stripeLoader) stripeLoader = new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://js.stripe.com/v3/'; s.onload = res; s.onerror = () => rej(new Error('Could not load the payment form.')); document.head.append(s); });
+  return stripeLoader;
+}
+// Stripe Checkout stays inside this page (embedded), like it does inside the HeyDer app.
+async function mountCheckout(clientSecret, sessionId, q, redraw) {
+  await loadStripe();
+  const stripe = window.Stripe(CONFIG.stripePublishableKey);
+  q.innerHTML = '';
+  const holder = el('div', { id: 'checkout' });
+  q.append(el('h2', { class: 'title', style: 'justify-content:flex-start' }, 'Reserve your spot'), holder,
+    el('button', { class: 'back-link', type: 'button', onclick: () => redraw() }, '← Change plan'));
+  checkoutObj = await stripe.initEmbeddedCheckout({ clientSecret, onComplete: async () => {
+    holder.innerHTML = '<p style="padding:24px">Confirming your payment…</p>';
+    for (let n = 0; n < 6; n++) {
+      try { const r = await fetch(BASE + '/api/verify/' + sessionId); const j = await r.json(); if (j.paid) { finish('paid'); return; } } catch {}
+      await new Promise(r => setTimeout(r, 1500));
+    }
+    finish('paid');
+  } });
+  checkoutObj.mount(holder);
+}
+
+function skipModal(q, redraw) {
+  const d = P.coupon ? P.coupon.discountPercent : CONFIG.skipDiscountPercent;
+  const bg = el('div', { class: 'modal-bg', onclick: e => { if (e.target === bg) bg.remove(); } });
+  bg.append(el('div', { class: 'modal' }, el('div', { style: 'font-size:34px' }, '🎁'),
+    el('h3', {}, `Wait — pay now and save ${d}%?`),
+    el('p', {}, `Reserve today instead of skipping and we'll knock ${d}% off ${P.plan === 'subscription' ? 'your first month' : "this Tuesday's dinner"}.`),
+    el('button', { class: 'btn', style: 'width:100%;background:#000;color:#fff', type: 'button', onclick: () => { bg.remove(); startPayment(true, q, redraw, null); } }, `Pay now & save ${d}%`),
+    el('button', { class: 'link', type: 'button', onclick: async () => {
+      bg.remove();
+      try { await fetch(BASE + '/api/skip', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: submissionId }) }); } catch {}
+      finish('skipped');
+    } }, 'Skip anyway')));
+  document.body.append(bg);
+}
+
+function finish(kind) {
+  A.__finish = kind;
+  try { sessionStorage.removeItem('heyder_form_sub'); } catch {}
+  show(steps.length - 1);
+}
+
+function renderWaitlist() { return renderDone(); }
+function renderDone() {
+  const name = A.firstName || '';
+  let h = 'Thank you!', p = "Your details are saved. We'll be in touch soon.";
+  if (isOutside()) { h = `Thanks${name ? ', ' + name : ''}!`; p = "We're only curating dinners in Auckland & Wellington for now. We'll email you as soon as we come to your city."; }
+  else if (A.__finish === 'paid') { h = `You're in${name ? ', ' + name : ''}! 🎉`; p = `Your spot ${A.tuesday ? 'for ' + A.tuesday : ''} is reserved. We'll email ${A.email || 'you'} with your restaurant and table details before the dinner.`; }
+  else if (A.__finish === 'skipped') { h = `Thanks${name ? ', ' + name : ''}!`; p = `Your profile is saved. Reserve a Tuesday whenever you're ready — we'll email ${A.email || 'you'} with the details.`; }
+  return el('div', { class: 'screen' }, el('div', { class: 'q left done' }, el('h1', {}, h), el('p', {}, p)));
+}
+
+// ---------- keyboard ----------
+document.addEventListener('keydown', e => {
+  const s = steps[idx]; if (!s) return;
+  const tag = (e.target.tagName || '').toLowerCase();
+  const typing = tag === 'input' || tag === 'textarea' || tag === 'select';
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (s.type === 'welcome' && e.key === 'Enter') { e.preventDefault(); show(1); return; }
+  if (e.key === 'Enter' && !typing && ['choice', 'multi', 'scale'].includes(s.type)) { e.preventDefault(); go(1); return; }
+  if (typing) return;
+  if (s.type === 'choice' || s.type === 'multi') {
+    const n = LETTERS.indexOf(e.key.toUpperCase());
+    if (e.key.length === 1 && n >= 0 && n < s.choices.length) { stage.lastElementChild.querySelectorAll('.choice')[n].click(); }
+  } else if (s.type === 'scale' && /^\d$/.test(e.key)) {
+    // "1" then "0" within a moment = 10
+    clearTimeout(scaleTimer);
+    const btns = stage.lastElementChild.querySelectorAll('.scale button');
+    if (scaleBuffer === '1' && e.key === '0') { scaleBuffer = ''; btns[10].click(); return; }
+    scaleBuffer = e.key;
+    if (e.key === '1') { scaleTimer = setTimeout(() => { scaleBuffer = ''; btns[1].click(); }, 450); }
+    else { scaleBuffer = ''; btns[+e.key].click(); }
+  } else if (e.key === 'ArrowDown') go(1); else if (e.key === 'ArrowUp') go(-1);
+});
+$('#prev').addEventListener('click', () => go(-1));
+$('#next').addEventListener('click', () => go(1));
+
+// OK on contact (waitlist) and about-you submits to the backend.
+const _go = go;
+go = async function (dir) {
+  const s = steps[idx];
+  const submitHere = dir > 0 && (s.type === 'about' || (s.type === 'contact' && isOutside()));
+  if (submitHere) {
+    if (!validate(true)) return;
+    const res = await submitAnswers();
+    if (!res) return;
+    if (res.waitlist) { A.__finish = 'waitlist'; show(steps.length - 1); } else show(idx + 1);
+    return;
+  }
+  return _go(dir);
+};
+
+// ---------- boot ----------
+(async function init() {
+  try { CONFIG = await (await fetch(BASE + '/api/config')).json(); } catch {}
+  buildSteps();
+  // Returned from a Stripe redirect (only happens when a payment method needs one)
+  const sid = new URLSearchParams(location.search).get('session_id');
+  if (sid) {
+    history.replaceState(null, '', location.pathname);
+    try {
+      const saved = JSON.parse(sessionStorage.getItem('heyder_form_sub') || '{}');
+      Object.assign(A, { firstName: saved.name, email: saved.email, tuesday: saved.tuesday });
+      const j = await (await fetch(BASE + '/api/verify/' + sid)).json();
+      A.__finish = j.paid ? 'paid' : 'skipped';
+      show(steps.length - 1);
+      return;
+    } catch {}
+  }
+  show(0);
+})();
+</script>
+</body>
+</html>
