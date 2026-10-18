@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
@@ -485,7 +485,17 @@ function GroupDetail({ tableId, onBack }) {
 }
 
 export default function GroupChat() {
-  const [selectedTableId, setSelectedTableId] = useState(null);
+  // A tapped notification arrives as /portal/group-chat?table=<id>: open that
+  // group straight away (also when already on this screen), then tidy the link
+  // so tapping the same notification again re-opens it.
+  const [params, setParams] = useSearchParams();
+  const [selectedTableId, setSelectedTableId] = useState(() => params.get('table'));
+  useEffect(() => {
+    const t = params.get('table');
+    if (!t) return;
+    setSelectedTableId(t);
+    setParams({}, { replace: true });
+  }, [params, setParams]);
 
   if (selectedTableId) {
     return <GroupDetail tableId={selectedTableId} onBack={() => setSelectedTableId(null)} />;

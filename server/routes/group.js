@@ -50,6 +50,31 @@ async function requireMembership(tableId, userId) {
   return member;
 }
 
+// ── Icebreaker notifications ──────────────────────────────────────────────
+// A new question pings everyone else at the table; an answer pings only the
+// person who asked (so a busy table doesn't flood everyone). Before the 8pm
+// reveal the chat hides names, so the notification must not name anyone either.
+const recentPushes = new Map(); // key -> last send time (ms); one API instance, so memory is enough
+function allowPush(key, windowMs) {
+  const now = Date.now();
+  const last = recentPushes.get(key);
+  if (last && now - last < windowMs) return false;
+  recentPushes.set(key, now);
+  if (recentPushes.size > 5000) { for (const [k, t] of recentPushes) if (now - t > 3600000) recentPushes.delete(k); }
+  return true;
+}
+async function firstNameOf(userId) {
+  try {
+    const snap = await db.collection('users').doc(userId).get();
+    return (snap.exists && snap.data().firstName) || null;
+  } catch { return null; }
+}
+// Where a tap on a group notification lands: straight in that group's chat.
+const groupUrl = (tableId) => `/portal/group-chat?table=${encodeURIComponent(tableId)}`;
+const clip = (t, n = 90) => (t.length > n ? t.slice(0, n - 1) + '…' : t);
+const PROMPT_PUSH_WINDOW_MS = 2 * 60 * 1000;   // at most one "new question" ping per table every 2 min
+const ANSWER_PUSH_WINDOW_MS = 5 * 60 * 1000;   // at most one "answered your question" ping per asker/table every 5 min
+
 // Mirrors connectionHasUnread's pattern in connections.js — a message from
 // anyone other than this user, newer than their own lastReadAt on this
 // table, counts as unread.
@@ -230,6 +255,22 @@ router.post('/:tableId/prompts', attendeeAuth, async (req, res) => {
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
+    // Tell the rest of the table (fire-and-forget; never holds up the response).
+    if (allowPush(`prompt:${tableId}`, PROMPT_PUSH_WINDOW_MS)) {
+      (async () => {
+        const revealed = new Date() >= revealAt(dinnerDate);
+        const name = revealed ? await firstNameOf(req.user.id) : null;
+        // The question itself is the headline; underneath, who asked (once names
+        // are revealed) and the answers to pick from. Tapping opens this group.
+        const options = clip(prompt.options.join(' · '), 100);
+        await pushService.sendToTable(
+          tableId,
+          { title: clip(prompt.text, 80), body: name ? `${name} asked · ${options}` : `Tap to answer · ${options}`, url: groupUrl(tableId), tag: `icebreaker-${tableId}` },
+          { excludeUserId: req.user.id }
+        );
+      })().catch(() => {});
+    }
+
     res.json({
       success: true,
       message: {
@@ -301,6 +342,18 @@ router.post('/:tableId/messages/:messageId/answer', attendeeAuth, async (req, re
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
+    // Tell only the person who asked.
+    if (promptMsg.userId && allowPush(`answer:${promptMsg.userId}:${tableId}`, ANSWER_PUSH_WINDOW_MS)) {
+      (async () => {
+        const revealed = new Date() >= revealAt(dinnerDate);
+        const name = revealed ? await firstNameOf(req.user.id) : null;
+        await pushService.sendToUser(
+          promptMsg.userId,
+          { title: name ? `${name} answered your question` : 'Someone answered your question', body: clip(`${promptMsg.promptText} — ${option}`), url: groupUrl(tableId), tag: `icebreaker-answer-${tableId}` }
+        );
+      })().catch(() => {});
+    }
+
     res.json({
       success: true,
       message: {
@@ -352,11 +405,11 @@ router.post('/:tableId/messages', attendeeAuth, async (req, res) => {
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    pushService.sendToTable(
+    firstNameOf(req.user.id).then((name) => pushService.sendToTable(
       tableId,
-      pushService.notifications.custom(member.firstName || 'New message', text.trim().slice(0, 80), '/portal/group-chat'),
+      pushService.notifications.custom(name || member.firstName || 'New message', text.trim().slice(0, 80), groupUrl(tableId)),
       { excludeUserId: req.user.id }
-    ).catch(() => {});
+    )).catch(() => {});
 
     res.json({
       success: true,
