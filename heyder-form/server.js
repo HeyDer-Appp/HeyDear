@@ -414,6 +414,10 @@ app.post('/api/checkout', rateLimit(10, 60 * 1000), async (req, res) => {
     const planLabel = plan === 'subscription' ? 'Monthly membership' : 'Booking fee';
     const amount = discountedAmount(plan, discountPercent);
 
+    // A live deployment must never "complete" a booking without charging.
+    if ((!stripe || !process.env.STRIPE_PUBLISHABLE_KEY) && process.env.NODE_ENV === 'production') {
+      return res.status(503).json({ error: 'Payments are not set up yet. Please try again later.' });
+    }
     // No Stripe keys yet: complete the booking in test mode so the whole flow can be tried end to end.
     if (!stripe || !process.env.STRIPE_PUBLISHABLE_KEY) {
       Object.assign(sub, { status: 'Paid (test mode)', plan: planLabel, coupon: couponCode, amountPaid: amount, stripeSession: 'test-mode', updatedAt: new Date().toISOString() });

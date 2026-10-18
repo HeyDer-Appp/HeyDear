@@ -18,7 +18,7 @@ npm install
 cp .env.example .env     # fill in the values below
 npm start                # http://localhost:3100
 ```
-Without Stripe keys checkout runs in test mode (no charge); without Sheet settings answers are only saved to `data/submissions.json`.
+Without Stripe keys checkout runs in test mode (no charge; refused when `NODE_ENV=production`); without Sheet settings answers are only saved to `data/submissions.json`.
 
 ## Google Sheet setup (5 min)
 1. Google Cloud Console → new project → enable **Google Sheets API**.
