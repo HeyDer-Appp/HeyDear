@@ -1,5 +1,5 @@
 {
-  "originHash" : "301e88b74fcc788b245e74cb47553e35a9b8f58fdbda6da3c6e5558ab78c9d35",
+  "originHash" : "c4cbbcfad2309cb10c31a99569f5509926c707ef4f5e014ddb9fda33a510dc89",
   "pins" : [
     {
       "identity" : "capacitor-swift-pm",
@@ -8,6 +8,15 @@
       "state" : {
         "revision" : "b89ed3818f68160da526b914a4da598d407534a2",
         "version" : "8.5.2"
+      }
+    },
+    {
+      "identity" : "ion-ios-geolocation",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/HeyDer-Appp/ion-ios-geolocation.git",
+      "state" : {
+        "revision" : "37e808a624268af58bbd5a804c92fee487449de8",
+        "version" : "3.0.0"
       }
     }
   ],

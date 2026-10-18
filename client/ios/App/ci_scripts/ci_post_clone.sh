@@ -43,6 +43,18 @@ grep -rl "ionic-team/capacitor-swift-pm.git" node_modules/@capacitor --include="
       sed -i '' 's#https://github.com/ionic-team/capacitor-swift-pm.git#https://github.com/HeyDer-Appp/capacitor-swift-pm.git#g' "$f"
     done
 
+# @capacitor/geolocation (automatic arrival check-in) pulls in a second Apple
+# package from the Ionic team, ion-ios-geolocation, and Xcode Cloud can't be
+# granted access to that one either — same reason, same fix: it is mirrored in
+# our own org (HeyDer-Appp/ion-ios-geolocation) and redirected here. The
+# committed Package.resolved must list this mirrored URL too, because Xcode
+# Cloud builds with automatic package resolution turned off.
+echo "== HeyDer: redirecting ion-ios-geolocation to our own mirror =="
+grep -rl "ionic-team/ion-ios-geolocation.git" node_modules/@capacitor --include="Package.swift" \
+  | while IFS= read -r f; do
+      sed -i '' 's#https://github.com/ionic-team/ion-ios-geolocation.git#https://github.com/HeyDer-Appp/ion-ios-geolocation.git#g' "$f"
+    done
+
 # Rebuilds ios/App/App/public from dist/ and refreshes the native plugin
 # list — the same sync step you'd run locally after a web change. Runs
 # after the redirect above so the regenerated CapApp-SPM/Package.swift
