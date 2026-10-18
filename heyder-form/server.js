@@ -209,7 +209,7 @@ const OPTIONS = {
   socialCircle: ['Small but close', 'Decent but need depth', 'Mostly online', 'Pretty much none'],
   topics: ['Pop Culture', 'Sports', 'Politics'],
   weekend: ['Out somewhere with people', 'Spending time with family', 'By myself recharging', 'Engage myself in a hobby'],
-  budget: ['$50-$55', '$55-$60'],
+  budget: ['$45-$50', '$50-$55', '$55-$60'],
   gender: ['Female', 'Male', 'Non-binary', 'Other'],
 };
 const DIETARY = ['Not Applicable', 'Gluten free', 'Dairy free', 'Nut free', 'Vegan', 'Vegetarian'];
@@ -249,7 +249,9 @@ function validateAnswers(a) {
   }
   if (!outside) {
     out.tuesday = str(a.tuesday, 40);
-    if (!nextTuesdays(2).includes(out.tuesday)) return { error: 'Please pick one of the listed Tuesdays.' };
+    // Wellington lists its first Tuesday as "<date> - join waitlist".
+    if (!nextTuesdays(2).includes(out.tuesday.replace(/ - join waitlist$/, ''))) return { error: 'Please pick one of the listed Tuesdays.' };
+    if ((out.budget === '$55-$60') === (out.location === 'Wellington') && out.budget !== '$50-$55') return { error: 'Invalid answer for budget.' };
     for (const f of SCALES) {
       const n = Number(a[f]);
       if (!Number.isInteger(n) || n < 0 || n > 10) return { error: `Invalid answer for ${f}.` };

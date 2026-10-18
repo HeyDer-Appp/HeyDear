@@ -253,7 +253,8 @@ function buildSteps() {
     { type: 'welcome' },
     choice('location', 'Your Location', ['Auckland', 'Wellington', 'None of the above'], { desc: 'We are currently curating dinners in Auckland & Wellington.' }),
     choice('lookingFor', "I'm looking for", ['meaningful friendships', 'a fun night out']),
-    choice('tuesday', 'Which Tuesday night works for you?', CONFIG.tuesdays),
+    // Wellington's version of the Typeform lists the first Tuesday as a waitlist.
+    choice('tuesday', 'Which Tuesday night works for you?', [], { dyn: () => CONFIG.tuesdays.map((t, n) => (n === 0 && A.location === 'Wellington' ? t + ' - join waitlist' : t)) }),
     choice('relationship', 'Your relationship status', ['Single', 'Married', 'In a relationship', "It's complicated", 'Prefer not to say']),
     choice('lifeStage', 'How would you describe your current life stage?', ['Not Working', 'Student', 'Building Foundations', 'Settled Professional', 'New to city']),
     choice('personality', 'Would you consider yourself as', ['Outgoing', 'Reserved', 'Bit of both']),
@@ -269,9 +270,9 @@ function buildSteps() {
     choice('topics', 'You like talking about ', ['Pop Culture', 'Sports', 'Politics']),
     choice('weekend', 'On a typical weekend you are usually-', ['Out somewhere with people', 'Spending time with family', 'By myself recharging', 'Engage myself in a hobby']),
     { type: 'text', key: 'careerToKid', title: 'How would you describe your career/job to a kid?', placeholder: 'Be creative.', required: true },
-    choice('budget', 'What budget would be ideal for you to spend on a Set Menu?', ['$50-$55', '$55-$60'], { desc: 'We choose restaurants with 4.3 rating or above and ability to take care of allergens.' }),
+    choice('budget', 'What budget would be ideal for you to spend on a Set Menu?', [], { dyn: () => (A.location === 'Wellington' ? ['$45-$50', '$50-$55'] : ['$50-$55', '$55-$60']), desc: 'We choose restaurants with 4.3 rating or above and ability to take care of allergens.' }),
     { type: 'multi', key: 'dietary', title: 'Any food allergens/dietary preference we need to inform the restaurant prior to booking ? ', desc: 'We choose restaurants with 4.3 rating and above.', hint: 'Choose as many as you like',
-      choices: ['Not Applicable', 'Gluten free', 'Dairy free', 'Nut free', 'Vegan', 'Vegetarian', 'Other'], required: true },
+      choices: [], dyn: () => ['Not Applicable', 'Gluten free', 'Dairy free', 'Nut free', 'Vegan', 'Vegetarian', ...(A.location === 'Wellington' ? [] : ['Other'])], required: true },
     { type: 'contact', title: 'Your details', required: true },
     { type: 'about', title: 'About you', required: true },
     { type: 'legal' },
@@ -284,13 +285,10 @@ const qNumber = i => steps.slice(0, i + 1).filter(s => !['welcome', 'payment', '
 const lastQuestionIndex = () => steps.findIndex(s => s.type === 'about');
 const isOutside = () => A.location === 'None of the above';
 
-// Same branching as the Typeform: Wellington is sent to its own form, anything else ends the quiz.
-const WELLINGTON_FORM = 'https://form.typeform.com/to/etGtpU3d';
+// Same branching as the Typeform: anything outside Auckland & Wellington ends the quiz.
+// (Wellington continues in this same form so every response lands in one sheet.)
 function nextIndex(from) {
-  if (steps[from].key === 'location') {
-    if (A.location === 'Wellington') { setTimeout(() => { location.href = WELLINGTON_FORM; }, 250); return from; }
-    if (isOutside()) { A.__finish = 'unavailable'; return steps.length - 1; }
-  }
+  if (steps[from].key === 'location' && isOutside()) { A.__finish = 'unavailable'; return steps.length - 1; }
   return from + 1;
 }
 function prevIndex(from) { return from - 1; }
@@ -317,7 +315,13 @@ function show(i, back = false) {
   clearTimeout(advanceTimer);
   const old = stage.firstElementChild;
   idx = i;
-  const node = renderStep(steps[i], i);
+  const st = steps[i];
+  if (st.dyn) {
+    st.choices = st.dyn();
+    if (st.type === 'multi') A[st.key] = (A[st.key] || []).filter(v => st.choices.includes(v));
+    else if (A[st.key] !== undefined && !st.choices.includes(A[st.key])) delete A[st.key];
+  }
+  const node = renderStep(st, i);
   node.classList.toggle('back', back);
   if (old) {
     old.classList.add('out'); old.classList.toggle('back', back);
@@ -627,7 +631,7 @@ function renderPayment() {
     q.innerHTML = '';
     const d = P.coupon ? P.coupon.discountPercent : 0;
     const price = base => money(Math.round(base * (1 - d / 100)));
-    q.append(el('h2', { class: 'title', style: 'justify-content:flex-start' }, 'Confirm booking'),
+    q.append(el('h2', { class: 'title', style: 'justify-content:flex-start' }, A.location === 'Wellington' ? 'Confirm Payment' : 'Confirm booking'),
       el('p', { class: 'desc' }, CONFIG.subscriptionEnabled ? "Choose how you'd like to join." : 'By paying you are confirming your reservation'));
     const body = el('div', { class: 'body' }); q.append(body);
     const planCard = (id, name, base, sub, badge, per) => {
@@ -741,6 +745,7 @@ function renderDone() {
   }
   return el('div', { class: 'screen' }, el('div', { class: 'q left done' },
     el('h1', {}, 'Your response has been recorded. Thank you'),
+    A.location === 'Wellington' ? el('p', {}, 'We will be in touch with you soon') : '',
     el('div', { class: 'ok-row' }, el('a', { class: 'btn', href: 'https://heyder.nz/thank-you/', style: 'text-decoration:none' }, 'Finish'))));
 }
 
