@@ -17,6 +17,12 @@ const api = axios.create({
 });
 
 api.interceptors.request.use(async (config) => {
+  // Firebase restores the saved login asynchronously when the app starts —
+  // notably when it is opened by tapping a notification, which lands straight
+  // on a signed-in screen. A request fired in that gap used to go out with no
+  // token, come back 401, and get the person signed out. So wait for the
+  // restore to finish first (resolves immediately once it has).
+  try { await auth.authStateReady(); } catch { /* carry on; the 401 path below is careful too */ }
   // Firebase ID tokens expire hourly and the SDK auto-refreshes them, so we
   // always ask for the current one rather than caching a static token.
   if (auth.currentUser) {
@@ -26,26 +32,44 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
+// Firebase errors that mean the saved session itself is finished (as opposed
+// to, say, a failed network call while refreshing it).
+const SESSION_ENDED_CODES = new Set([
+  'auth/user-token-expired',
+  'auth/invalid-user-token',
+  'auth/user-disabled',
+  'auth/user-not-found',
+]);
+
 api.interceptors.response.use(
   (res) => res,
   async (err) => {
     const config = err.config;
+    // Only a request that actually carried a token can prove the session is bad.
+    // A 401 for a request that had none just means "not signed in (yet)".
+    const sentToken = !!(config && config.headers && (config.headers.Authorization || (config.headers.get && config.headers.get('Authorization'))));
     // A 401 can happen on a perfectly valid session — e.g. a request that
     // raced Firebase's own background token refresh and picked up a token
     // that expired a moment earlier. Retry once with a force-refreshed
     // token before treating this as a real sign-out, so a brief timing
     // hiccup doesn't boot someone out of the app for no reason.
-    if (err.response?.status === 401 && config && !config._retried && auth.currentUser) {
+    if (err.response?.status === 401 && sentToken && config && !config._retried && auth.currentUser) {
       config._retried = true;
+      let token;
       try {
-        const token = await auth.currentUser.getIdToken(true);
+        token = await auth.currentUser.getIdToken(true);
+      } catch (refreshErr) {
+        // Only an account/refresh-token problem means the session is really
+        // gone. A flaky connection (a phone that has only just woken up) must
+        // not log anyone out — the next request simply tries again.
+        if (!SESSION_ENDED_CODES.has(refreshErr && refreshErr.code)) return Promise.reject(err);
+      }
+      if (token) {
         config.headers.Authorization = `Bearer ${token}`;
         return api(config);
-      } catch {
-        // fall through to sign-out below
       }
     }
-    if (err.response?.status === 401) {
+    if (err.response?.status === 401 && sentToken) {
       signOut(auth);
       if (window.location.pathname.startsWith('/admin')) {
         window.location.href = '/admin/login';

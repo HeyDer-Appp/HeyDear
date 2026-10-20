@@ -206,6 +206,7 @@ function AppRoutes() {
   useResumeToDashboard();
   useKeyboardFlag();
   useAppHeight();
+  const { attendeeUser } = useAuth();
   const { pathname, state: locationState } = useLocation();
   usePageLockWhenItFits(pathname.startsWith('/portal') && !pathname.startsWith('/portal/login'), pathname);
   // The page behind everything is dark by default; on the beige app screens
@@ -271,7 +272,8 @@ function AppRoutes() {
     </div>
     </TabSwipe>
     {/* One nav pill for every signed-in screen that has one, kept mounted across tab changes so its disc glides and nothing re-creates mid-swipe. */}
-    {showsNav(pathname) && <BottomNav />}
+    {/* Only for a signed-in person: before the saved login is restored the nav's own requests have no token. */}
+    {showsNav(pathname) && attendeeUser && <BottomNav />}
     </>
   );
 }
