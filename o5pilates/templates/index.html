@@ -1,0 +1,29 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>O5 Pilates: Home Page Templates</title><meta name="robots" content="noindex">
+<link rel="icon" href="../img/favicon.png">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400&family=Jost:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0}body{background:#f4ebdf;color:#4a3526;font:400 16px/1.6 Jost,sans-serif}
+header{text-align:center;padding:60px 20px 30px}header img{height:60px;margin:0 auto 18px}h1{font:400 clamp(34px,5vw,56px)/1.1 Fraunces,serif}header p{color:#7a6657;margin-top:10px}
+.grid{max-width:1200px;margin:0 auto;padding:20px 20px 80px;display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:30px}
+.card{background:#fbf7f1;border-radius:22px;overflow:hidden;box-shadow:0 18px 36px -24px rgba(74,53,38,.5)}
+.pv{display:block;height:300px;overflow:hidden;position:relative;background:#ddd}
+.pv iframe{width:1280px;height:900px;border:0;transform:scale(.3);transform-origin:0 0;pointer-events:none}
+.info{padding:22px 24px 26px}.num{font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:#d9744a}
+.info h2{font:400 28px Fraunces,serif;margin:4px 0 8px}.info p{color:#7a6657;font-size:15px;margin-bottom:14px}
+.sw{display:flex;gap:8px;margin-bottom:16px}.sw i{width:30px;height:30px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.12)}
+.open{display:inline-block;background:#4a3526;color:#fbf7f1;padding:12px 22px;border-radius:100px;font-size:14px}.open:hover{background:#d9744a}
+a{color:inherit;text-decoration:none}
+@media(max-width:420px){.grid{grid-template-columns:1fr}}
+</style></head><body>
+<header><img src="../img/logo.svg" alt="O5 Pilates &amp; Yoga Studio"><h1>Home page design options</h1><p>Five directions for the O5 home page. Open any one to view it in full.</p></header>
+<main class="grid"><article class="card"><a class="pv" href="01-calm-sand/index.html" target="_blank" rel="noopener"><iframe src="01-calm-sand/index.html" title="Preview of Calm Sand" tabindex="-1"></iframe></a>
+<div class="info"><span class="num">Template 01</span><h2>Calm Sand</h2><p>The original: soft sand, copper and ivory, arched photo frames and lots of white space. Quiet and premium.</p><div class="sw"><i style="background:#e6d6c5"></i><i style="background:#8b5a38"></i><i style="background:#fbf7f1"></i></div><a class="open" href="01-calm-sand/index.html" target="_blank" rel="noopener">Open full template &rarr;</a></div></article><article class="card"><a class="pv" href="02-fun-youthful/index.html" target="_blank" rel="noopener"><iframe src="02-fun-youthful/index.html" title="Preview of Fun &amp; Youthful" tabindex="-1"></iframe></a>
+<div class="info"><span class="num">Template 02</span><h2>Fun &amp; Youthful</h2><p>Peach, butter and sage pops, rotating sticker, tilted cards, bouncy buttons and confetti on sign-up.</p><div class="sw"><i style="background:#d9744a"></i><i style="background:#f7e0a9"></i><i style="background:#c8d4b4"></i></div><a class="open" href="02-fun-youthful/index.html" target="_blank" rel="noopener">Open full template &rarr;</a></div></article><article class="card"><a class="pv" href="03-midnight-luxe/index.html" target="_blank" rel="noopener"><iframe src="03-midnight-luxe/index.html" title="Preview of Midnight Luxe" tabindex="-1"></iframe></a>
+<div class="info"><span class="num">Template 03</span><h2>Midnight Luxe</h2><p>Dark espresso with gold accents, full-bleed studio photo and editorial numbered class list. Evening, candle-lit feel.</p><div class="sw"><i style="background:#14100e"></i><i style="background:#c9a05a"></i><i style="background:#f4ead9"></i></div><a class="open" href="03-midnight-luxe/index.html" target="_blank" rel="noopener">Open full template &rarr;</a></div></article><article class="card"><a class="pv" href="04-sage-botanical/index.html" target="_blank" rel="noopener"><iframe src="04-sage-botanical/index.html" title="Preview of Sage Botanical" tabindex="-1"></iframe></a>
+<div class="info"><span class="num">Template 04</span><h2>Sage Botanical</h2><p>Linen and forest green with organic blob photo shapes. Natural, fresh and nature-led.</p><div class="sw"><i style="background:#f4f1e8"></i><i style="background:#8a9a7b"></i><i style="background:#c8714b"></i></div><a class="open" href="04-sage-botanical/index.html" target="_blank" rel="noopener">Open full template &rarr;</a></div></article><article class="card"><a class="pv" href="05-rouge-editorial/index.html" target="_blank" rel="noopener"><iframe src="05-rouge-editorial/index.html" title="Preview of Rouge Editorial" tabindex="-1"></iframe></a>
+<div class="info"><span class="num">Template 05</span><h2>Rouge Editorial</h2><p>Burgundy and cream split hero, thin-line columns and Book Now bars, inspired by the Rouge reference.</p><div class="sw"><i style="background:#4a0f1e"></i><i style="background:#f5efe9"></i><i style="background:#c98f8f"></i></div><a class="open" href="05-rouge-editorial/index.html" target="_blank" rel="noopener">Open full template &rarr;</a></div></article></main>
+<script>
+function fit(){document.querySelectorAll('.pv').forEach(function(p){var s=p.clientWidth/1280,f=p.querySelector('iframe');f.style.transform='scale('+s+')';p.style.height=(900*s)+'px';});}
+addEventListener('load',fit);addEventListener('resize',fit);fit();
+</script></body></html>

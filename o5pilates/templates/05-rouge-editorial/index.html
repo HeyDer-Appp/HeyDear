@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>O5 Template 05: Rouge Editorial</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="../../img/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,wght@0,400;0,500;1,400&family=Karla:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0}html{scroll-behavior:smooth}img{max-width:100%;display:block}a{color:inherit;text-decoration:none}
+.rv{opacity:0;transform:translateY(24px);transition:opacity .9s,transform .9s}.rv.in{opacity:1;transform:none}
+.confetti{position:fixed;top:-20px;width:10px;height:14px;z-index:99;pointer-events:none;border-radius:3px;animation:fall 1.8s cubic-bezier(.2,.6,.4,1) forwards}
+@keyframes fall{to{transform:translate(var(--dx),110vh) rotate(var(--r));opacity:.9}}
+.hp{position:absolute;left:-9999px}
+@media (prefers-reduced-motion:reduce){.rv{opacity:1;transform:none;transition:none}html{scroll-behavior:auto}}
+
+:root{--wine:#4a0f1e;--wine2:#6a1a2d;--cream:#f5efe9;--sand:#e8dccd;--ink:#2a1a1d;--rose:#c98f8f;--mut:#7a6568}
+body{background:var(--cream);color:var(--ink);font:400 16px/1.7 Karla,sans-serif}
+h1,h2,h3{font-family:"Bodoni Moda",serif;font-weight:400;line-height:1.1}
+em{color:var(--rose)}
+.wrap{max-width:1240px;margin:0 auto;padding:0 clamp(20px,4vw,50px)}section{padding:clamp(64px,9vw,110px) 0}
+.top{background:var(--wine);color:var(--sand);text-align:center;font-size:12px;letter-spacing:.24em;text-transform:uppercase;padding:9px 12px}
+header{background:var(--cream);border-bottom:1px solid rgba(74,15,30,.15);position:sticky;top:0;z-index:20}
+.nav{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;height:84px}
+.nav ul{display:flex;gap:30px;list-style:none;padding:0}.nav ul.r{justify-content:flex-end}
+.nav ul a{font-size:12.5px;letter-spacing:.14em;text-transform:uppercase}.nav ul a:hover{color:var(--wine2);text-decoration:underline;text-underline-offset:6px}
+.nav img{height:50px;width:auto}
+.btn{display:block;text-align:center;font:700 12px Karla;letter-spacing:.24em;text-transform:uppercase;padding:17px 30px;background:var(--cream);color:var(--wine);border:0;cursor:pointer;transition:.3s}
+.btn:hover{background:var(--sand)}
+.hero{display:grid;grid-template-columns:1fr 1fr;min-height:calc(100vh - 120px)}
+.hero .img{background:url(../../img/hero.jpg) center/cover;min-height:420px}
+.hero .panel{background:var(--wine);color:var(--cream);padding:clamp(34px,6vw,80px);display:flex;flex-direction:column;justify-content:center}
+.hero h1{font-size:clamp(42px,5.4vw,78px);margin-bottom:18px}.hero h1 em{font-style:italic}
+.hero .lead{color:var(--sand);opacity:.9;max-width:480px;margin-bottom:22px}
+.countdown{display:flex;gap:24px;margin-bottom:24px}.countdown b{display:block;font:400 34px/1 "Bodoni Moda";color:var(--rose)}.countdown span{font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:var(--sand);opacity:.8}
+.wf{max-width:480px}.wf h3{font-size:24px;margin-bottom:2px}.wf>p{color:var(--sand);opacity:.8;font-size:14px;margin-bottom:14px}.wf .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.wf input,.wf select{width:100%;font:400 15px Karla;color:var(--cream);background:rgba(245,239,233,.1);border:1px solid rgba(245,239,233,.3);padding:14px 14px;margin-bottom:10px;outline:none}
+.wf input::placeholder{color:rgba(245,239,233,.65)}.wf input:focus,.wf select:focus{border-color:var(--rose)}.wf select option{color:#222}
+.msg{font-size:13.5px;margin-top:10px;min-height:20px}.msg.ok{color:#cfe8c5}.msg.err{color:#ffb5a3}
+.cols{display:grid;grid-template-columns:repeat(3,1fr);background:#fff;border:1px solid rgba(74,15,30,.25)}
+.col{border-right:1px solid rgba(74,15,30,.25);display:flex;flex-direction:column;text-align:center}.col:last-child{border:0}
+.col .ph{aspect-ratio:4/3;overflow:hidden}.col .ph img{width:100%;height:100%;object-fit:cover;transition:.6s}.col:hover .ph img{transform:scale(1.06)}
+.col h3{font-size:34px;margin:28px 0 12px}.col p{padding:0 30px 30px;color:var(--mut);font-size:15.5px;flex:1}
+.col a{background:var(--wine);color:var(--cream);padding:17px;font-size:12px;letter-spacing:.24em;text-transform:uppercase}.col a:hover{background:var(--wine2)}
+.eyebrow{font-size:11.5px;letter-spacing:.34em;text-transform:uppercase;color:var(--wine2);display:block;margin-bottom:14px}
+.head{text-align:center;margin-bottom:46px}.head h2{font-size:clamp(34px,4.6vw,58px)}
+.split{display:grid;grid-template-columns:1fr 1fr;align-items:stretch}.split .t{background:var(--sand);padding:clamp(36px,6vw,80px);display:flex;flex-direction:column;justify-content:center}
+.split .t h2{font-size:clamp(32px,4vw,54px);margin-bottom:16px}.split .t p{color:var(--mut);margin-bottom:24px;max-width:460px}
+.split .i{background:url(../../img/studio-wide.jpg) center/cover;min-height:380px}
+.btn.dark{background:var(--wine);color:var(--cream);display:inline-block}.btn.dark:hover{background:var(--wine2)}
+.els{display:grid;grid-template-columns:repeat(5,1fr);border-top:1px solid rgba(74,15,30,.25);border-bottom:1px solid rgba(74,15,30,.25)}
+.el{text-align:center;padding:34px 12px;border-right:1px solid rgba(74,15,30,.25)}.el:last-child{border:0}.el svg{width:44px;height:44px;color:var(--wine);margin:0 auto 12px}
+.el h3{font-size:24px}.el small{display:block;font-size:10.5px;letter-spacing:.24em;text-transform:uppercase;color:var(--rose);margin:2px 0 6px}.el p{font-size:13.5px;color:var(--mut)}
+.gal{display:grid;grid-template-columns:repeat(4,1fr);gap:0}.gal img{width:100%;aspect-ratio:3/4;object-fit:cover}
+.cta{background:var(--wine);color:var(--cream);text-align:center}.cta h2{font-size:clamp(36px,5vw,68px);margin-bottom:16px}.cta .eyebrow{color:var(--rose)}.cta p{color:var(--sand);margin-bottom:26px}
+footer{background:var(--cream);padding:46px 0;font-size:13.5px;color:var(--mut);border-top:1px solid rgba(74,15,30,.15)}.foot{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px}.foot img{height:42px}
+@media(max-width:960px){.nav{grid-template-columns:auto 1fr}.nav ul{display:none}.nav a:first-child{justify-self:start}.hero,.split{grid-template-columns:1fr}.hero .img{min-height:340px;order:-1}.cols{grid-template-columns:1fr}.col{border-right:0;border-bottom:1px solid rgba(74,15,30,.25)}.els{grid-template-columns:repeat(2,1fr)}.gal{grid-template-columns:1fr 1fr}}
+@media(max-width:520px){.wf .row{grid-template-columns:1fr}.els{grid-template-columns:1fr}.countdown{gap:14px}}
+</style>
+</head>
+<body>
+<div class="top">Opening 1 November 2026 &middot; Patiala</div>
+<header><div class="wrap nav"><ul><li><a href="#classes">Classes</a></li><li><a href="#studio">Studio</a></li><li><a href="#elements">Elements</a></li></ul>
+<a href="#"><img src="../../img/logo-burgundy.svg" alt="O5 Pilates &amp; Yoga Studio"></a><ul class="r"><li><a href="#waitlist">Waiting list</a></li><li><a href="https://www.instagram.com/o5pilates" target="_blank" rel="noopener">Instagram</a></li></ul></div></header>
+<section class="hero" style="padding:0"><div class="panel"><span class="eyebrow" style="color:var(--rose)">Pilates &middot; Aerial Yoga &middot; Wall Yoga</span>
+<h1>Movement, <em>refined.</em></h1><p class="lead">Movement for mind, body &amp; beyond. A considered studio for strong, unhurried practice in Patiala.</p><div class="countdown" id="countdown" aria-label="Time until opening day"><div><b>00</b><span>Days</span></div><div><b>00</b><span>Hours</span></div><div><b>00</b><span>Mins</span></div><div><b>00</b><span>Secs</span></div></div><form class="wf" id="waitlist" data-waitlist novalidate>
+  <h3>Join the waiting list</h3>
+  <p>Be first to book when doors open on 1 November. Founding members hear first.</p>
+  <div class="row"><input name="name" placeholder="Your name" required autocomplete="name" aria-label="Name"><input name="phone" type="tel" placeholder="WhatsApp number" required autocomplete="tel" aria-label="WhatsApp number"></div>
+  <input name="email" type="email" placeholder="Email (optional)" autocomplete="email" aria-label="Email">
+  <select name="interest" aria-label="Interested in"><option value="Not sure yet">I'm interested in...</option><option>Pilates</option><option>Aerial Yoga</option><option>Wall Yoga</option><option>All of them</option></select>
+  <input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+  <button class="btn" type="submit">Join the waiting list</button>
+  <div class="msg" role="status"></div>
+</form></div><div class="img" role="img" aria-label="O5 studio with arched mirrors and reformers"></div></section>
+<section id="classes"><div class="wrap"><div class="head rv"><span class="eyebrow">Class offerings</span><h2>Three practices, <em>one studio</em></h2></div><div class="cols"><div class="col rv"><div class="ph"><img src="../../img/pilates.jpg" alt="Pilates at O5" loading="lazy"></div><h3>Pilates</h3><p>Controlled, core-led movement that builds deep strength, steadier posture and long, supple muscles.</p><a href="#waitlist">Book now</a></div><div class="col rv"><div class="ph"><img src="../../img/aerial.jpg" alt="Aerial Yoga at O5" loading="lazy"></div><h3>Aerial Yoga</h3><p>Supported in a soft silk hammock, stretch deeper, decompress the spine and feel weightless.</p><a href="#waitlist">Book now</a></div><div class="col rv"><div class="ph"><img src="../../img/wall.jpg" alt="Wall Yoga at O5" loading="lazy"></div><h3>Wall Yoga</h3><p>Rope-assisted poses against the wall for alignment, stability and safe, confident stretching.</p><a href="#waitlist">Book now</a></div></div></div></section>
+<section class="split" id="studio" style="padding:0"><div class="i"></div><div class="t rv"><span class="eyebrow">Why O5</span><h2>Five elements. One practice.</h2><p>O5 is named for air, space, fire, water and earth. Each class draws on one of them so your body learns to move with strength, flow and ease.</p><a class="btn dark" href="#waitlist">Reserve your place</a></div></section>
+<section id="elements"><div class="wrap"><div class="head rv"><span class="eyebrow">The philosophy</span><h2>Pancha <em>Mahabhuta</em></h2></div><div class="els rv"><div class="el"><svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 24c10-8 18 6 28-2 6-5 14-2 14 4s-8 8-11 4"/><path d="M8 36c12-6 20 8 32 0 5-3 12 0 12 6s-9 7-12 3"/><path d="M14 48c8-3 14 5 22 0"/></svg><h3>Air</h3><small>Vayu</small><p>Breath, lightness, freedom.</p></div><div class="el"><svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="32" cy="32" r="22"/><circle cx="32" cy="32" r="15"/><circle cx="32" cy="32" r="8"/><circle cx="32" cy="32" r="2"/></svg><h3>Space</h3><small>Akasha</small><p>Stillness, openness, calm.</p></div><div class="el"><svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M32 10 8 52h48z"/><path d="M32 28c6 8 6 14 0 18-6-4-6-10 0-18z"/></svg><h3>Fire</h3><small>Agni</small><p>Core heat, strength, drive.</p></div><div class="el"><svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M32 8C22 22 16 30 16 40a16 16 0 0 0 32 0c0-10-6-18-16-32z"/><path d="M26 42a6 6 0 0 0 12 0 4 4 0 0 0-8 0"/></svg><h3>Water</h3><small>Jala</small><p>Flow, fluidity, release.</p></div><div class="el"><svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 14h48L32 54z"/><path d="M17 26h30"/></svg><h3>Earth</h3><small>Prithvi</small><p>Grounding, stability, roots.</p></div></div></div></section>
+<div class="gal"><img src="../../img/gal-aerial-room.jpg" alt="Aerial room" loading="lazy"><img src="../../img/gal-silks.jpg" alt="Silks" loading="lazy"><img src="../../img/gal-hammock.jpg" alt="Hammock" loading="lazy"><img src="../../img/reformer-detail.jpg" alt="Reformer detail" loading="lazy"></div>
+<section class="cta"><div class="wrap rv"><span class="eyebrow">Opening 1 November 2026</span><h2>Come as you are. <em>Leave aligned.</em></h2><p>Join the waiting list and be first through the door.</p><a class="btn" style="display:inline-block" href="#waitlist">Join the waiting list</a></div></section>
+<footer><div class="wrap foot"><img src="../../img/logo-burgundy.svg" alt="O5"><span>Patiala, Punjab &middot; @o5pilates</span><span>&copy; 2026 O5 Pilates &amp; Yoga Studio</span></div></footer>
+<script src="../tpl.js"></script>
+</body></html>

@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>O5 Template 04: Sage Botanical</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="../../img/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0}html{scroll-behavior:smooth}img{max-width:100%;display:block}a{color:inherit;text-decoration:none}
+.rv{opacity:0;transform:translateY(24px);transition:opacity .9s,transform .9s}.rv.in{opacity:1;transform:none}
+.confetti{position:fixed;top:-20px;width:10px;height:14px;z-index:99;pointer-events:none;border-radius:3px;animation:fall 1.8s cubic-bezier(.2,.6,.4,1) forwards}
+@keyframes fall{to{transform:translate(var(--dx),110vh) rotate(var(--r));opacity:.9}}
+.hp{position:absolute;left:-9999px}
+@media (prefers-reduced-motion:reduce){.rv{opacity:1;transform:none;transition:none}html{scroll-behavior:auto}}
+
+:root{--linen:#f4f1e8;--cream:#faf8f2;--sage:#8a9a7b;--sage2:#c9d4bb;--forest:#2f3e34;--clay:#c8714b;--mut:#66705f}
+body{background:var(--linen);color:var(--forest);font:400 17px/1.7 "DM Sans",sans-serif}
+h1,h2,h3{font-family:"DM Serif Display",serif;font-weight:400;line-height:1.08}
+em{color:var(--clay)}
+.wrap{max-width:1200px;margin:0 auto;padding:0 clamp(20px,5vw,60px)}section{padding:clamp(70px,9vw,120px) 0}
+.eyebrow{display:inline-flex;align-items:center;gap:10px;font-size:12px;letter-spacing:.24em;text-transform:uppercase;color:var(--sage);margin-bottom:16px}.eyebrow::before{content:"";width:34px;height:1px;background:var(--sage)}
+header{position:sticky;top:0;z-index:20;background:rgba(244,241,232,.9);backdrop-filter:blur(10px)}
+.nav{display:flex;align-items:center;justify-content:space-between;height:80px}.nav img{height:44px;width:auto}
+.nav ul{display:flex;gap:32px;list-style:none;padding:0}.nav ul a{font-size:14.5px;font-weight:500}.nav ul a:hover{color:var(--clay)}
+.btn{display:inline-block;font:500 15px "DM Sans";padding:15px 30px;border-radius:100px;background:var(--forest);color:var(--cream);border:0;cursor:pointer;transition:.3s}
+.btn:hover{background:var(--clay);transform:translateY(-2px)}.btn.out{background:transparent;color:var(--forest);border:1.5px solid var(--forest)}.btn.out:hover{background:var(--forest);color:var(--cream)}
+.hero{padding:50px 0 100px;position:relative;overflow:hidden}
+.hero-grid{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center}
+.hero h1{font-size:clamp(46px,6.2vw,84px);margin-bottom:22px}
+.lead{color:var(--mut);font-size:19px;max-width:500px;margin-bottom:26px}
+.countdown{display:flex;gap:14px;margin-bottom:26px}.countdown div{background:var(--cream);border-radius:22px;padding:14px 16px;text-align:center;min-width:72px}.countdown b{display:block;font:400 30px/1 "DM Serif Display";color:var(--clay)}.countdown span{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--mut)}
+.blobs{position:relative;height:560px}
+.blob{position:absolute;overflow:hidden;box-shadow:0 30px 50px -30px rgba(47,62,52,.5)}.blob img{width:100%;height:100%;object-fit:cover}
+.b1{width:68%;height:80%;right:0;top:0;border-radius:58% 42% 46% 54% / 52% 48% 52% 48%}
+.b2{width:44%;height:44%;left:0;bottom:0;border-radius:46% 54% 60% 40% / 55% 45% 55% 45%;border:8px solid var(--linen)}
+.dot{position:absolute;border-radius:50%}.d1{width:120px;height:120px;background:var(--sage2);left:6%;top:4%;z-index:-1}.d2{width:70px;height:70px;background:var(--clay);right:2%;bottom:6%;opacity:.85}
+.leaf{position:absolute;color:var(--sage);opacity:.5;width:120px}
+.wf{background:var(--cream);border-radius:30px;padding:28px;margin-top:6px;max-width:520px;box-shadow:0 24px 40px -30px rgba(47,62,52,.5)}
+.wf h3{font-size:28px;margin-bottom:2px}.wf>p{color:var(--mut);font-size:14.5px;margin-bottom:16px}.wf .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.wf input,.wf select{width:100%;font:400 15px "DM Sans";color:var(--forest);background:var(--linen);border:1.5px solid transparent;border-radius:16px;padding:14px 16px;margin-bottom:12px;outline:none}
+.wf input:focus,.wf select:focus{border-color:var(--sage);background:#fff}.wf .btn{width:100%}.msg{font-size:14px;margin-top:12px;min-height:20px}.msg.ok{color:#4f7a45}.msg.err{color:#a8452e}
+.head{max-width:600px;margin-bottom:46px}.head h2{font-size:clamp(34px,4.6vw,58px)}.center{text-align:center;margin-left:auto;margin-right:auto}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:30px}
+.card{text-align:center}.card .im{aspect-ratio:1/1.1;overflow:hidden;margin-bottom:22px;transition:.6s}
+.card:nth-child(1) .im{border-radius:50% 50% 46% 54% / 60% 40% 60% 40%}.card:nth-child(2) .im{border-radius:999px 999px 40px 40px}.card:nth-child(3) .im{border-radius:44% 56% 52% 48% / 50% 58% 42% 50%}
+.card:hover .im{transform:rotate(-2deg) scale(1.02)}.card .im img{width:100%;height:100%;object-fit:cover}
+.card h3{font-size:30px;margin-bottom:6px}.card p{color:var(--mut);font-size:15.5px;max-width:300px;margin:0 auto 14px}.card a{color:var(--clay);font-weight:500;border-bottom:1.5px solid var(--clay)}
+.band{background:var(--forest);color:var(--cream);border-radius:46px;margin:0 clamp(12px,3vw,40px);padding:clamp(50px,7vw,90px) 0}
+.band .eyebrow{color:var(--sage2)}.band .eyebrow::before{background:var(--sage2)}.band h2{color:var(--cream)}
+.els{display:grid;grid-template-columns:repeat(5,1fr);gap:18px;margin-top:40px}
+.el{text-align:center;padding:26px 10px}.el .ic{width:84px;height:84px;border-radius:50%;display:grid;place-items:center;margin:0 auto 14px;color:var(--forest)}.el svg{width:42px;height:42px}
+.el:nth-child(1) .ic{background:var(--sage2)}.el:nth-child(2) .ic{background:#e9dfc9}.el:nth-child(3) .ic{background:#efb79d}.el:nth-child(4) .ic{background:#cbd9d2}.el:nth-child(5) .ic{background:#d8c3a5}
+.el h3{font-size:24px;color:var(--cream)}.el small{display:block;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--sage2);margin:2px 0 6px}.el p{font-size:14px;opacity:.8}
+.gal{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}.gal img{width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:26px}.gal img:nth-child(even){margin-top:36px}
+.cta{text-align:center}.cta h2{font-size:clamp(36px,5vw,70px);margin-bottom:18px}.cta p{color:var(--mut);margin-bottom:26px}
+footer{padding:50px 0;color:var(--mut);font-size:14px}.foot{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px}.foot img{height:40px}
+@media(max-width:960px){.nav ul{display:none}.hero-grid{grid-template-columns:1fr}.blobs{height:420px}.cards{grid-template-columns:1fr}.els{grid-template-columns:repeat(2,1fr)}.gal{grid-template-columns:1fr 1fr}}
+@media(max-width:520px){.wf .row{grid-template-columns:1fr}.els{grid-template-columns:1fr}.countdown{gap:8px}.countdown div{min-width:0;flex:1;padding:12px 6px}}
+</style>
+</head>
+<body>
+<header><div class="wrap nav"><a href="#"><img src="../../img/logo-forest.svg" alt="O5 Pilates &amp; Yoga Studio"></a>
+<ul><li><a href="#classes">Classes</a></li><li><a href="#elements">Elements</a></li><li><a href="#studio">Studio</a></li><li><a href="#waitlist">Waiting list</a></li></ul><a class="btn" href="#waitlist">Join the list</a></div></header>
+<section class="hero"><div class="wrap hero-grid"><div>
+<span class="eyebrow">Pilates &middot; Aerial &middot; Wall Yoga</span><h1>Move with the <em>earth,</em> breathe with the air.</h1>
+<p class="lead">A grounded, light-filled studio in Patiala built on the five elements. Opening 1 November 2026.</p><div class="countdown" id="countdown" aria-label="Time until opening day"><div><b>00</b><span>Days</span></div><div><b>00</b><span>Hours</span></div><div><b>00</b><span>Mins</span></div><div><b>00</b><span>Secs</span></div></div><form class="wf" id="waitlist" data-waitlist novalidate>
+  <h3>Join the waiting list</h3>
+  <p>Be first to book when doors open on 1 November. Founding members hear first.</p>
+  <div class="row"><input name="name" placeholder="Your name" required autocomplete="name" aria-label="Name"><input name="phone" type="tel" placeholder="WhatsApp number" required autocomplete="tel" aria-label="WhatsApp number"></div>
+  <input name="email" type="email" placeholder="Email (optional)" autocomplete="email" aria-label="Email">
+  <select name="interest" aria-label="Interested in"><option value="Not sure yet">I'm interested in...</option><option>Pilates</option><option>Aerial Yoga</option><option>Wall Yoga</option><option>All of them</option></select>
+  <input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+  <button class="btn" type="submit">Join the waiting list</button>
+  <div class="msg" role="status"></div>
+</form></div>
+<div class="blobs"><div class="dot d1"></div><div class="dot d2"></div><svg class="leaf" style="right:-20px;top:-30px;transform:rotate(25deg)" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M50 95C50 60 52 30 50 5M50 70c-14-4-24-14-26-28 14 2 24 12 26 28zM50 55c12-4 22-14 24-28-14 2-22 12-24 28zM50 38c-10-3-18-10-20-20 10 1 18 8 20 20z"/></svg>
+<div class="blob b1"><img src="../../img/hero.jpg" alt="O5 studio with arched mirrors" fetchpriority="high"></div><div class="blob b2"><img src="../../img/aerial.jpg" alt="Aerial silks at O5"></div></div></div></section>
+<section id="classes" style="padding-top:20px"><div class="wrap"><div class="head center rv" style="text-align:center"><span class="eyebrow">Class offerings</span><h2>Find your <em>rhythm</em></h2></div><div class="cards"><div class="card rv"><div class="im"><img src="../../img/pilates.jpg" alt="Pilates at O5" loading="lazy"></div><h3>Pilates</h3><p>Controlled, core-led movement that builds deep strength, steadier posture and long, supple muscles.</p><a href="#waitlist">Join the waiting list</a></div><div class="card rv"><div class="im"><img src="../../img/aerial.jpg" alt="Aerial Yoga at O5" loading="lazy"></div><h3>Aerial Yoga</h3><p>Supported in a soft silk hammock, stretch deeper, decompress the spine and feel weightless.</p><a href="#waitlist">Join the waiting list</a></div><div class="card rv"><div class="im"><img src="../../img/wall.jpg" alt="Wall Yoga at O5" loading="lazy"></div><h3>Wall Yoga</h3><p>Rope-assisted poses against the wall for alignment, stability and safe, confident stretching.</p><a href="#waitlist">Join the waiting list</a></div></div></div></section>
+<section class="band" id="elements"><div class="wrap"><div class="head rv"><span class="eyebrow">The philosophy</span><h2>Five elements, five moods</h2></div><div class="els rv"><div class="el"><div class="ic"><svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 24c10-8 18 6 28-2 6-5 14-2 14 4s-8 8-11 4"/><path d="M8 36c12-6 20 8 32 0 5-3 12 0 12 6s-9 7-12 3"/><path d="M14 48c8-3 14 5 22 0"/></svg></div><h3>Air</h3><small>Vayu</small><p>Breath, lightness, freedom.</p></div><div class="el"><div class="ic"><svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="32" cy="32" r="22"/><circle cx="32" cy="32" r="15"/><circle cx="32" cy="32" r="8"/><circle cx="32" cy="32" r="2"/></svg></div><h3>Space</h3><small>Akasha</small><p>Stillness, openness, calm.</p></div><div class="el"><div class="ic"><svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M32 10 8 52h48z"/><path d="M32 28c6 8 6 14 0 18-6-4-6-10 0-18z"/></svg></div><h3>Fire</h3><small>Agni</small><p>Core heat, strength, drive.</p></div><div class="el"><div class="ic"><svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M32 8C22 22 16 30 16 40a16 16 0 0 0 32 0c0-10-6-18-16-32z"/><path d="M26 42a6 6 0 0 0 12 0 4 4 0 0 0-8 0"/></svg></div><h3>Water</h3><small>Jala</small><p>Flow, fluidity, release.</p></div><div class="el"><div class="ic"><svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 14h48L32 54z"/><path d="M17 26h30"/></svg></div><h3>Earth</h3><small>Prithvi</small><p>Grounding, stability, roots.</p></div></div></div></section>
+<section id="studio"><div class="wrap"><div class="head center rv" style="text-align:center"><span class="eyebrow">The studio</span><h2>Natural light, <em>natural pace</em></h2></div>
+<div class="gal rv"><img src="../../img/gal-aerial-room.jpg" alt="Aerial room" loading="lazy"><img src="../../img/gal-silks.jpg" alt="Silks" loading="lazy"><img src="../../img/gal-hammock.jpg" alt="Hammock" loading="lazy"><img src="../../img/pilates.jpg" alt="Reformers" loading="lazy"></div></div></section>
+<section class="cta" style="padding-top:0"><div class="wrap rv"><span class="eyebrow">Opening 1 November 2026</span><h2>Come as you are. <em>Grow from there.</em></h2><p>Join the waiting list and be first through the door.</p><a class="btn" href="#waitlist">Join the waiting list</a></div></section>
+<footer><div class="wrap foot"><img src="../../img/logo-forest.svg" alt="O5"><span>Patiala, Punjab &middot; @o5pilates</span><span>&copy; 2026 O5 Pilates &amp; Yoga Studio</span></div></footer>
+<script src="../tpl.js"></script>
+</body></html>
