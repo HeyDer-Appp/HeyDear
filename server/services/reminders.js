@@ -61,6 +61,14 @@ const DEFAULT_RULES = [
     url: '/portal', enabled: true, legacyFlag: 'pushRsvpSent',
   },
   {
+    id: 'afterparty', label: 'Where next? (after-party)',
+    who: 'Everyone in a confirmed group, at 8pm on the night — only when the dinner has an after-party',
+    audience: 'table', daysBefore: 0, time: '20:00',
+    title: 'Where next? 🎉',
+    body: 'After-party: {afterparty}. Tap for the details.',
+    url: '/portal', enabled: true,
+  },
+  {
     id: 'feedback', label: 'How was it? (feedback)',
     who: 'Everyone who was at a group, the day after',
     audience: 'table', daysBefore: -1, time: '12:00',
@@ -143,8 +151,12 @@ async function runReminders(now = new Date()) {
       // ── Per-table rules: catch up for tables confirmed after the moment passed
       if (rule.audience === 'table') {
         const after = rule.daysBefore < 0;
-        if (!after && now >= dinnerStart) continue;
+        // Before-dinner rules stop at the 7pm sit-down; one scheduled after it (the
+        // 8pm after-party) gets a few hours of catch-up instead.
+        if (!after && at < dinnerStart && now >= dinnerStart) continue;
+        if (!after && at >= dinnerStart && now.getTime() > at.getTime() + 3 * 3600 * 1000) continue;
         if (after && now.getTime() > at.getTime() + 2 * DAY) continue;
+        if (rule.id === 'afterparty' && !dinner.afterparty) continue; // nothing to announce
         const tablesSnap = await db.collection('tables').where('dinnerId', '==', dinnerDoc.id).where('status', '==', 'confirmed').get();
         for (const t of tablesSnap.docs) {
           const table = t.data();

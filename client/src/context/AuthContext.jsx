@@ -30,7 +30,11 @@ export function AuthProvider({ children }) {
       // reliably bake newly-set custom claims (e.g. role: admin) into the
       // first unforced token read, which was bouncing fresh admin logins
       // straight back out.
-      const tokenResult = await fbUser.getIdTokenResult(true);
+      // If the refresh can't happen right now (no signal on a cold start), fall back to the
+      // token already held rather than throwing and leaving the app thinking nobody is signed in.
+      let tokenResult;
+      try { tokenResult = await fbUser.getIdTokenResult(true); }
+      catch { tokenResult = await fbUser.getIdTokenResult(); }
       const profile = { uid: fbUser.uid, email: fbUser.email, name: fbUser.displayName };
 
       if (tokenResult.claims.role === 'admin') {

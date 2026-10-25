@@ -385,6 +385,14 @@ function RevealFlow({ revealAt, venueRevealAt, tableId, dinner }) {
           {dinner.menu_price_min && (
             <p className="font-sans text-navy/55 text-xs mt-1">Menu: <span className="text-plum">${dinner.menu_price_min}–${dinner.menu_price_max} pp</span></p>
           )}
+          {!dinner.afterparty_name && dinner.afterparty_planned && dinner.afterparty_reveal_at && (
+            <div className="mt-3 pt-3 border-t border-plum/15">
+              <p className="font-sans text-plum text-xs uppercase tracking-widest mb-1">🎉 After-party</p>
+              <p className="font-sans text-navy/65 text-sm">
+                Location to be revealed at {new Date(dinner.afterparty_reveal_at).toLocaleTimeString('en-NZ', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Pacific/Auckland' }).replace(':00', '').replace(' ', '')} on {new Date(dinner.afterparty_reveal_at).toLocaleDateString('en-NZ', { weekday: 'long', timeZone: 'Pacific/Auckland' })}
+              </p>
+            </div>
+          )}
           {dinner.afterparty_name && (
             <div className="mt-3 pt-3 border-t border-plum/15">
               <p className="font-sans text-plum text-xs uppercase tracking-widest mb-1">🎉 After-party</p>

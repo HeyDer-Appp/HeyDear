@@ -277,6 +277,9 @@ router.get('/dinners', attendeeAuth, async (req, res) => {
       const revealAt = dinnerDate ? glimpseRevealAt(dinnerDate) : null;
       const venueAt = dinnerDate ? venueRevealAt(dinnerDate) : null;
       const venueRevealed = venueAt ? new Date() >= venueAt : false;
+      // The after-party is a surprise for the night itself: shown from 8pm NZ time on the dinner day.
+      const afterpartyAt = dinnerDate ? nzTime(dinnerDate, 20, 0) : null;
+      const afterpartyRevealed = afterpartyAt ? new Date() >= afterpartyAt : false;
 
       // Only relevant for past dinners, but cheap enough to check for all —
       // lets the dashboard show "Rate your experience" only once, not repeat
@@ -309,10 +312,12 @@ router.get('/dinners', attendeeAuth, async (req, res) => {
         restaurant_address: venueRevealed ? restaurant.address : null,
         table_name: table.name || null,
         area: venueRevealed ? (dinner.area || restaurant.area || null) : null,
-        afterparty_name: venueRevealed ? (dinner.afterparty?.name || null) : null,
-        afterparty_activity: venueRevealed ? (dinner.afterparty?.activity || null) : null,
-        afterparty_address: venueRevealed ? (dinner.afterparty?.address || null) : null,
-        afterparty_note: venueRevealed ? (dinner.afterpartyNote || null) : null,
+        afterparty_planned: !!dinner.afterparty,
+        afterparty_reveal_at: dinner.afterparty && afterpartyAt ? afterpartyAt.toISOString() : null,
+        afterparty_name: afterpartyRevealed ? (dinner.afterparty?.name || null) : null,
+        afterparty_activity: afterpartyRevealed ? (dinner.afterparty?.activity || null) : null,
+        afterparty_address: afterpartyRevealed ? (dinner.afterparty?.address || null) : null,
+        afterparty_note: afterpartyRevealed ? (dinner.afterpartyNote || null) : null,
         booking_name: venueRevealed ? table.bookingName : null,
         booking_time: venueRevealed ? restaurant.bookingTime : null,
         menu_price_min: venueRevealed ? restaurant.menuPriceMin : null,
