@@ -35,7 +35,41 @@ if (cd) {
   setInterval(tick, 1000);
 }
 
-// waitlist form -> email (FormSubmit) + Google Sheet
+// Save one entry to the Google Sheet. Never throws.
+async function saveToSheet(data) {
+  if (!SHEET_URL) return false;
+  try {
+    await fetch(SHEET_URL, { method: "POST", mode: "no-cors", keepalive: true, body: new URLSearchParams(data) });
+    return true;
+  } catch (err) {
+    console.warn("Sheet save failed", err);
+    return false;
+  }
+}
+
+// Email one entry via FormSubmit. Never throws.
+async function sendMail(data) {
+  try {
+    const r = await fetch("https://formsubmit.co/ajax/" + MAIL_TO, {
+      method: "POST",
+      keepalive: true,
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({
+        ...data,
+        _subject: "O5 Pilates waiting list: " + (data.name || "New entry"),
+        _cc: MAIL_CC,
+        _template: "table",
+        _captcha: "false",
+      }),
+    });
+    return r.ok;
+  } catch (err) {
+    console.warn("Mail send failed", err);
+    return false;
+  }
+}
+
+// waitlist form -> Google Sheet + email, each independent
 document.querySelectorAll("form[data-waitlist]").forEach((form) => {
   const msg = form.querySelector(".msg");
   const btn = form.querySelector("button");
@@ -54,23 +88,10 @@ document.querySelectorAll("form[data-waitlist]").forEach((form) => {
     btn.disabled = true;
     btn.textContent = "Saving…";
     const data = Object.fromEntries(f);
-    const mail = fetch("https://formsubmit.co/ajax/" + MAIL_TO, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({
-        ...data,
-        _subject: "O5 Pilates waiting list: " + (data.name || "New entry"),
-        _cc: MAIL_CC,
-        _template: "table",
-        _captcha: "false",
-      }),
-    }).then((r) => r.ok);
-    const sheet = SHEET_URL
-      ? fetch(SHEET_URL, { method: "POST", mode: "no-cors", body: new URLSearchParams(f) }).then(() => true)
-      : Promise.resolve(false);
+    // Sheet and mail run on their own: one failing never stops the other.
+    const [sheetOk, mailOk] = await Promise.all([saveToSheet(data), sendMail(data)]);
     try {
-      const [mailOk, sheetOk] = (await Promise.allSettled([mail, sheet])).map((r) => r.status === "fulfilled" && r.value);
-      if (!mailOk && !sheetOk) throw new Error("not saved");
+      if (!sheetOk && !mailOk) throw new Error("not saved");
       form.reset();
       msg.className = "msg ok";
       msg.textContent = "You're on the list. We'll message you before opening day.";
